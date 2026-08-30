@@ -1,0 +1,306 @@
+/* Styles for playground/theme_editor.py.
+ *
+ * Originally lived inline as ``CSS`` strings on each
+ * widget class; consolidated here to match the chrys project pattern
+ * (``app.py:CSS_PATH = "chrys.tcss"``).  All selectors are widget-type
+ * qualified, so loading this file globally has the same effect as the
+ * per-widget scoping it replaces.
+ *
+ * Loaded by ``ChrysThemeEditorApp.CSS_PATH`` alongside ``chrys.tcss``.
+ */
+
+/* Tiny per-row reset button.  Bold ``$error`` background makes dirty
+   rows stand out.  ``!important`` needed because
+   ``Button.-style-default`` has higher specificity for both
+   ``background`` and ``border``. */
+_ResetButton {
+    height: 1;
+    border-top: hidden !important;
+    border-bottom: hidden !important;
+    background: $error !important;
+    text-style: bold;
+
+    &:hover {
+        tint: $background 25%;
+    }
+    &:focus {
+        background: $warning !important;
+        color: $background;
+        text-style: bold reverse;
+    }
+    &.-active {
+        tint: $background 50%;
+    }
+
+    /* The dirty-state system toggles this class on each per-row reset
+       button: clean rows hide their ``↺`` glyph entirely so the reset
+       becomes its own dirty indicator.  ``visibility: hidden`` keeps
+       the reset column's slot so rows stay aligned. */
+    &.--clean {
+        visibility: hidden;
+    }
+}
+
+/* Shared one-row color swatch.  ``!important`` on borders overrides
+   ``Button``'s default ``tall`` edges. */
+_ColorSwatchButton {
+    height: 1;
+    color: auto;
+    border-top: hidden !important;
+    border-bottom: hidden !important;
+
+    /* ``(not set)`` and non-hex values (``transparent``, ``ansi_X N%``)
+       share styling — explicit transparent background so we don't fall
+       through to ``Button``'s default ``$boost`` (which textual rewrites
+       to opaque on themes without ``panel`` set). */
+    &.--unset, &.--non-hex {
+        background: transparent;
+        color: $foreground 50%;
+        text-style: italic;
+
+        /* The transparent background hides the default Button focus
+           indicator (a tint with nothing to tint).  Paint a translucent
+           primary on focus + restore foreground brightness so keyboard
+           users can see which row they're on. */
+        &:focus {
+            background: $primary 30%;
+            color: $foreground;
+        }
+    }
+
+    &:hover {
+        tint: $background 25%;
+    }
+    &.-active {
+        tint: $background 50%;
+    }
+}
+
+/* Generic color-picker modal — used for named colors, variables, and
+   the chrys-family surface-group fan-out (different callbacks, same UI). */
+_PickerModal {
+    align: center middle;
+
+    /* Modal box is sized for the widest / tallest picker (xterm-256):
+       width 80 = padding(4) + xterm picker(73) + slack(3);
+       height 31 = padding(2) + border(2) + mode row(3) +
+                   xterm picker(23) + slack(1).
+       Resize together with the picker dimensions below. */
+    & > VerticalGroup {
+        width: 80;
+        height: 31;
+        padding: 1 2;
+        border: round $primary;
+        border-title-color: $primary;
+
+        & > #picker-host {
+            width: 1fr;
+            height: 1fr;
+            align: center middle;
+        }
+
+        /* Mode-switch tabs (chrys-ansi only).  Visuals come from the
+           ``.-chrys Tab`` / ``.-chrys-ansi Tab`` rules in chrys.tcss
+           — ``Tabs`` is the canonical "switch between content views"
+           widget, so no extra colour styling needed here. */
+        & > #picker-mode-tabs {
+            margin-bottom: 1;
+        }
+    }
+}
+
+_AnsiTokenPicker {
+    width: 30;
+    height: 17;
+}
+
+_Xterm256PalettePicker {
+    width: 73;
+    /* Pinned to the full-layout row count (len(_XTERM_256_ROWS)).
+       Shorter layouts (BASE / WITH_HINT) pad trailing rows in
+       ``render_line``. */
+    height: 23;
+}
+
+/* Theme export modal — name input + validation message + read-only
+   code preview. */
+_ChrysExportModal {
+    align: center middle;
+
+    & > VerticalGroup {
+        width: 70%;
+        height: 80%;
+        padding: 1 2;
+        border: round $primary;
+        border-title-color: $primary;
+
+        & > HorizontalGroup {
+            height: 3;
+            margin-bottom: 0;
+
+            & > Label {
+                padding: 1;
+                width: auto;
+            }
+
+            & > Input {
+                width: 1fr;
+            }
+        }
+
+        /* Fixed 1-row slot so adding/clearing the validation message
+           doesn't reflow the textarea below.  Keeps error strings
+           short enough to fit on one line. */
+        & > .--error-message {
+            height: 1;
+            color: $error;
+            padding: 0 1;
+        }
+
+        & > TextArea {
+            height: 1fr;
+        }
+    }
+}
+
+/* Editor sidebar.  Docks left of chrys's ChatPanel; holds the named-color
+   rows, canonical variable rows, and "Reset all" / "Export theme" footer. */
+ResettableThemeEditor {
+    dock: left;
+    width: 50;
+    max-width: 30%;
+    padding: 1 1 2 1;
+    /* Parent ``textual_theme_editor.ThemeEditor.DEFAULT_CSS`` sets
+       ``border-right: vkey $foreground 30%`` which renders a faint
+       ``▕`` strip between our editor and chrys's ChatPanel — visible
+       as a third vertical line alongside the two ``round $primary``
+       frames.  ``!important`` reliably beats the parent rule's equal
+       specificity. */
+    border-right: none !important;
+
+    &.-hidden {
+        display: none;
+    }
+
+    & > VerticalScroll {
+        border: round $primary;
+        layout: vertical;
+        scrollbar-size: 1 1;
+        /* Shift the chrys scrollbar palette up one level for this
+           sidebar so it reads as part of the editor accent (which uses
+           ``$primary``).  chrys's normal progression is ``$scrollbar``
+           (secondary blue-gray) → ``$scrollbar-hover`` (primary purple)
+           → ``$scrollbar-active`` (accent pink).  Resting here jumps
+           to the purple level so the scrollbar matches the Theme Editor
+           title and hex-label highlights; hover and active both go to
+           pink for the "you're touching it" cue. */
+        scrollbar-color: $scrollbar;
+        scrollbar-color-hover: $scrollbar-hover;
+        scrollbar-color-active: $scrollbar-active;
+
+        & > .--meta {
+            width: 1fr;
+            padding: 1 1 0 1;
+            text-align: center;
+            color: $foreground 60%;
+        }
+
+        & > .--sync-hint {
+            width: 1fr;
+            height: auto;
+            padding: 0 1;
+            text-align: center;
+            text-style: italic;
+            color: $warning 60%;
+        }
+
+        & > .--section-header {
+            width: 1fr;
+            padding: 1 0 0 0;
+            text-align: center;
+            text-style: underline;
+            color: $primary;
+        }
+
+        & > .--group-header {
+            width: 1fr;
+            padding: 1 0 0 0;
+            text-align: center;
+            text-style: italic;
+            color: $primary;
+        }
+
+        & > VerticalGroup.--rows-grid {
+            layout: grid;
+            grid-size: 3;
+            grid-columns: 1fr 13 3;
+            grid-rows: auto;
+            grid-gutter: 1;
+            height: auto;
+            padding: 1 2 1 1;
+
+            /* Override Button.DEFAULT_CSS's min-width: 16 — we only show
+               7-char hex labels, so 13 (hex + line-pad) is enough and
+               lets the sidebar stay narrow.  Applies to both swatch
+               buttons (variables) and the inherited ``ThemeColorButton``
+               (named colors). */
+            & > Button {
+                min-width: 13;
+                width: 13;
+            }
+
+            /* Long variable names (e.g. ``footer-description-foreground``)
+               wrap onto multiple lines via Label's default
+               ``text-overflow: fold``.  ``height: auto`` plus
+               ``grid-rows: auto`` lets each row grow to fit the wrapped
+               label.  ``content-align: right middle`` keeps the text
+               right-aligned so the right edge of the label always meets
+               the swatch column. */
+            & > Label {
+                width: 1fr;
+                height: auto;
+                padding: 0 1 0 0;
+                text-align: right;
+                text-style: bold;
+                content-align: right middle;
+            }
+
+            & > Button.--reset-color {
+                text-style: bold;
+                min-width: 3;
+                width: 3;
+                line-pad: 1;
+                padding: 0;
+                content-align: center middle;
+            }
+        }
+    }
+
+    & > HorizontalGroup {
+        align-horizontal: center;
+
+        & > Button {
+            margin: 0 1;
+        }
+    }
+
+    /* Shown in place of the editor when the active theme is a built-in
+       ANSI theme — chrys-ansi keeps the full editor.  See the matching
+       ``.--ansi-disabled`` toggle in ``_on_app_theme_change``. */
+    & > .--ansi-notice {
+        display: none;
+        padding: 2 1;
+        text-align: center;
+        color: $foreground 70%;
+        text-style: italic;
+    }
+
+    &.--ansi-disabled > VerticalScroll,
+    &.--ansi-disabled > HorizontalGroup {
+        display: none;
+    }
+
+    &.--ansi-disabled > .--ansi-notice {
+        display: block;
+    }
+}

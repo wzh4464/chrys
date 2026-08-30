@@ -1,0 +1,413 @@
+/* Global Chrys TUI styles.
+ *
+ * Color policy:
+ * - Both ``.-chrys`` and ``.-chrys-ansi`` rules reference theme
+ *   variables (``$primary``, ``$control-background``, ...) so the
+ *   playground theme editor can drive them via theme.py.  Chrys-only
+ *   slots are registered as App-level fallbacks so non-chrys themes
+ *   can still parse this file.
+ * - A few ``.-chrys-ansi`` rules use hardcoded shades (``#262626`` /
+ *   ``#303030`` / ``#585858``) — nearest 256-color approximations of
+ *   chrys's alpha-composited surfaces.  Kept out of theme variables
+ *   on purpose: they belong to the ANSI fallback's visual system,
+ *   not the editable palette.
+ */
+
+MainScreen {
+    background: $background;
+}
+
+ModalScreen {
+    background: $background 60%;
+}
+
+#app-header {
+    dock: top;
+    width: 100%;
+    height: 1;
+    background: $panel;
+    color: $foreground;
+    layers: base overlay;
+}
+
+#header-title {
+    layer: base;
+    width: 100%;
+    height: 1;
+    content-align: center middle;
+    text-wrap: nowrap;
+    text-overflow: ellipsis;
+}
+
+#approval-badge {
+    layer: overlay;
+    dock: right;
+    width: auto;
+    height: 1;
+    text-style: bold;
+    margin-right: 1;
+    pointer: pointer;
+}
+
+#approval-badge.approval-manual {
+    background: $primary;
+    color: $button-color-foreground;
+}
+
+#approval-badge.approval-auto {
+    background: $warning;
+    color: $button-color-foreground;
+}
+
+#approval-badge.approval-bypass {
+    background: $error;
+    color: $button-color-foreground;
+}
+
+#approval-badge:hover,
+#approval-badge:focus,
+#approval-badge.-active {
+    background: $foreground;
+    color: $background;
+}
+
+.-chrys-ansi #approval-badge:hover,
+.-chrys-ansi #approval-badge:focus,
+.-chrys-ansi #approval-badge.-active {
+    color: $button-color-foreground;
+}
+
+.config-add-button {
+    border: solid $tui-border-foreground 20%;
+    background: $foreground 8%;
+    color: $secondary;
+    content-align: center middle;
+    text-align: center;
+}
+
+.config-add-button-compact {
+    border: none;
+}
+
+.config-add-button:hover {
+    background: $foreground;
+    color: $background;
+}
+
+.config-add-button:focus,
+.config-add-button.-active {
+    background: $foreground 8%;
+    color: $secondary;
+}
+
+.config-add-button.config-add-button-compact:focus,
+.config-add-button.config-add-button-compact.-active {
+    border: none;
+}
+
+.-chrys-ansi .config-add-button:hover {
+    background: $foreground;
+    color: $button-color-foreground;
+}
+
+.-chrys-ansi .config-add-button:focus,
+.-chrys-ansi .config-add-button.-active {
+    background: #262626;
+    color: $secondary;
+}
+
+.-chrys-ansi .config-add-button.config-add-button-compact:focus,
+.-chrys-ansi .config-add-button.config-add-button-compact.-active {
+    background: #262626;
+    color: $secondary;
+}
+
+/* Chrys theme overrides */
+
+.-chrys Tab {
+    color: $foreground 75%;
+}
+.-chrys-ansi Tab {
+    color: $foreground 60%;
+    text-style: none;
+}
+.-chrys Tab.-active {
+    color: $foreground;
+    background: $primary 25%;
+    text-style: bold;
+}
+.-chrys-ansi Tab.-active {
+    background: $primary 40%;
+}
+.-chrys .underline--bar {
+    color: $primary;
+}
+/* Textual's Tabs widget raises the underline bar's background from
+   `$foreground 10%` to `$foreground 30%` on focus. Clicking a tab focuses
+   Tabs, so the bar's brightness jumps at the same time the highlight
+   animates, which reads as a flicker. Pin the background to the same value
+   in both states so only the highlight position changes. */
+.-chrys Tabs .underline--bar,
+.-chrys Tabs:focus .underline--bar {
+    background: $foreground 15%;
+}
+
+.-chrys ModalScreen {
+    background: $background 40%;
+}
+
+.-chrys ModalScreen > #container,
+.-chrys ModalScreen > #settings-container,
+.-chrys ModalScreen #confirm-inner {
+    background: $surface;
+}
+
+.-chrys-ansi ModalScreen {
+    background: transparent;
+}
+
+.-chrys-ansi ModalScreen > #container,
+.-chrys-ansi ModalScreen > #settings-container,
+.-chrys-ansi ModalScreen #confirm-inner {
+    background: transparent;
+}
+
+.-chrys FooterKey:hover {
+    text-style: none;
+    background: $control-background;
+}
+.-chrys StatusBar .profile-tag {
+    background: $accent 20%;
+    color: $accent;
+}
+.-chrys-ansi StatusBar .profile-tag {
+    background: $accent 30%;
+}
+.-chrys-ansi StatusBar .selector-label {
+    background: $ansi-background;
+    color: $ansi-foreground;
+}
+.-chrys StatusBar .profile-tag:hover,
+.-chrys StatusBar .profile-tag:focus,
+.-chrys StatusBar .profile-tag.-active {
+    background: $foreground;
+    color: $background;
+}
+
+.-chrys FooterKey.-command-palette {
+    background: $footer-background;
+    border-left: vkey $tui-border-block-hover-background $border-opacity;
+}
+
+.-chrys Button.-style-flat {
+    color: $button-color-foreground;
+}
+.-chrys Button.-style-flat:disabled {
+    background: $control-background;
+    border: block $tui-border-control-background $border-opacity;
+    color: $secondary;
+}
+.-chrys Button.-style-flat.-active {
+    tint: transparent 0%;
+}
+
+.-chrys InputBar > Horizontal > #btn-group > Button {
+    color: $button-color-foreground;
+}
+.-chrys InputBar > Horizontal > #btn-group > Button:hover,
+.-chrys InputBar > Horizontal > #btn-group > Button:focus,
+.-chrys InputBar > Horizontal > #btn-group > Button.-active {
+    background: $foreground;
+    color: $background;
+}
+.-chrys-ansi InputBar > Horizontal > #btn-group > Button:hover,
+.-chrys-ansi InputBar > Horizontal > #btn-group > Button:focus,
+.-chrys-ansi InputBar > Horizontal > #btn-group > Button.-active,
+.-chrys-ansi StatusBar .profile-tag:hover,
+.-chrys-ansi StatusBar .profile-tag:focus,
+.-chrys-ansi StatusBar .profile-tag.-active,
+.-chrys-ansi ErrorMessage > .status-action-row > Button:hover,
+.-chrys-ansi ErrorMessage > .status-action-row > Button:focus,
+.-chrys-ansi ErrorMessage > .status-action-row > Button.-active,
+.-chrys-ansi InterruptedMessage > .status-action-row > Button:hover,
+.-chrys-ansi InterruptedMessage > .status-action-row > Button:focus,
+.-chrys-ansi InterruptedMessage > .status-action-row > Button.-active {
+    color: $button-color-foreground;
+}
+.-chrys InputBar > Horizontal > #btn-group > #new-btn {
+    background: $primary;
+}
+.-chrys InputBar > Horizontal > #btn-group > #send-btn:disabled {
+    text-opacity: 90%;
+}
+
+.-chrys-ansi InputBar > Horizontal > _ChatTextArea .text-area--placeholder {
+    color: $foreground-muted;
+}
+
+.-chrys-ansi #askuser-input .text-area--placeholder,
+.-chrys-ansi #approval-reason .text-area--placeholder {
+    color: $foreground-muted;
+}
+
+.-chrys-ansi ConversationToc > .toc-empty,
+.-chrys-ansi TasksPanel > #tasks-empty,
+.-chrys-ansi BuddyPanel .buddy-empty {
+    color: $foreground-muted;
+}
+
+.-chrys .code_inline {
+    background: transparent;
+}
+
+.-chrys .virtualized-markdown--block-quote {
+    background: $markdown-block-background;
+}
+
+.-chrys .virtualized-markdown--fence {
+    background: $markdown-block-background;
+}
+
+.-chrys .virtualized-markdown--table {
+    background: transparent;
+}
+
+.-chrys ExecuteToolCall > Widget,
+.-chrys GrepToolCall > Widget,
+.-chrys GlobToolCall > Widget,
+.-chrys ReadFileToolCall > Widget,
+.-chrys EditFileToolCall > Widget,
+.-chrys WriteFileToolCall > Widget {
+    background: transparent;
+}
+
+.-chrys DiffView,
+.-chrys .diff-group,
+.-chrys CodeColumn,
+.-chrys AnnotationsColumn {
+    background: transparent;
+}
+
+.-chrys DataTable {
+    background: $background;
+    scrollbar-size: 1 1;
+}
+.-chrys-ansi DataTable {
+    background: transparent;
+}
+
+/* Agent config: card backgrounds and checkbox toggle for chrys-ansi */
+.-chrys-ansi SubAgentCard,
+.-chrys-ansi MCPConnectionCard,
+.-chrys-ansi SkillDirCard,
+.-chrys-ansi MemoryFileCard,
+.-chrys-ansi MemoryFolderCard {
+    background: #262626;
+    border: solid $tui-border-foreground 25%;
+}
+
+.-chrys-ansi #ac-sidebar,
+.-chrys-ansi #mc-sidebar {
+    border-right: solid $tui-border-foreground 25%;
+}
+
+.-chrys-ansi .mc-option-section {
+    border: solid $tui-border-foreground 25%;
+}
+
+/* chrys-ansi: panel-level inputs/textareas/add-buttons normally use
+   ``$foreground 8%`` against the panel; on ansi_default that composes
+   to near-pure black.  Lift them onto an explicit dark-gray instead.
+   Card-nested inputs are unaffected — they already sit on the card's
+   ``#262626`` background, where ``$foreground 8%`` renders correctly. */
+.-chrys-ansi BasicConfigPanel Input,
+.-chrys-ansi BasicConfigPanel EnhancedTextArea,
+.-chrys-ansi InstructionsConfigPanel EnhancedTextArea,
+.-chrys-ansi CompactionConfigPanel Input,
+.-chrys-ansi CompactionConfigPanel EnhancedTextArea,
+.-chrys-ansi InputBar > Horizontal > _ChatTextArea,
+.-chrys-ansi #sa-max-total,
+.-chrys-ansi #sk-timeout,
+.-chrys-ansi .config-add-button,
+.-chrys-ansi #mc-scroll Input {
+    background: #262626;
+}
+
+.-chrys-ansi BasicConfigPanel Input:focus,
+.-chrys-ansi BasicConfigPanel EnhancedTextArea:focus,
+.-chrys-ansi InstructionsConfigPanel EnhancedTextArea:focus,
+.-chrys-ansi CompactionConfigPanel Input:focus,
+.-chrys-ansi CompactionConfigPanel EnhancedTextArea:focus,
+.-chrys-ansi InputBar > Horizontal > _ChatTextArea:focus,
+.-chrys-ansi #sa-max-total:focus,
+.-chrys-ansi #sk-timeout:focus,
+.-chrys-ansi #mc-scroll Input:focus {
+    background: #303030;
+}
+
+.-chrys-ansi Checkbox > .toggle--button {
+    color: #585858;
+    background: #303030;
+}
+
+.-chrys-ansi Checkbox.-on > .toggle--button {
+    color: $success;
+    background: #303030;
+}
+
+.-chrys-ansi ToolsConfigPanel Checkbox.-on > .toggle--button {
+    color: $success;
+    background: $foreground 14%;
+}
+
+.-chrys-ansi #mc-scroll Checkbox > .toggle--button {
+    color: #585858;
+    background: #303030;
+}
+
+.-chrys-ansi #mc-scroll Checkbox.-on > .toggle--button {
+    color: $success;
+    background: $foreground 14%;
+}
+
+.-chrys-ansi #mc-scroll .mc-kv-add-row {
+    width: auto;
+    background: #262626;
+}
+
+/* DataTable headers use the shared block highlight color. */
+.-chrys .datatable--header {
+    background: $block-hover-background;
+    color: $foreground;
+}
+
+.-chrys .option-list--option-highlighted {
+    color: $button-color-foreground;
+}
+
+.-chrys .screen--selection {
+    color: $foreground;
+}
+.-chrys-ansi .screen--selection {
+    color: $foreground;
+}
+
+.-chrys Tooltip {
+    background: $overlay-background;
+    max-width: 90;
+}
+.-chrys Toast {
+    background: $overlay-background;
+}
+
+/* Each Screen owns its own ToastRack (textual/screen.py:1170) and toasts
+   always re-render onto the *active* screen's rack — so a MainScreen-only
+   rule reverts when a modal is pushed.  Apply globally so the gap stays
+   consistent regardless of which screen is on top. */
+#textual-toastrack {
+    margin-bottom: 6;
+}
+
+FooterKey, .profile-tag {
+    transition: background 150ms linear;
+}
