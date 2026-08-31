@@ -1,0 +1,17 @@
+# Copyright (c) 2026 Chrys. All rights reserved.
+
+# Install as either ~/.chrys/hooks/hooks.yaml (merge the hook list) or
+# <project>/.chrys/hooks/hooks.yaml. Do not install the same id in both places.
+version: 1
+hooks:
+  - id: contextgraph-query-service-start
+    event: session_start
+    enabled: true
+    match: { profile: Memory }
+    run:
+      type: script
+      path: scripts/start_query_service.sh
+    execution:
+      mode: blocking
+      timeout_seconds: 90
+      on_error: warn

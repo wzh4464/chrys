@@ -141,6 +141,9 @@ ACP agent such as Claude Code or Codex as one of your sub-agents. **F2** opens a
 editor for all of it. Lifecycle hooks are configured by hand, in `~/.chrys/hooks/hooks.yaml`
 or a project's `.chrys/hooks/hooks.yaml`.
 
+The [`examples/contextgraph-memory`](examples/contextgraph-memory) profile shows how to attach
+a validated ContextGraph experience graph as bounded, read-only, untrusted MCP context.
+
 Built-in agents cannot be deleted. Their **Reset** action restores the bundled profile while
 preserving Skills, MCP, and Memory settings. When any preserved setting differs from the
 bundle, Chrys must keep a full shadow YAML; later bundled changes to other fields remain
