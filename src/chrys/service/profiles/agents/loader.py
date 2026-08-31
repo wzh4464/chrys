@@ -29,6 +29,7 @@ from chrys.service.profiles.agents.schema import (
     MCPServerConfig,
     MemoryConfig,
     ModelConfig,
+    RequirementClarificationConfig,
     ShellFilterConfig,
     SkillConfig,
     SkillResourceConfig,
@@ -549,6 +550,21 @@ def _parse_memory(raw: object) -> MemoryConfig:
     )
 
 
+def _parse_requirement_clarification(raw: object) -> RequirementClarificationConfig:
+    if raw is None:
+        return RequirementClarificationConfig()
+    raw_map = _mapping_section(raw, "requirement_clarification")
+    enabled = raw_map.get("enabled", False)
+    if not isinstance(enabled, bool):
+        msg = "Agent profile field 'requirement_clarification.enabled' must be a boolean"
+        raise AgentProfileLoadError(msg)
+    unknown = set(raw_map) - {"enabled"}
+    if unknown:
+        msg = "Unknown agent profile requirement_clarification field(s): " + ", ".join(sorted(unknown))
+        raise AgentProfileLoadError(msg)
+    return RequirementClarificationConfig(enabled=enabled)
+
+
 def _parse_sub_agents(raw: object) -> SubAgentsConfig:
     if raw is None:
         return SubAgentsConfig()
@@ -656,10 +672,13 @@ def load_profile_from_yaml(path: Path) -> AgentProfile:
             model=_parse_model(data.get("model"), source=str(path)),
             compaction=_parse_compaction(data.get("compaction")),
             memory=_parse_memory(data.get("memory")),
+            requirement_clarification=_parse_requirement_clarification(data.get("requirement_clarification")),
             metadata=data.get("metadata", {}),
         )
         if not acp_present:
             return profile
+        if profile.requirement_clarification.enabled:
+            raise AgentProfileLoadError(f"ACP profile {profile.name!r} cannot enable requirement_clarification")
         if not profile.sub_agent_only:
             logger.warning("ACP profile %s must be sub-agent-only; forcing sub_agent_only=true", profile.name)
         profile.sub_agent_only = True

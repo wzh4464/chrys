@@ -333,6 +333,19 @@ class MemoryConfig:
 
 
 @dataclass
+class RequirementClarificationConfig:
+    """Repository-grounded baseline/clarification/repair workflow.
+
+    The first product version intentionally exposes only the activation
+    switch.  Proposal count, selector count, prompt contract, and rendering
+    bounds are code-owned and versioned together so interactive behavior and
+    evaluation runs cannot silently drift through profile tuning.
+    """
+
+    enabled: bool = False
+
+
+@dataclass
 class AgentProfile:
     """Complete agent profile definition.
 
@@ -365,4 +378,5 @@ class AgentProfile:
     model: ModelConfig = field(default_factory=ModelConfig)
     compaction: CompactionConfig = field(default_factory=CompactionConfig)
     memory: MemoryConfig = field(default_factory=MemoryConfig)
+    requirement_clarification: RequirementClarificationConfig = field(default_factory=RequirementClarificationConfig)
     metadata: dict[str, Any] = field(default_factory=dict)
