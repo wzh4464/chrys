@@ -10,6 +10,8 @@ from pathlib import Path
 import pytest
 from neo4j import READ_ACCESS
 
+from chrys.service.hooks.events import HookEvent
+from chrys.service.hooks.loader import load_hooks_file
 from chrys.service.memory import contextgraph_mcp as memory
 from chrys.service.profiles.agents.loader import load_profile_from_yaml
 
@@ -71,9 +73,10 @@ def test_health_reports_canonical_rule_count(monkeypatch: pytest.MonkeyPatch) ->
 
     driver = FakeDriver()
     monkeypatch.setattr(memory, "_driver", lambda: driver)
-    monkeypatch.setattr(memory, "_run_read", lambda *_args, **_kwargs: [{"count": 2525}])
+    counts = iter(([{"count": 2525}], [{"count": 7}]))
+    monkeypatch.setattr(memory, "_run_read", lambda *_args, **_kwargs: next(counts))
 
-    assert memory._do_health() == "ContextGraph Neo4j is healthy (canonical_rules=2525)."
+    assert memory._do_health() == "ContextGraph Neo4j is healthy (canonical_rules=2525, chrys_trajectories=7)."
     assert driver.connected
 
 
@@ -94,6 +97,8 @@ def test_query_fuses_vector_and_fulltext_results(monkeypatch: pytest.MonkeyPatch
 
     monkeypatch.setattr(memory, "_embed", lambda _query: [0.1, 0.2])
     monkeypatch.setattr(memory, "_run_read", fake_run)
+    monkeypatch.setattr(memory, "_search_experience_vector", lambda *_args: [])
+    monkeypatch.setattr(memory, "_search_experience_fulltext", lambda *_args: [])
 
     result = memory._do_query("port a memory integration", top_k=3)
 
@@ -114,6 +119,8 @@ def test_query_uses_fulltext_when_embedding_is_unavailable(monkeypatch: pytest.M
 
     monkeypatch.setattr(memory, "_embed", lambda _query: None)
     monkeypatch.setattr(memory, "_run_read", fake_run)
+    monkeypatch.setattr(memory, "_search_experience_vector", lambda *_args: [])
+    monkeypatch.setattr(memory, "_search_experience_fulltext", lambda *_args: [])
 
     result = memory._do_query("repository tests")
 
@@ -132,6 +139,8 @@ def test_query_sanitizes_controls_and_deduplicates_items(monkeypatch: pytest.Mon
             {"id": "rule-empty", "text": ""},
         ],
     )
+    monkeypatch.setattr(memory, "_search_experience_vector", lambda *_args: [])
+    monkeypatch.setattr(memory, "_search_experience_fulltext", lambda *_args: [])
 
     result = memory._do_query("task")
 
@@ -142,6 +151,8 @@ def test_query_sanitizes_controls_and_deduplicates_items(monkeypatch: pytest.Mon
 def test_query_empty_and_channel_failures_fail_open(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(memory, "_embed", lambda _query: (_ for _ in ()).throw(RuntimeError("embedding down")))
     monkeypatch.setattr(memory, "_run_read", lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("db down")))
+    monkeypatch.setattr(memory, "_search_experience_vector", lambda *_args: [])
+    monkeypatch.setattr(memory, "_search_experience_fulltext", lambda *_args: [])
 
     assert memory._do_query("") == "No prior ContextGraph memory found."
     assert memory._do_query("anything") == "No prior ContextGraph memory found."
@@ -162,10 +173,12 @@ def test_clamp_top_k(requested: int | str, expected: int) -> None:
 def test_query_result_respects_note_cap(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         memory,
-        "_search_vector",
+        "_search_canonical_vector",
         lambda *_args: [memory._Hit(key=f"rule-{index}", text=f"rule-{index}: " + "x" * 1000) for index in range(20)],
     )
-    monkeypatch.setattr(memory, "_search_fulltext", lambda *_args: [])
+    monkeypatch.setattr(memory, "_search_canonical_fulltext", lambda *_args: [])
+    monkeypatch.setattr(memory, "_search_experience_vector", lambda *_args: [])
+    monkeypatch.setattr(memory, "_search_experience_fulltext", lambda *_args: [])
 
     result = memory._do_query("task", top_k=20)
 
@@ -186,11 +199,54 @@ def test_environment_prefers_contextgraph_settings(monkeypatch: pytest.MonkeyPat
     assert memory._neo4j_auth() == ("contextgraph-user", "contextgraph-password")
 
 
-def test_example_profile_loads_with_read_only_memory_tools() -> None:
+def test_experience_search_filters_chrys_trajectories(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: list[tuple[str, dict[str, object]]] = []
+
+    def fake_read(query: str, parameters: dict[str, object]):
+        seen.append((query, parameters))
+        return [
+            {
+                "id": "frag-1",
+                "description": "Run focused parser tests before the full suite.",
+                "actions": ["pytest parser"],
+                "outcome": "success",
+                "repo": "chrys",
+                "success": True,
+            }
+        ]
+
+    monkeypatch.setattr(memory, "_embed", lambda _query: [0.1, 0.2])
+    monkeypatch.setattr(memory, "_run_read", fake_read)
+
+    vector = memory._search_experience_vector("parser tests", 5)
+    lexical = memory._search_experience_fulltext("parser tests", 5)
+
+    assert vector == lexical
+    assert "ContextGraph trajectory fragment frag-1" in vector[0].text
+    assert "instance_id STARTS WITH 'chrys:'" in seen[0][0]
+    assert seen[0][1] == {"embedding": [0.1, 0.2], "limit": 5, "search_limit": 100}
+    assert seen[1][1] == {"limit": 5, "query": "parser tests", "search_limit": 100}
+
+
+def test_example_profile_loads_with_dynamic_memory_tools() -> None:
     profile_path = Path(__file__).parents[3] / "examples" / "contextgraph-memory" / "Memory.yaml"
 
     profile = load_profile_from_yaml(profile_path)
 
     assert len(profile.tools.mcp) == 1
-    assert profile.tools.mcp[0].allowed_tools == ["team_memory_health", "team_memory_query"]
-    assert "team_memory_record" not in profile.approval.overrides
+    assert profile.tools.mcp[0].allowed_tools == ["team_memory_health", "team_memory_query", "team_memory_record"]
+    assert profile.approval.overrides["team_memory_record"] == "require"
+
+
+def test_example_dynamic_hook_is_durable_after_turn() -> None:
+    hook_path = Path(__file__).parents[3] / "examples" / "contextgraph-memory" / "hooks" / "hooks.yaml"
+
+    hooks = load_hooks_file(hook_path)
+
+    assert len(hooks.hooks) == 1
+    hook = hooks.hooks[0]
+    assert hook.event is HookEvent.AFTER_TURN
+    assert hook.match.profile == "Memory"
+    assert hook.run.argv == ["python", "-m", "chrys.service.memory.contextgraph_deposit"]
+    assert hook.execution.mode == "async"
+    assert hook.execution.delivery == "durable"

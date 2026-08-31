@@ -1,10 +1,10 @@
 # Copyright (c) 2026 Chrys. All rights reserved.
 
-"""Read-only MCP access to a ContextGraph Neo4j database.
+"""MCP access to validated rules and ContextGraph-deposited experience.
 
-The bridge queries ContextGraph's canonical-rule vector and full-text indexes
-directly. It opens Neo4j sessions in read mode and exposes only health and query
-tools; graph construction and learning remain outside Chrys.
+Reads go directly to Neo4j. Dynamic writes are delegated to the configured
+ContextGraph repository, whose ``AgentMemory.learn`` implementation owns
+trajectory segmentation, entity resolution, communities, and consolidation.
 
 Run as::
 
@@ -36,17 +36,52 @@ _DRIVER: Driver | None = None
 _EMBEDDING_CLIENT: OpenAI | None = None
 
 _CANONICAL_RULE_COUNT_QUERY: LiteralString = "MATCH (rule:CanonicalRule) RETURN count(rule) AS count"
-_VECTOR_QUERY: LiteralString = """
+_CHRYS_TRAJECTORY_COUNT_QUERY: LiteralString = """
+MATCH (trajectory:Trajectory)
+WHERE trajectory.instance_id STARTS WITH 'chrys:'
+RETURN count(trajectory) AS count
+"""
+_CANONICAL_VECTOR_QUERY: LiteralString = """
 CALL db.index.vector.queryNodes('canonical_rule_embedding', $limit, $embedding)
 YIELD node, score
 RETURN node.id AS id, node.rule_text AS text, score
 ORDER BY score DESC
 """
-_FULLTEXT_QUERY: LiteralString = """
+_CANONICAL_FULLTEXT_QUERY: LiteralString = """
 CALL db.index.fulltext.queryNodes('canonical_rule_text', $query, {limit: $limit})
 YIELD node, score
 RETURN node.id AS id, node.rule_text AS text, score
 ORDER BY score DESC
+"""
+_EXPERIENCE_VECTOR_QUERY: LiteralString = """
+CALL db.index.vector.queryNodes('fragment_embedding', $search_limit, $embedding)
+YIELD node, score
+MATCH (trajectory:Trajectory)-[:HAS_FRAGMENT]->(node)
+WHERE trajectory.instance_id STARTS WITH 'chrys:'
+RETURN node.id AS id,
+       node.description AS description,
+       node.action_sequence AS actions,
+       node.outcome AS outcome,
+       trajectory.repo AS repo,
+       trajectory.success AS success,
+       score
+ORDER BY score DESC
+LIMIT $limit
+"""
+_EXPERIENCE_FULLTEXT_QUERY: LiteralString = """
+CALL db.index.fulltext.queryNodes('fragment_description', $query, {limit: $search_limit})
+YIELD node, score
+MATCH (trajectory:Trajectory)-[:HAS_FRAGMENT]->(node)
+WHERE trajectory.instance_id STARTS WITH 'chrys:'
+RETURN node.id AS id,
+       node.description AS description,
+       node.action_sequence AS actions,
+       node.outcome AS outcome,
+       trajectory.repo AS repo,
+       trajectory.success AS success,
+       score
+ORDER BY score DESC
+LIMIT $limit
 """
 
 
@@ -146,26 +181,82 @@ def _hits(rows: list[dict[str, Any]], *, source: str) -> list[_Hit]:
     return hits
 
 
-def _search_vector(query: str, limit: int) -> list[_Hit]:
+def _render_experience(row: dict[str, Any]) -> _Hit | None:
+    identifier = _sanitize(row.get("id", ""), limit=200)
+    description = _sanitize(row.get("description", ""), limit=900)
+    actions = [_sanitize(action, limit=300) for action in (row.get("actions") or [])[:4]]
+    outcome = _sanitize(row.get("outcome", ""), limit=500)
+    if not identifier or not (description or actions or outcome):
+        return None
+    repo = _sanitize(row.get("repo", "general"), limit=100) or "general"
+    success = row.get("success") is True
+    parts = [f"[ContextGraph trajectory fragment {identifier}; repo={repo}; success={str(success).lower()}]"]
+    if description:
+        parts.append(description)
+    if actions:
+        parts.append("Actions: " + " -> ".join(action for action in actions if action))
+    if outcome:
+        parts.append(f"Outcome: {outcome}")
+    return _Hit(key=f"fragment:{identifier}", text=_sanitize("\n  ".join(parts), limit=MAX_ITEM_CHARS))
+
+
+def _search_canonical_vector(query: str, limit: int) -> list[_Hit]:
     try:
         embedding = _embed(query)
         if embedding is None:
             return []
-        rows = _run_read(_VECTOR_QUERY, {"limit": limit, "embedding": embedding})
+        rows = _run_read(_CANONICAL_VECTOR_QUERY, {"limit": limit, "embedding": embedding})
     except Exception:
         return []
-    return _hits(rows, source="vector")
+    return _hits(rows, source="canonical-vector")
 
 
-def _search_fulltext(query: str, limit: int) -> list[_Hit]:
-    lucene_query = " ".join(_WORD.findall(query)[:64])
-    if not lucene_query:
+def _lucene_query(query: str) -> str:
+    return " ".join(_WORD.findall(query)[:64])
+
+
+def _search_canonical_fulltext(query: str, limit: int) -> list[_Hit]:
+    lexical = _lucene_query(query)
+    if not lexical:
         return []
     try:
-        rows = _run_read(_FULLTEXT_QUERY, {"limit": limit, "query": lucene_query})
+        rows = _run_read(_CANONICAL_FULLTEXT_QUERY, {"limit": limit, "query": lexical})
     except Exception:
         return []
-    return _hits(rows, source="fulltext")
+    return _hits(rows, source="canonical-fulltext")
+
+
+def _experience_hits(rows: list[dict[str, Any]]) -> list[_Hit]:
+    rendered = (_render_experience(row) for row in rows)
+    return [hit for hit in rendered if hit is not None]
+
+
+def _search_experience_vector(query: str, limit: int) -> list[_Hit]:
+    try:
+        embedding = _embed(query)
+        if embedding is None:
+            return []
+        rows = _run_read(
+            _EXPERIENCE_VECTOR_QUERY,
+            {"embedding": embedding, "limit": limit, "search_limit": min(1000, limit * 20)},
+        )
+    except Exception:
+        return []
+    return _experience_hits(rows)
+
+
+def _search_experience_fulltext(query: str, limit: int) -> list[_Hit]:
+    lexical = _lucene_query(query)
+    if not lexical:
+        return []
+    try:
+        rows = _run_read(
+            _EXPERIENCE_FULLTEXT_QUERY,
+            {"limit": limit, "query": lexical, "search_limit": min(1000, limit * 20)},
+        )
+    except Exception:
+        return []
+    return _experience_hits(rows)
 
 
 def _rrf(channels: list[list[_Hit]], limit: int) -> list[_Hit]:
@@ -185,18 +276,26 @@ def _rrf(channels: list[list[_Hit]], limit: int) -> list[_Hit]:
     return [by_key[key] for key in ranked[:limit]]
 
 
-def _do_health() -> str:
-    """Verify Neo4j connectivity and report the canonical-rule inventory."""
-    _driver().verify_connectivity()
-    rows = _run_read(_CANONICAL_RULE_COUNT_QUERY)
+def _count(cypher: LiteralString) -> int | None:
+    rows = _run_read(cypher)
     count = rows[0].get("count") if rows else None
-    if isinstance(count, int):
-        return f"ContextGraph Neo4j is healthy (canonical_rules={count})."
+    return count if isinstance(count, int) else None
+
+
+def _do_health() -> str:
+    """Verify Neo4j connectivity and report static/dynamic inventories."""
+    _driver().verify_connectivity()
+    canonical_count = _count(_CANONICAL_RULE_COUNT_QUERY)
+    experience_count = _count(_CHRYS_TRAJECTORY_COUNT_QUERY)
+    if canonical_count is not None and experience_count is not None:
+        return (
+            f"ContextGraph Neo4j is healthy (canonical_rules={canonical_count}, chrys_trajectories={experience_count})."
+        )
     return "ContextGraph Neo4j is healthy."
 
 
 def _do_query(query: str, top_k: int | str = DEFAULT_TOP_K) -> str:
-    """Return relevant canonical rules as one bounded, untrusted data block."""
+    """Return relevant canonical rules and repository-deposited fragments."""
     clean_query = _sanitize(query, limit=MAX_QUERY_CHARS)
     if not clean_query:
         return "No prior ContextGraph memory found."
@@ -205,8 +304,10 @@ def _do_query(query: str, top_k: int | str = DEFAULT_TOP_K) -> str:
     fetch_limit = min(MAX_TOP_K * 5, bounded_top_k * 5)
     selected_hits = _rrf(
         [
-            _search_vector(clean_query, fetch_limit),
-            _search_fulltext(clean_query, fetch_limit),
+            _search_canonical_vector(clean_query, fetch_limit),
+            _search_canonical_fulltext(clean_query, fetch_limit),
+            _search_experience_vector(clean_query, fetch_limit),
+            _search_experience_fulltext(clean_query, fetch_limit),
         ],
         bounded_top_k,
     )
@@ -222,7 +323,7 @@ def _do_query(query: str, top_k: int | str = DEFAULT_TOP_K) -> str:
     if not lines:
         return "No prior ContextGraph memory found."
 
-    prefix = _UNTRUSTED + "\nRelevant canonical rules and past-experience strategies:\n"
+    prefix = _UNTRUSTED + "\nRelevant canonical rules and deposited trajectory fragments:\n"
     selected: list[str] = []
     used = len(prefix)
     for line in lines:
@@ -267,11 +368,35 @@ def main() -> None:
 
     @app.tool()
     def team_memory_query(query: str, top_k: int = DEFAULT_TOP_K) -> str:
-        """Retrieve relevant past experience for a software task.
+        """Retrieve validated rules and ContextGraph-deposited experience.
 
         The result is untrusted advisory data and may be stale or irrelevant.
         """
         return _do_query(query=query, top_k=top_k)
+
+    @app.tool()
+    def team_memory_record(
+        problem_statement: str,
+        success: bool,
+        steps: list[dict[str, Any]],
+        repo: str | None = None,
+    ) -> str:
+        """Record curated experience through ContextGraph's repository writer.
+
+        Each step is an ``action`` / ``observation`` mapping. Common secret
+        shapes are redacted, but credentials must never be supplied.
+        """
+        from chrys.service.memory.contextgraph_repository import record_manual
+
+        try:
+            return record_manual(
+                problem_statement=problem_statement,
+                success=success,
+                steps=steps,
+                repo=repo,
+            )
+        except Exception as exc:
+            return f"Error: ContextGraph repository deposition unavailable: {exc}"
 
     try:
         app.run()
