@@ -297,3 +297,329 @@ tests/orchestration/engine/test_requirement_clarification_workflow.py
 ```
 
 这些测试验证的是产品语义和故障边界，不包含真实模型实验或 benchmark 评分。
+
+## 13. TUI 友好的可视化速查
+
+本节使用纯文本图，不依赖 Mermaid、浏览器或图片渲染，可直接在 Chrys TUI 和普通终端中阅读。
+
+### 13.1 合入架构
+
+```text
+                     AgentProfile
+          requirement_clarification.enabled
+                           |
+                           v
++---------------------------------------------------+
+| TurnRunner                                        |
+|                                                   |
+| enabled = false --------> Original Chrys Turn     |
+| enabled = true  --------> Clarification Workflow  |
++---------------------------------------------------+
+                           |
+                           v
++---------------------------------------------------+
+| RequirementClarificationWorkflow                  |
+|                                                   |
+| Owns: H0 / S0 / P0 / revision / phase / fallback |
++---------------------------------------------------+
+       |                 |                  |
+       v                 v                  v
++-------------+   +----------------+   +-------------+
+| Snapshotter |   | Clarification  |   | Executor    |
+|             |   | Service        |   |             |
+| S0 / P0     |   | 3 proposals    |   | P0 / repair |
+| capture     |   | 1 selector     |   | finalization|
+| restore     |   | render Delta-R |   |             |
++-------------+   +----------------+   +-------------+
+       |                 |                  |
+       +-----------------+------------------+
+                         |
+                         v
++---------------------------------------------------+
+| Chrys Existing Infrastructure                     |
+|                                                   |
+| EventBus | TUI | Session | History | Approval     |
+| Tools    | Usage | Trajectory | Rollback           |
++---------------------------------------------------+
+```
+
+### 13.2 完整 turn 时序
+
+```text
+User sends requirement R1
+            |
+            v
++-------------------------+
+| Phase: SNAPSHOT         |
+|                         |
+| Save history H0         |
+| Freeze workspace S0     |
++-------------------------+
+            |
+            v
++-------------------------+
+| Phase: INITIAL_IMPL     |
+|                         |
+| Normal Chrys execution  |
+| R1 + normal tools       |
+| produces baseline P0    |
++-------------------------+
+            |
+            |  TUI shows:
+            |  Baseline candidate (provisional)
+            v
++-------------------------+
+| Freeze P0               |
+|                         |
+| Save P0 workspace       |
+| Save private transcript |
++-------------------------+
+            |
+            v
++---------------------------------------------------+
+| Phase: CLARIFICATION                              |
+|                                                   |
+| Inputs: R1 + bounded H0 text + frozen S0          |
+|                                                   |
+|       +------------+                              |
+|       | Proposal 1 |-- ownership / interfaces     |
+|       +------------+                              |
+|       +------------+                              |
+|       | Proposal 2 |-- data / control flow        |
+|       +------------+                              |
+|       +------------+                              |
+|       | Proposal 3 |-- errors / compatibility     |
+|       +------------+                              |
+|             |                                     |
+|             +-----------+-----------+             |
+|                         v                         |
+|                   +----------+                    |
+|                   | Selector |                    |
+|                   +----------+                    |
+|                         |                         |
+|                         v                         |
+|                 validated Delta-R                 |
++---------------------------------------------------+
+            |
+            v
++---------------------------------------------------+
+| Phase: REPAIR                                     |
+|                                                   |
+| Workspace = P0                                    |
+| History   = H0                                    |
+| Prompt    = R1 + Delta-R                          |
+|                                                   |
+| P0 transcript is NOT inherited                    |
++---------------------------------------------------+
+            |
+            v
++-------------------------+
+| Phase: FINALIZING       |
+|                         |
+| Commit repair history   |
+| Publish final P1        |
+| Clean S0/P0 snapshots   |
++-------------------------+
+            |
+            v
+          P1 final
+```
+
+核心顺序可以压缩为：
+
+```text
+P0 is generated first
+        |
+        |  P0 is hidden from clarification
+        v
+Delta-R is generated only from S0
+        |
+        |  Delta-R is injected into a fresh history
+        v
+Repair starts from P0 files
+```
+
+### 13.3 信息可见性矩阵
+
+```text
++----------------+----------+----------+----------+
+| Information    | P0 Agent | Clarifier| Repair   |
++----------------+----------+----------+----------+
+| User R         | YES      | YES      | YES      |
+| History H0     | YES      | bounded  | YES      |
+| Frozen S0      | live     | YES      | ancestor |
+| P0 files       | creates  | NO       | YES      |
+| P0 transcript  | creates  | NO       | NO       |
+| Private props  | NO       | YES      | NO       |
+| Final Delta-R  | NO       | creates  | YES      |
+| Shell/write    | YES (*)  | NO       | YES (*)  |
+| Network tools  | profile  | NO       | profile  |
++----------------+----------+----------+----------+
+
+(*) 仍然受原 AgentProfile 和 approval policy 管理。
+```
+
+Clarifier 和 repair 读取的是两个不同的 workspace view：
+
+```text
+Live workspace
+     |
+     +---- snapshot before P0 ----> S0 read-only view
+     |                                  |
+     |                                  +--> Proposal agents
+     |                                  +--> Selector agent
+     |
+     +---- P0 modifies here
+                  |
+                  +----------------------> Repair agent
+```
+
+### 13.4 TUI 展示
+
+```text
+User prompt
+    |
+    v
+[Freezing the turn workspace...]
+    |
+    v
+[Building an initial implementation...]
+    |
+    v
++---------------------------------------+
+| Baseline candidate (provisional)      |
+|                                       |
+| P0 response text                      |
++---------------------------------------+
+    |
+    v
+[Clarifying repository requirements...]
+    |
+    v
+[Repairing the initial implementation...]
+    |
+    v
++---------------------------------------+
+| Final answer                          |
+|                                       |
+| P1 response text                      |
++---------------------------------------+
+```
+
+P0 的 presentation event 不会提前终止逻辑 turn：
+
+```text
+is_provisional = true
+is_final       = false
+phase          = initial_implementation
+```
+
+### 13.5 用户 amendment
+
+```text
+Initial requirement
+       R1
+        |
+        v
+  Clarification rev=1
+        |
+        | user injects R2
+        v
+   Rv = [R1, R2]
+   revision = 2
+        |
+        +--> discard stale Delta-R rev=1
+        |
+        +--> regenerate Delta-R rev=2
+        |
+        +--> repair from clean P0
+```
+
+如果 amendment 出现在 repair 期间：
+
+```text
+Repair rev=1 running
+        |
+        | user amendment R2
+        v
+Interrupt repair rev=1
+        |
+        v
+Restore P0 workspace
+Restore P0 checkpoint
+        |
+        v
+Regenerate Delta-R rev=2
+        |
+        v
+Start repair rev=2
+```
+
+### 13.6 P0 fallback
+
+```text
+                         +--> Delta-R empty --------+
+                         |                          |
+                         +--> Clarifier failed -----+
+                         |                          |
+P0 completed ------------+--> Schema invalid -------+--> Promote P0
+                         |                          |
+                         +--> Repair failed --------+
+                         |                          |
+                         +--> Repair interrupted ---+
+                                                    |
+                                                    v
+                                      P0 becomes final answer
+```
+
+```text
+S0 failed  ---> degrade to original Chrys turn
+P0 failed  ---> finish as failed
+P0 success ---> always retain P0 as fallback
+```
+
+### 13.7 崩溃恢复
+
+```text
+Process crashes after P0
+          |
+          v
+Session restore
+          |
+          v
+Find non-terminal workflow.json
+          |
+          v
+Load saved P0 snapshot
+          |
+          +--- live workspace != P0 ---> CONFLICTED
+          |                              leave files untouched
+          |
+          +--- live workspace == P0 ---> restore P0 history
+                                         clear remote continuation
+                                         promote P0 safely
+```
+
+### 13.8 产品与实验边界
+
+```text
+variant_clarification
+        |
+        | concepts adapted
+        v
++-------------------------------------+
+| Chrys product implementation        |
+|                                     |
+| S0 -> P0 -> Delta-R -> repair       |
+| profile / events / TUI / recovery   |
++-------------------------------------+
+
++-------------------------------------+
+| Experiment layer: NOT implemented   |
+|                                     |
+| fixed-P0 paired runs                |
+| baseline vs candidate               |
+| DeepSWE evaluation                  |
+| verifier / reports / statistics     |
++-------------------------------------+
+```
