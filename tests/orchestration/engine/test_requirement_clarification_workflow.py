@@ -17,7 +17,10 @@ from chrys.foundation.events.bus import EventBus
 from chrys.foundation.events.types import AgentMessage, RequirementClarificationPhaseChanged
 from chrys.foundation.models.workspace import Workspace
 from chrys.kernel import Message
-from chrys.orchestration.engine.run.requirement_clarification import RequirementClarificationWorkflow
+from chrys.orchestration.engine.run.requirement_clarification import (
+    RequirementClarificationWorkflow,
+    _history_background,
+)
 from chrys.service.requirement_clarification.snapshot import WorkspaceSnapshot
 from chrys.service.requirement_clarification.types import (
     ClarificationResult,
@@ -146,6 +149,18 @@ def _result() -> ClarificationResult:
         delta="Repository implementation guidance:\n- wire the option",
         selection=ClarificationSelection(),
     )
+
+
+def test_history_background_uses_only_user_and_assistant_text() -> None:
+    state = {
+        "compressed_msgs": [SimpleNamespace(messages=[Message("user", ["older requirement"])])],
+        "messages": [
+            Message("tool", ["private tool result"]),
+            Message("assistant", ["prior answer"]),
+        ],
+    }
+
+    assert _history_background(state) == "user: older requirement\nassistant: prior answer"
 
 
 @pytest.mark.asyncio

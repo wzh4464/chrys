@@ -160,6 +160,7 @@ class RequirementClarificationWorkflow:
             artifacts = ClarificationArtifactStore(session_dir, host._turn_number + 1)
             self._artifacts = artifacts
             h0 = executor.snapshot_history()
+            history_background = _history_background(executor.history_state)
             artifacts.save_history_checkpoint(
                 {
                     "history": serialize_state(executor.history_state),
@@ -280,7 +281,7 @@ class RequirementClarificationWorkflow:
                     )
                     result = await ClarificationService(model).clarify(
                         revision=revision,
-                        background=_history_background(h0.messages),
+                        background=history_background,
                         snapshot=s0,
                     )
                 except Exception as exc:
@@ -474,8 +475,22 @@ class RequirementClarificationWorkflow:
         )
 
 
-def _history_background(messages: list[Message]) -> str:
-    rows = [f"{message.role}: {message.text}" for message in messages[-20:] if message.text]
+def _history_background(history_state: dict[str, Any]) -> str:
+    messages: list[Message] = []
+    for block in history_state.get("compressed_msgs", []):
+        block_messages = getattr(block, "messages", None)
+        if isinstance(block_messages, list):
+            messages.extend(message for message in block_messages if isinstance(message, Message))
+    live = history_state.get("messages", [])
+    if isinstance(live, list):
+        messages.extend(message for message in live if isinstance(message, Message))
+    rows = [
+        f"{message.role}: {message.text}"
+        for message in messages[-40:]
+        if message.role in {"user", "assistant"}
+        and message.text
+        and not message.additional_properties.get("_chrys_kind")
+    ]
     return "\n".join(rows)[-12_000:]
 
 
