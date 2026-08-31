@@ -65,9 +65,16 @@ presence without printing either value, and writes `manifest.json`. Review that 
 To run both arms, repeat the command with `--execute`. To run only one arm, add `--arm control` or
 `--arm clarification`. Default concurrency is two; change it with `--concurrency`.
 
-If a process stops after the Harbor job directory exists, repeat the same command with `--execute --resume`. Harbor
-will continue its recorded job rather than creating a replacement. The runner refuses to overwrite any job unless
-resume was explicitly selected.
+Use `--execute --resume` only for a Harbor job whose recorded stats contain no running trials. The runner checks this
+boundary and refuses to resume a job with `n_running_trials > 0`: Harbor may otherwise replace an orphaned trial with
+a fresh trial and make an unintended second model call. Inspect or recover the existing trial first. The runner also
+refuses to overwrite any job unless resume was explicitly selected.
+
+Chrys stdout, stderr, exit status, and `model.patch` are written inside the task container before the Harbor adapter
+returns. While Chrys is running, stdout and stderr use `.tmp` names; completion atomically renames them, writes
+`chrys.returncode`, and captures the Git diff. This preserves the agent result when the controlling Harbor process
+disappears while awaiting the agent, although Harbor's own trial/result bookkeeping still requires its controller to
+remain alive through verification.
 
 Each trial retains:
 
@@ -79,6 +86,14 @@ Each trial retains:
 
 The API key is passed as an execution environment value, never a command argument. Project dotenv loading is disabled
 inside the task container, so repository-controlled `.env` files cannot replace the key or routing configuration.
+
+### Verified single-task smoke run
+
+The corrected path was exercised on the real DeepSWE task `anko-default-function-arguments` with the clarification
+arm, commit `ce92599`, binary SHA-256
+`00aa6e2fc95c1d117bddf5bd3a4610400ce7b4c61ec00c14f20afff501333603`, and the pinned
+`deepseek/deepseek-v4-pro-0813` model. The workflow returned P0 after an empty ΔR, persisted an 18,507-byte patch, and
+Harbor completed without retry or exception. The verifier reported reward `1`, F2P `2/2`, and P2P `119/119`.
 
 ## 2. Summarize and compare
 
