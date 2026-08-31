@@ -28,6 +28,10 @@ _REMOTE_HOME = f"{_REMOTE_ROOT}/home"
 _REMOTE_BINARY = f"{_REMOTE_ROOT}/bin/chrys"
 _REMOTE_AGENT_PROFILE = f"{_REMOTE_HOME}/.chrys/agents/DeepSWEEvaluation.yaml"
 _REMOTE_MODEL_PROFILE = f"{_REMOTE_HOME}/.chrys/models/{MODEL_PROFILE_ID}.yaml"
+_REMOTE_STDOUT = f"{EnvironmentPaths.agent_dir.as_posix()}/chrys.stdout.json"
+_REMOTE_STDERR = f"{EnvironmentPaths.agent_dir.as_posix()}/chrys.stderr.log"
+_REMOTE_RETURN_CODE = f"{EnvironmentPaths.agent_dir.as_posix()}/chrys.returncode"
+_REMOTE_MODEL_PATCH = f"{EnvironmentPaths.artifacts_dir.as_posix()}/model.patch"
 _USAGE_READ_ERRORS = (OSError, UnicodeError, json.JSONDecodeError)
 
 
@@ -145,11 +149,26 @@ class ChrysHarborAgent(BaseAgent):
                 "--json",
             )
         )
-        result = await environment.exec(command, env=self._runtime_env())
-        stdout = result.stdout or ""
-        stderr = result.stderr or ""
-        (self.logs_dir / "chrys.stdout.json").write_text(stdout, encoding="utf-8")
-        (self.logs_dir / "chrys.stderr.log").write_text(stderr, encoding="utf-8")
+        # Capture the result inside the task container.  Harbor's controlling
+        # process can disappear while ``environment.exec`` is awaiting Chrys;
+        # the shell and Chrys may still finish, so host-side post-processing is
+        # not a durable completion boundary.
+        durable_command = (
+            f"set +e; {command} > {_REMOTE_STDOUT}.tmp 2> {_REMOTE_STDERR}.tmp; "
+            "chrys_rc=$?; "
+            f"mv {_REMOTE_STDOUT}.tmp {_REMOTE_STDOUT}; "
+            f"mv {_REMOTE_STDERR}.tmp {_REMOTE_STDERR}; "
+            f"git -C /app diff --binary > {_REMOTE_MODEL_PATCH}.tmp; "
+            f"mv {_REMOTE_MODEL_PATCH}.tmp {_REMOTE_MODEL_PATCH}; "
+            f"printf '%s\\n' \"$chrys_rc\" > {_REMOTE_RETURN_CODE}.tmp; "
+            f"mv {_REMOTE_RETURN_CODE}.tmp {_REMOTE_RETURN_CODE}; "
+            'exit "$chrys_rc"'
+        )
+        result = await environment.exec(durable_command, env=self._runtime_env())
+        stdout_path = self.logs_dir / "chrys.stdout.json"
+        stderr_path = self.logs_dir / "chrys.stderr.log"
+        stdout = stdout_path.read_text(encoding="utf-8") if stdout_path.is_file() else result.stdout or ""
+        stderr = stderr_path.read_text(encoding="utf-8") if stderr_path.is_file() else result.stderr or ""
 
         session_id: str | None = None
         if stdout.strip():

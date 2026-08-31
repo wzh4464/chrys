@@ -20,9 +20,33 @@ from evaluation.requirement_clarification.protocol import (
     render_paired_agent_profiles,
     sha256_file,
 )
+from evaluation.requirement_clarification.run_pair import _assert_job_is_resumable
 from evaluation.requirement_clarification.summarize import compare_jobs, summarize_job
 
 from tests.support.paths import REPO_ROOT
+
+
+def test_resume_rejects_job_with_running_trial(tmp_path: Path) -> None:
+    job = tmp_path / "job"
+    job.mkdir()
+    (job / "result.json").write_text(
+        json.dumps({"stats": {"n_running_trials": 1}}),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(RuntimeError, match="refusing to resume Harbor job with 1 running trial"):
+        _assert_job_is_resumable(job)
+
+
+def test_resume_allows_job_without_running_trials(tmp_path: Path) -> None:
+    job = tmp_path / "job"
+    job.mkdir()
+    (job / "result.json").write_text(
+        json.dumps({"stats": {"n_running_trials": 0, "n_pending_trials": 1}}),
+        encoding="utf-8",
+    )
+
+    _assert_job_is_resumable(job)
 
 
 def test_rendered_profiles_are_a_strict_feature_flag_pair(tmp_path: Path) -> None:

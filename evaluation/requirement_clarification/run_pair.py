@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import shutil
 import subprocess
@@ -27,6 +28,24 @@ from evaluation.requirement_clarification.protocol import (
     validate_run_id,
     write_json,
 )
+
+
+def _assert_job_is_resumable(job_dir: Path) -> None:
+    """Reject Harbor resume when it would replace an orphaned live trial."""
+    result_path = job_dir / "result.json"
+    if not result_path.is_file():
+        return
+    try:
+        result = json.loads(result_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"cannot safely inspect existing Harbor job: {result_path}") from exc
+    stats = result.get("stats") if isinstance(result, dict) else None
+    running = stats.get("n_running_trials", 0) if isinstance(stats, dict) else 0
+    if isinstance(running, int) and running > 0:
+        raise RuntimeError(
+            f"refusing to resume Harbor job with {running} running trial(s): {job_dir}; "
+            "resume can replace an orphaned completed agent with a new model run"
+        )
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -214,6 +233,7 @@ def main(argv: list[str] | None = None) -> int:
         if job_dir.exists():
             if not args.resume:
                 raise FileExistsError(f"refusing to overwrite existing Harbor job: {job_dir}")
+            _assert_job_is_resumable(job_dir)
             resume_command = [str(harbor_binary), "jobs", "resume", "--job-path", str(job_dir)]
             sys.stdout.write(f"Resuming {arm} arm: {job_dir.name}\n")
             subprocess.run(resume_command, cwd=harbor_repo, env=environment, check=True)  # noqa: S603
