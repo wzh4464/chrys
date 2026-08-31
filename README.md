@@ -86,6 +86,17 @@ the profile or in your shell. Chrys also reads `~/.chrys/.env`, whose values ove
 shell; `chrys acp` additionally loads the `.env` of the directory it is launched in. Keep
 keys out of any `.env` a repo might commit.
 
+Deployments that must never contact a different model can set a fail-closed wire-identity
+lock. The check runs in the shared client factory, so it also covers sub-agents, approval
+judges, session-title generation, compaction, and other side calls:
+
+```dotenv
+CHRYS_MODEL_LOCK='{"provider":"openai","api_style":"chat_completions","base_url":"https://openrouter.ai/api/v1","model_id":"deepseek/deepseek-v4-pro-0813"}'
+```
+
+An absent lock leaves normal profile selection unchanged. A present but malformed lock, or
+any mismatch in the four fields, stops client construction before a request is sent.
+
 ## Run it
 
 ```bash
