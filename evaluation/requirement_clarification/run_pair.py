@@ -24,6 +24,7 @@ from evaluation.requirement_clarification.protocol import (
     fingerprints_as_dict,
     read_secrets_env,
     render_paired_agent_profiles,
+    validate_run_id,
     write_json,
 )
 
@@ -146,6 +147,7 @@ def main(argv: list[str] | None = None) -> int:
     chrys_binary = args.chrys_binary.resolve(strict=True)
     secrets_path = args.secrets.resolve(strict=True)
     output_dir = args.output_dir.resolve()
+    run_id = validate_run_id(args.run_id)
     if args.concurrency < 1:
         raise ValueError("--concurrency must be positive")
 
@@ -160,13 +162,13 @@ def main(argv: list[str] | None = None) -> int:
     )
     model_profile = repo_root / "evaluation/requirement_clarification/profiles" / f"{MODEL_PROFILE_ID}.yaml"
     jobs_dir = output_dir / "jobs"
-    arms = tuple(args.arms or ARMS)
+    arms = tuple(dict.fromkeys(args.arms or ARMS))
     commands = {
         arm: build_harbor_command(
             harbor_binary=harbor_binary,
             dataset=dataset,
             jobs_dir=jobs_dir,
-            job_name=f"{args.run_id}-{arm}",
+            job_name=f"{run_id}-{arm}",
             chrys_binary=chrys_binary,
             agent_profile=profiles[arm],
             model_profile=model_profile,
@@ -180,7 +182,7 @@ def main(argv: list[str] | None = None) -> int:
         "schema_version": 1,
         "protocol": "chrys-deepswe-requirement-clarification-v1",
         "created_at": datetime.now(UTC).isoformat(),
-        "run_id": args.run_id,
+        "run_id": run_id,
         "chrys_revision": revision,
         "dataset": str(dataset),
         "tasks": fingerprints_as_dict(tasks),
@@ -208,7 +210,7 @@ def main(argv: list[str] | None = None) -> int:
     python_path = environment.get("PYTHONPATH")
     environment["PYTHONPATH"] = str(repo_root) if not python_path else f"{repo_root}{os.pathsep}{python_path}"
     for arm, command in commands.items():
-        job_dir = jobs_dir / f"{args.run_id}-{arm}"
+        job_dir = jobs_dir / f"{run_id}-{arm}"
         if job_dir.exists():
             if not args.resume:
                 raise FileExistsError(f"refusing to overwrite existing Harbor job: {job_dir}")

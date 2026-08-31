@@ -29,6 +29,10 @@ class TrialRecord:
     clarification_outcome: str | None
     clarification_delta_sha256: str | None
     agent_metadata: dict[str, object]
+    input_tokens: int | None
+    cache_tokens: int | None
+    output_tokens: int | None
+    cost_usd: float | None
     attempts: int
 
 
@@ -79,6 +83,21 @@ def _agent_metadata(result: dict[str, Any]) -> dict[str, object]:
         return {}
     metadata = agent_result.get("metadata")
     return dict(metadata) if isinstance(metadata, dict) else {}
+
+
+def _agent_result(result: dict[str, Any]) -> dict[str, Any]:
+    agent_result = result.get("agent_result")
+    return agent_result if isinstance(agent_result, dict) else {}
+
+
+def _int_agent_metric(result: dict[str, Any], key: str) -> int | None:
+    value = _agent_result(result).get(key)
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
+
+
+def _float_agent_metric(result: dict[str, Any], key: str) -> float | None:
+    value = _agent_result(result).get(key)
+    return float(value) if isinstance(value, int | float) and not isinstance(value, bool) else None
 
 
 def _clarification_artifacts(trial_dir: Path) -> tuple[str | None, str | None]:
@@ -150,6 +169,10 @@ def load_job(job_dir: Path) -> dict[str, TrialRecord]:
             clarification_outcome=outcome,
             clarification_delta_sha256=delta_sha256,
             agent_metadata=_agent_metadata(result),
+            input_tokens=_int_agent_metric(result, "n_input_tokens"),
+            cache_tokens=_int_agent_metric(result, "n_cache_tokens"),
+            output_tokens=_int_agent_metric(result, "n_output_tokens"),
+            cost_usd=_float_agent_metric(result, "cost_usd"),
             attempts=attempt_count,
         )
     return records
@@ -165,6 +188,10 @@ def _record_dict(record: TrialRecord) -> dict[str, object]:
         "clarification_outcome": record.clarification_outcome,
         "clarification_delta_sha256": record.clarification_delta_sha256,
         "agent_metadata": record.agent_metadata,
+        "input_tokens": record.input_tokens,
+        "cache_tokens": record.cache_tokens,
+        "output_tokens": record.output_tokens,
+        "cost_usd": record.cost_usd,
         "attempts": record.attempts,
     }
 

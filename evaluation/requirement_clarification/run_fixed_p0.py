@@ -20,6 +20,7 @@ from evaluation.requirement_clarification.protocol import (
     fingerprints_as_dict,
     read_secrets_env,
     render_paired_agent_profiles,
+    validate_run_id,
     write_json,
 )
 from evaluation.requirement_clarification.run_pair import _git_revision, _harbor_binary, build_harbor_command
@@ -50,6 +51,7 @@ def main(argv: list[str] | None = None) -> int:
     materialization_manifest = args.materialization_manifest.resolve(strict=True)
     chrys_binary = args.chrys_binary.resolve(strict=True)
     output_dir = args.output_dir.resolve()
+    run_id = validate_run_id(args.run_id)
     if args.concurrency < 1:
         raise ValueError("--concurrency must be positive")
 
@@ -63,7 +65,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     model_profile = repo_root / "evaluation/requirement_clarification/profiles" / f"{MODEL_PROFILE_ID}.yaml"
     jobs_dir = output_dir / "jobs"
-    job_name = f"{args.run_id}-{REPAIR_ARM}"
+    job_name = f"{run_id}-{REPAIR_ARM}"
     command = build_harbor_command(
         harbor_binary=harbor_binary,
         dataset=dataset,
@@ -79,7 +81,7 @@ def main(argv: list[str] | None = None) -> int:
     manifest = {
         "schema_version": 1,
         "protocol": "chrys-deepswe-fixed-p0-repair-v1",
-        "run_id": args.run_id,
+        "run_id": run_id,
         "chrys_revision": revision,
         "dataset": str(dataset),
         "tasks": fingerprints_as_dict(tasks),

@@ -28,6 +28,7 @@ _REMOTE_HOME = f"{_REMOTE_ROOT}/home"
 _REMOTE_BINARY = f"{_REMOTE_ROOT}/bin/chrys"
 _REMOTE_AGENT_PROFILE = f"{_REMOTE_HOME}/.chrys/agents/DeepSWEEvaluation.yaml"
 _REMOTE_MODEL_PROFILE = f"{_REMOTE_HOME}/.chrys/models/{MODEL_PROFILE_ID}.yaml"
+_USAGE_READ_ERRORS = (OSError, UnicodeError, json.JSONDecodeError)
 
 
 class ChrysHarborAgent(BaseAgent):
@@ -101,7 +102,26 @@ class ChrysHarborAgent(BaseAgent):
             "CHRYS_MODEL_LOCK": expected_model_lock(),
             "CHRYS_SESSION_ROOT_DIR": f"{EnvironmentPaths.agent_dir.as_posix()}/chrys-sessions",
             "CHRYS_DEFAULT_APPROVAL_MODE": "bypass",
+            "PYTHON_DOTENV_DISABLED": "1",
         }
+
+    def _record_usage(self, context: AgentContext) -> None:
+        session_files = sorted((self.logs_dir / "chrys-sessions").glob("*/session.json"))
+        if not session_files:
+            return
+        try:
+            payload = json.loads(session_files[-1].read_text(encoding="utf-8"))
+        except _USAGE_READ_ERRORS:
+            return
+        state = payload.get("state") if isinstance(payload, dict) else None
+        if not isinstance(state, dict):
+            return
+        input_tokens = state.get("total_session_input_tokens")
+        output_tokens = state.get("total_session_output_tokens")
+        cache_tokens = state.get("total_session_cache_hit_tokens")
+        context.n_input_tokens = input_tokens if isinstance(input_tokens, int) else None
+        context.n_output_tokens = output_tokens if isinstance(output_tokens, int) else None
+        context.n_cache_tokens = cache_tokens if isinstance(cache_tokens, int) else None
 
     @override
     async def run(self, instruction: str, environment: BaseEnvironment, context: AgentContext) -> None:
@@ -152,6 +172,7 @@ class ChrysHarborAgent(BaseAgent):
             "return_code": result.return_code,
         }
         context.metadata = metadata
+        self._record_usage(context)
         write_json(self.logs_dir / "experiment.json", metadata)
         if result.return_code != 0:
             detail = stderr.strip()[-4000:] or stdout.strip()[-4000:] or "no output"

@@ -7,7 +7,9 @@
 
 本次合入没有把 `variant_clarification` 的实验 runner 原样嵌入 Chrys，而是保留其 Route A
 语义，将产品能力拆入 Chrys 既有的 profile、service、orchestration、event、TUI、session 和
-trajectory 边界。DeepSWE/SWE 评估、批量实验、报表和 benchmark 调度没有进入发行路径。
+trajectory 边界。DeepSWE 评估、批量调度和报表仍未进入 `src/chrys` 发行路径；它们现在作为独立实验层放在
+[`evaluation/requirement_clarification/`](evaluation/requirement_clarification/README.md)，通过公开的
+`chrys run` 入口验证这里描述的产品行为。
 
 当前功能是“内部、仓库证据驱动的需求补充”，不是“主动向用户提问并等待回答”的交互式澄清。
 

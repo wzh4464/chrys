@@ -169,6 +169,13 @@ def normalized_model_lock(raw: str) -> str:
     return json.dumps(parsed, separators=(",", ":"), sort_keys=True)
 
 
+def validate_run_id(value: str) -> str:
+    """Accept a portable single-component run label."""
+    if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", value) is None:
+        raise ValueError("run id must be one filename-safe component")
+    return value
+
+
 def read_secrets_env(path: Path) -> dict[str, str]:
     """Read the small experiment dotenv file without returning unrelated values."""
     values: dict[str, str] = {}

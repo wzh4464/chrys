@@ -8,7 +8,9 @@ import json
 import tomllib
 from pathlib import Path
 
+import pytest
 import yaml
+from evaluation.requirement_clarification import build_fixed_p0_images
 from evaluation.requirement_clarification.materialize_fixed_p0 import main as materialize_fixed_p0
 from evaluation.requirement_clarification.protocol import (
     CANDIDATE_ARM,
@@ -16,6 +18,7 @@ from evaluation.requirement_clarification.protocol import (
     expected_model_lock,
     read_secrets_env,
     render_paired_agent_profiles,
+    sha256_file,
 )
 from evaluation.requirement_clarification.summarize import compare_jobs, summarize_job
 
@@ -134,3 +137,45 @@ def test_fixed_p0_materialization_uses_control_patch_and_candidate_delta(tmp_pat
     assert "Require stable compatibility." in instruction
     rendered_task = tomllib.loads((output / "dataset/task-one/task.toml").read_text(encoding="utf-8"))
     assert rendered_task["environment"]["docker_image"] == "chrys/deepswe-fixed-p0:task-one"
+
+
+def test_fixed_p0_builder_revalidates_reviewed_context(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    context = tmp_path / "image-contexts/task-one"
+    context.mkdir(parents=True)
+    patch = context / "model.patch"
+    patch.write_text("reviewed patch\n", encoding="utf-8")
+    (context / "Dockerfile").write_text("FROM scratch\n", encoding="utf-8")
+    image = "chrys/deepswe-fixed-p0:task-one"
+    base = "example/source@sha256:abc"
+    command = ["docker", "build", "--build-arg", f"BASE_IMAGE={base}", "-t", image, str(context)]
+    manifest = {
+        "protocol": "chrys-deepswe-fixed-p0-repair-v1",
+        "tasks": {
+            "task-one": {
+                "base_image": base,
+                "fixed_p0_image": image,
+                "control_patch_sha256": sha256_file(patch),
+            }
+        },
+        "docker_commands": {"task-one": command},
+    }
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    invoked: list[list[str]] = []
+
+    def fake_which(command_name: str) -> str:
+        assert command_name == "docker"
+        return "/usr/bin/docker"
+
+    def fake_run(command_parts: list[str], *, check: bool) -> None:
+        assert check
+        invoked.append(command_parts)
+
+    monkeypatch.setattr(build_fixed_p0_images.shutil, "which", fake_which)
+    monkeypatch.setattr(build_fixed_p0_images.subprocess, "run", fake_run)
+
+    assert build_fixed_p0_images.main(["--manifest", str(manifest_path)]) == 0
+    assert invoked == [["/usr/bin/docker", *command[1:]]]
