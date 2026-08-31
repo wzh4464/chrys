@@ -1,10 +1,9 @@
 # ContextGraph read-only memory integration
 
 This example ports the ContextGraph integration from the earlier Chrys repository
-to the current architecture. Chrys owns a small MCP bridge; ContextGraph continues
-to own Neo4j, embeddings, and retrieval. The validated graph is queried read-only:
-there is no `/learn`, session-end recording, graph construction, or consolidation
-in this integration.
+to the current architecture. Chrys includes the Neo4j driver and queries the
+validated graph directly over Bolt. No ContextGraph checkout or HTTP query service
+is required at runtime, and the MCP surface contains no learning or write tool.
 
 The reference selected-Harbor snapshot was built from agent-visible trajectory and
 verifier evidence only—no gold patches, reference solutions, or hidden tests. Its
@@ -29,29 +28,30 @@ with ContextGraph's `scripts/capbench/build_selected_harbor_graph.py`.
 
 ## Architecture
 
-1. `contextgraph_pro_server.py` runs from a ContextGraph checkout, connects to the
-   existing Neo4j graph, embeds the task query, and retrieves `CanonicalRule` nodes.
-2. `chrys.service.memory.contextgraph_mcp` calls its loopback
-   `/query_memory_items` endpoint and exposes `team_memory_health` and
-   `team_memory_query` over MCP stdio.
-3. The MCP bridge removes control characters, deduplicates items, caps each item
-   and the combined result, and frames all retrieved content as untrusted data.
+1. `chrys.service.memory.contextgraph_mcp` connects to Neo4j with the pinned
+   `neo4j` dependency and opens every query session with `READ_ACCESS`.
+2. The vector channel embeds the task with `text-embedding-3-large` and queries
+   `canonical_rule_embedding`. The BM25 channel queries `canonical_rule_text`.
+3. Reciprocal-rank fusion combines both result lists. If embeddings are not
+   configured or one channel fails, the other channel continues independently.
+4. The bridge removes control characters, deduplicates rules, caps each item and
+   the combined result, frames it as untrusted data, and exposes only
+   `team_memory_health` and `team_memory_query` over MCP stdio.
 
-The query API is read-only. ContextGraph's normal `AgentMemory` initialization may
-idempotently ensure indexes exist, but this workflow creates no trajectory,
-fragment, strategy, or canonical-rule data.
+The code issues only `MATCH`, vector-index, and full-text-index queries. It does
+not initialize schemas or create trajectories, fragments, strategies, rules,
+relationships, constraints, or indexes.
 
 ## Prerequisites
 
-- A ContextGraph checkout with `scripts/baselines/contextgraph_pro_server.py` and
-  dependencies installed with `uv sync --extra dev`.
-- The validated Neo4j graph already running (default Bolt URI above).
-- The same OpenAI-compatible embedding model used during construction:
-  `text-embedding-3-large`, dimension 3,072.
-- `curl` for the optional POSIX startup hook.
+- The validated Neo4j graph already running at the configured Bolt URI.
+- Neo4j credentials in `~/.chrys/.env`.
+- For vector retrieval, an OpenAI-compatible endpoint serving the same embedding
+  model used during construction: `text-embedding-3-large`, dimension 3,072.
+  Without it, BM25 retrieval remains available.
 
-Keep Neo4j and embedding credentials in the ContextGraph checkout's `.env` or
-`~/.chrys/.env`; never put real values in the profile or repository.
+The published Chrys wheel now carries the Neo4j driver. Keep database and embedding
+credentials out of profiles and repositories.
 
 ## Install
 
@@ -59,37 +59,22 @@ Keep Neo4j and embedding credentials in the ContextGraph checkout's `.env` or
 2. Copy `Memory.yaml` to `~/.chrys/agents/Memory.yaml`. If `python` there does
    not resolve to the Chrys runtime, replace it with that runtime's absolute
    executable path.
-3. Either start the query service manually from the ContextGraph checkout:
-
-   ```bash
-   NEO4J_URI=bolt://127.0.0.1:7705 \
-     uv run python scripts/baselines/contextgraph_pro_server.py \
-       --host 127.0.0.1 --port 8010
-   ```
-
-   Or merge `hooks/hooks.yaml` into one hooks layer and copy
-   `hooks/start_query_service.sh` beside it under `scripts/`. The hook starts
-   only the query layer and never manages the Neo4j process.
-4. Launch Chrys with `chrys -a Memory`, or run headless with
+3. Launch Chrys with `chrys -a Memory`, or run headless with
    `chrys run "..." --agent Memory`.
-
-Install each hook id in exactly one layer. If the same id appears in both
-`~/.chrys/hooks/` and `<project>/.chrys/hooks/`, both copies run.
 
 ## Verify
 
-Unit tests do not require ContextGraph or Neo4j:
+Unit tests do not require a live Neo4j instance:
 
 ```bash
-uv run pytest tests/service/memory/test_contextgraph_mcp.py -n0
+uv run pytest tests/service/memory/test_contextgraph_mcp.py -o addopts=""
 ```
 
-With the graph and query service running, exercise the complete read path:
+With the graph running and credentials exported, exercise the complete MCP path:
 
 ```bash
 ./examples/contextgraph-memory/e2e_smoke.sh
 ```
 
-The smoke test performs no writes. It requires the health endpoint to report
-`neo4j_connected=true` and rejects a response that lacks the MCP bridge's
-untrusted-data frame.
+The smoke test performs no writes. It requires health to report the canonical-rule
+inventory and rejects a query response lacking the bridge's untrusted-data frame.

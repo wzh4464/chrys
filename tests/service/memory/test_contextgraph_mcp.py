@@ -1,97 +1,136 @@
 # Copyright (c) 2026 Chrys. All rights reserved.
 
-"""Tests for the read-only ContextGraph MCP bridge."""
+"""Tests for direct read-only ContextGraph Neo4j retrieval."""
 
 from __future__ import annotations
 
-import json
 from collections.abc import Iterator
 from pathlib import Path
 
-import httpx
 import pytest
+from neo4j import READ_ACCESS
 
 from chrys.service.memory import contextgraph_mcp as memory
 from chrys.service.profiles.agents.loader import load_profile_from_yaml
 
 
 @pytest.fixture(autouse=True)
-def _reset_client() -> Iterator[None]:
-    previous = memory._CLIENT
-    memory._CLIENT = None
+def _reset_clients() -> Iterator[None]:
+    previous_driver = memory._DRIVER
+    previous_embedding_client = memory._EMBEDDING_CLIENT
+    memory._DRIVER = None
+    memory._EMBEDDING_CLIENT = None
     try:
         yield
     finally:
-        if memory._CLIENT is not None:
-            memory._CLIENT.close()
-        memory._CLIENT = previous
+        memory._DRIVER = previous_driver
+        memory._EMBEDDING_CLIENT = previous_embedding_client
 
 
-def _set_client(handler) -> None:
-    memory._CLIENT = httpx.Client(transport=httpx.MockTransport(handler), base_url=memory.DEFAULT_BASE_URL)
-
-
-def test_health_reports_neo4j_connected() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        assert request.url.path == "/health"
-        return httpx.Response(200, json={"neo4j_connected": True})
-
-    _set_client(handler)
-
-    assert memory._do_health() == "ContextGraph query service is healthy (neo4j_connected=true)."
-
-
-def test_health_reports_neo4j_disconnected() -> None:
-    _set_client(lambda _request: httpx.Response(200, json={"neo4j_connected": False}))
-
-    assert memory._do_health() == "ContextGraph query service is reachable, but Neo4j is not connected."
-
-
-def test_query_maps_to_items_endpoint_and_frames_untrusted_data() -> None:
+def test_run_read_uses_read_access_mode(monkeypatch: pytest.MonkeyPatch) -> None:
     seen: dict[str, object] = {}
 
-    def handler(request: httpx.Request) -> httpx.Response:
-        seen["path"] = request.url.path
-        seen["body"] = json.loads(request.content)
-        return httpx.Response(
-            200,
-            json={
-                "items": [
-                    {"id": "rule-1", "text": "Inspect the existing tests before editing."},
-                    {"id": "rule-2", "text": "Run focused tests after each logical change."},
-                ]
-            },
-        )
+    class FakeRecord:
+        def data(self) -> dict[str, object]:
+            return {"value": 1}
 
-    _set_client(handler)
-    result = memory._do_query("port a memory integration", top_k=7)
+    class FakeSession:
+        def __enter__(self):
+            return self
 
+        def __exit__(self, *_args: object) -> None:
+            return None
+
+        def run(self, cypher: object, parameters: dict[str, object]):
+            seen["cypher"] = str(cypher)
+            seen["parameters"] = parameters
+            return [FakeRecord()]
+
+    class FakeDriver:
+        def session(self, **kwargs: object) -> FakeSession:
+            seen.update(kwargs)
+            return FakeSession()
+
+    fake_driver = FakeDriver()
+    monkeypatch.setattr(memory, "_driver", lambda: fake_driver)
+
+    assert memory._run_read("RETURN $value", {"value": 1}) == [{"value": 1}]
     assert seen == {
-        "path": "/query_memory_items",
-        "body": {
-            "query": "port a memory integration",
-            "task_description": "port a memory integration",
-            "top_k": 7,
-        },
+        "default_access_mode": READ_ACCESS,
+        "cypher": "RETURN $value",
+        "parameters": {"value": 1},
     }
+
+
+def test_health_reports_canonical_rule_count(monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeDriver:
+        connected = False
+
+        def verify_connectivity(self) -> None:
+            self.connected = True
+
+    driver = FakeDriver()
+    monkeypatch.setattr(memory, "_driver", lambda: driver)
+    monkeypatch.setattr(memory, "_run_read", lambda *_args, **_kwargs: [{"count": 2525}])
+
+    assert memory._do_health() == "ContextGraph Neo4j is healthy (canonical_rules=2525)."
+    assert driver.connected
+
+
+def test_query_fuses_vector_and_fulltext_results(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: list[tuple[str, dict[str, object]]] = []
+
+    def fake_run(cypher: str, parameters: dict[str, object]):
+        seen.append((cypher, parameters))
+        if "vector.queryNodes" in cypher:
+            return [
+                {"id": "rule-a", "text": "Inspect tests before editing."},
+                {"id": "rule-b", "text": "Run focused tests after each change."},
+            ]
+        return [
+            {"id": "rule-b", "text": "Run focused tests after each change."},
+            {"id": "rule-c", "text": "Check every related call site."},
+        ]
+
+    monkeypatch.setattr(memory, "_embed", lambda _query: [0.1, 0.2])
+    monkeypatch.setattr(memory, "_run_read", fake_run)
+
+    result = memory._do_query("port a memory integration", top_k=3)
+
     assert "UNTRUSTED DATA" in result
-    assert "Inspect the existing tests" in result
-    assert "Run focused tests" in result
+    assert result.index("Run focused tests") < result.index("Inspect tests")
+    assert "Check every related call site" in result
+    assert len(seen) == 2
+    assert seen[0][1] == {"limit": 15, "embedding": [0.1, 0.2]}
+    assert seen[1][1] == {"limit": 15, "query": "port memory integration"}
 
 
-def test_query_sanitizes_controls_and_deduplicates_items() -> None:
-    _set_client(
-        lambda _request: httpx.Response(
-            200,
-            json={
-                "items": [
-                    {"text": "\x1b[31mcheck tests\x00"},
-                    {"text": "[31mcheck tests"},
-                    {"text": ""},
-                    "not-a-mapping",
-                ]
-            },
-        )
+def test_query_uses_fulltext_when_embedding_is_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: list[str] = []
+
+    def fake_run(cypher: str, _parameters: dict[str, object]):
+        seen.append(cypher)
+        return [{"id": "rule-a", "text": "Use repository-native tests."}]
+
+    monkeypatch.setattr(memory, "_embed", lambda _query: None)
+    monkeypatch.setattr(memory, "_run_read", fake_run)
+
+    result = memory._do_query("repository tests")
+
+    assert "Use repository-native tests" in result
+    assert len(seen) == 1 and "fulltext.queryNodes" in seen[0]
+
+
+def test_query_sanitizes_controls_and_deduplicates_items(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(memory, "_embed", lambda _query: None)
+    monkeypatch.setattr(
+        memory,
+        "_run_read",
+        lambda *_args, **_kwargs: [
+            {"id": "rule-a", "text": "\x1b[31mcheck tests\x00"},
+            {"id": "rule-b", "text": "[31mcheck tests"},
+            {"id": "rule-empty", "text": ""},
+        ],
     )
 
     result = memory._do_query("task")
@@ -100,8 +139,9 @@ def test_query_sanitizes_controls_and_deduplicates_items() -> None:
     assert result.count("[31mcheck tests") == 1
 
 
-def test_query_empty_and_failures_fail_open() -> None:
-    _set_client(lambda _request: httpx.Response(500))
+def test_query_empty_and_channel_failures_fail_open(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(memory, "_embed", lambda _query: (_ for _ in ()).throw(RuntimeError("embedding down")))
+    monkeypatch.setattr(memory, "_run_read", lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("db down")))
 
     assert memory._do_query("") == "No prior ContextGraph memory found."
     assert memory._do_query("anything") == "No prior ContextGraph memory found."
@@ -115,32 +155,35 @@ def test_query_empty_and_failures_fail_open() -> None:
         (memory.MAX_TOP_K + 10, memory.MAX_TOP_K),
     ],
 )
-def test_query_clamps_top_k(requested: int | str, expected: int) -> None:
-    seen: dict[str, object] = {}
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        seen.update(json.loads(request.content))
-        return httpx.Response(200, json={"items": []})
-
-    _set_client(handler)
-
-    assert memory._do_query("anything", top_k=requested) == "No prior ContextGraph memory found."
-    assert seen["top_k"] == expected
+def test_clamp_top_k(requested: int | str, expected: int) -> None:
+    assert memory._clamp_top_k(requested) == expected
 
 
-def test_query_result_respects_note_cap() -> None:
-    _set_client(
-        lambda _request: httpx.Response(
-            200,
-            json={"items": [{"text": f"rule-{index}: " + "x" * 1000} for index in range(20)]},
-        )
+def test_query_result_respects_note_cap(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        memory,
+        "_search_vector",
+        lambda *_args: [memory._Hit(key=f"rule-{index}", text=f"rule-{index}: " + "x" * 1000) for index in range(20)],
     )
+    monkeypatch.setattr(memory, "_search_fulltext", lambda *_args: [])
 
     result = memory._do_query("task", top_k=20)
 
     assert len(result) <= memory.MAX_NOTE_CHARS
     assert "rule-0" in result
     assert "rule-19" not in result
+
+
+def test_environment_prefers_contextgraph_settings(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("NEO4J_URI", "bolt://fallback:7687")
+    monkeypatch.setenv("NEO4J_USER", "fallback-user")
+    monkeypatch.setenv("NEO4J_PASSWORD", "fallback-password")
+    monkeypatch.setenv("CONTEXTGRAPH_NEO4J_URI", "bolt://contextgraph:7705")
+    monkeypatch.setenv("CONTEXTGRAPH_NEO4J_USER", "contextgraph-user")
+    monkeypatch.setenv("CONTEXTGRAPH_NEO4J_PASSWORD", "contextgraph-password")
+
+    assert memory._neo4j_uri() == "bolt://contextgraph:7705"
+    assert memory._neo4j_auth() == ("contextgraph-user", "contextgraph-password")
 
 
 def test_example_profile_loads_with_read_only_memory_tools() -> None:

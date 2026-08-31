@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
-# Read-only live smoke test for the Chrys -> ContextGraph -> Neo4j path.
+# Read-only live smoke test for the Chrys MCP -> Neo4j path.
 set -euo pipefail
 
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 CHRYS_REPO="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
-SERVER_URL="${CONTEXTGRAPH_SERVER_URL:-http://127.0.0.1:8010}"
 
 cd "$CHRYS_REPO"
-CONTEXTGRAPH_SERVER_URL="$SERVER_URL" uv run python - <<'PY'
+uv run python - <<'PY'
 import asyncio
 import os
 import sys
@@ -31,7 +30,7 @@ async def main() -> None:
 
         health_result = await session.call_tool("team_memory_health", {})
         health = "\n".join(getattr(block, "text", "") for block in health_result.content)
-        if "neo4j_connected=true" not in health:
+        if "canonical_rules=" not in health:
             raise SystemExit(f"FAIL: {health}")
 
         query_result = await session.call_tool(
@@ -47,7 +46,7 @@ async def main() -> None:
 
         print(health)
         print(result)
-        print("PASS: MCP stdio returned bounded read-only ContextGraph advisory data.")
+        print("PASS: MCP stdio returned bounded read-only Neo4j advisory data.")
 
 
 asyncio.run(main())
