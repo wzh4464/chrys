@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
+from pathlib import Path
 from typing import Any, Protocol, TypeVar
 
 from pydantic import BaseModel
@@ -68,7 +69,7 @@ class ChrysClarificationModel:
         profile: ModelProfile,
         snapshot: WorkspaceSnapshot,
         session_id: str | None,
-        session_dir,
+        session_dir: Path | None,
         report_usage: Callable[[Mapping[str, Any]], None] | None = None,
     ) -> None:
         self._profile = profile
@@ -130,6 +131,11 @@ class ChrysClarificationModel:
         roots = "\n".join(
             f"- {root.view_root} ({'primary' if root.is_primary else 'additional'})" for root in self._snapshot.roots
         )
+        references = "\n".join(
+            f"- {reference.view_path}: {reference.entry.size} bytes"
+            + (f" ({reference.entry.metadata_reason})" if reference.entry.metadata_reason else "")
+            for reference in self._snapshot.references
+        )
         agent = Agent(
             client=client,
             name="ChrysRequirementClarifier",
@@ -137,6 +143,7 @@ class ChrysClarificationModel:
                 instructions
                 + "\n\nFrozen workspace roots:\n"
                 + roots
+                + ("\nFrozen explicit reference files:\n" + references if references else "")
                 + "\nUse only read_file, view_image, grep, and glob. Never address a path outside these roots."
             ),
             tools=tools,

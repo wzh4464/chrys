@@ -146,3 +146,29 @@ def test_git_snapshot_freezes_head_and_s0_worktree(tmp_path: Path) -> None:
         text=True,
     )
     assert frozen_head.stdout == "COMMITTED = 1\n"
+
+
+def test_snapshot_freezes_and_restores_explicit_reference_file(tmp_path: Path) -> None:
+    workspace_root = tmp_path / "workspace"
+    workspace_root.mkdir()
+    reference = tmp_path / "contract.md"
+    reference.write_text("version: 1\n", encoding="utf-8")
+    workspace = Workspace.from_cwd(str(workspace_root))
+    workspace.reference_files.append(str(reference))
+
+    snapshotter = WorkspaceSnapshotter()
+    snapshot = snapshotter.capture(
+        workspace,
+        tmp_path / "artifact",
+        snapshot_id="s0",
+        include_git_history=False,
+    )
+    frozen = snapshot.references[0]
+    assert frozen.managed_by_root is False
+    assert Path(frozen.view_path).read_text(encoding="utf-8") == "version: 1\n"
+    assert snapshot.clarification_workspace().reference_files == [frozen.view_path]
+
+    reference.write_text("version: 2\n", encoding="utf-8")
+    assert snapshotter.matches(snapshot) is False
+    snapshotter.restore(snapshot)
+    assert reference.read_text(encoding="utf-8") == "version: 1\n"

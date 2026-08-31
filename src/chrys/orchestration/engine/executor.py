@@ -470,10 +470,52 @@ class Executor:
         self._trajectory_last_run_id: str | None = None
         self._trajectory_run_attempts = 0
         self._trajectory_retry_run_id: str | None = None
+        # Requirement-clarification owns presentation only; execution still
+        # uses this one Executor.  The baseline response is captured and
+        # exposed as provisional without closing the frontend turn.
+        self._requirement_phase = ""
+        self._last_response_text = ""
 
     def set_opening_item_id(self, item_id: str | None) -> None:
         """Pre-assign the analytics item id the next opening user message takes."""
         self._opening_item_id = item_id
+
+    def set_requirement_phase(self, phase: str) -> None:
+        """Tag subsequent assistant presentation with a workflow phase."""
+        self._requirement_phase = phase
+
+    @property
+    def last_response_text(self) -> str:
+        """Last accepted assistant text from the current executor pass."""
+        return self._last_response_text
+
+    def snapshot_history(self) -> _HistorySnapshot:
+        """Capture a complete same-executor checkpoint for orchestration."""
+        return self._snapshot_history()
+
+    def restore_history(self, snapshot: _HistorySnapshot) -> None:
+        """Restore a checkpoint captured by :meth:`snapshot_history`."""
+        self._restore_history(snapshot)
+
+    def adopt_fallback_success(self, text: str) -> None:
+        """Clear a failed repair outcome after orchestration restored P0."""
+        self._was_interrupted = False
+        self._run_failed = False
+        self._last_error = ""
+        self._last_response_text = text
+        self._pending_continuation_token = None
+
+    async def publish_last_response_as_final(self) -> None:
+        """Promote the retained response to the terminal answer."""
+        await self._bus.publish(
+            AgentMessage(
+                text=self._last_response_text,
+                is_final=True,
+                requirement_phase=self._requirement_phase,
+                **self._assistant_message_event_kwargs(),
+                session_id=self._session_id,
+            )
+        )
 
     def _take_opening_item_id(self) -> str | None:
         item_id = self._opening_item_id
@@ -640,10 +682,14 @@ class Executor:
             )
             return
         if isinstance(operation, FinalTextOp):
+            self._last_response_text = operation.text
+            provisional = self._requirement_phase == "initial_implementation"
             await self._bus.publish(
                 AgentMessage(
                     text=operation.text,
-                    is_final=True,
+                    is_final=not provisional,
+                    is_provisional=provisional,
+                    requirement_phase=self._requirement_phase,
                     structured_output_completed=operation.structured_output_completed,
                     **self._assistant_message_event_kwargs(),
                     session_id=self._session_id,
@@ -1057,6 +1103,7 @@ class Executor:
         self._was_interrupted = False
         self._run_failed = False
         self._last_error = ""
+        self._last_response_text = ""
         self._interrupt.reset()
         self._reset_trajectory_runs()
 
@@ -1105,14 +1152,15 @@ class Executor:
             # in-progress forever.
             if self._hosted_bridge is not None:
                 await self._hosted_bridge.attempt_rejected(err_msg)
-            await self._bus.publish(
-                Error(
-                    code="executor_error",
-                    message=err_msg,
-                    recoverable=True,
-                    session_id=self._session_id,
+            if self._requirement_phase != "repair":
+                await self._bus.publish(
+                    Error(
+                        code="executor_error",
+                        message=err_msg,
+                        recoverable=True,
+                        session_id=self._session_id,
+                    )
                 )
-            )
             logger.debug("Executor traceback:\n%s", tb)
         finally:
             # If the run completed normally but the interrupt flag was set
@@ -1640,7 +1688,12 @@ class Executor:
                 # Emit the final-response text progressively.  Each completed
                 # line fires a streaming event; the final (possibly unterminated)
                 # line is emitted once more so it appears before is_final=True.
-                if buffer and not bridge_owns_text and not self._interrupt.is_interrupted:
+                if (
+                    buffer
+                    and not bridge_owns_text
+                    and not self._interrupt.is_interrupted
+                    and self._requirement_phase != "initial_implementation"
+                ):
                     lines = buffer.splitlines(keepends=True)
                     emitted = ""
                     for i, line in enumerate(lines):
@@ -1714,11 +1767,15 @@ class Executor:
             await self._hosted_bridge.reconcile_accepted(result.messages, final=True)
             return
         final_text = self._extract_final_text(result)
+        self._last_response_text = final_text
         event_kwargs = self._assistant_message_event_kwargs()
+        provisional = self._requirement_phase == "initial_implementation"
         await self._bus.publish(
             AgentMessage(
                 text=final_text,
-                is_final=True,
+                is_final=not provisional,
+                is_provisional=provisional,
+                requirement_phase=self._requirement_phase,
                 **event_kwargs,
                 session_id=self._session_id,
             )

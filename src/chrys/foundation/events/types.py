@@ -302,8 +302,21 @@ class AgentMessage(Event):
     text: str = ""
     is_final: bool = True
     is_intermediate: bool = False
+    is_provisional: bool = False
+    requirement_phase: str = ""
     structured_output_completed: bool = False
     presentation: ProvisionalPresentation | None = None
+
+
+@dataclass
+class RequirementClarificationPhaseChanged(Event):
+    """Lifecycle boundary for an opt-in baseline/clarification/repair turn."""
+
+    workflow_id: str = ""
+    phase: str = ""
+    revision: int = 1
+    detail: str = ""
+    terminal: bool = False
 
 
 @dataclass

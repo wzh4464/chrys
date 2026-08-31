@@ -35,6 +35,7 @@ from chrys.service.mutations.snapshot_files import (
     turn_prompt_previews as collect_turn_prompt_previews,
 )
 from chrys.service.mutations.workspace_changes import format_partial_revert_notice, format_retained_changes_notice
+from chrys.service.requirement_clarification.artifacts import prune_workflow_artifacts_after_turn
 from chrys.service.state.store import SESSION_BACKUP_FILE_NAME
 
 if TYPE_CHECKING:
@@ -791,6 +792,10 @@ async def _execute_user_rollback_after_resource_preflight(
                     path.unlink()
                 except OSError:
                     logger.debug("Failed to prune stale snapshot %s", path, exc_info=True)
+        try:
+            prune_workflow_artifacts_after_turn(session_dir, target_turn)
+        except OSError:
+            logger.debug("Failed to prune stale requirement-clarification artifacts", exc_info=True)
 
     # The rollback opens a new trajectory branch: recorded on the outgoing
     # runtime (the restore below closes it and the restored session resumes

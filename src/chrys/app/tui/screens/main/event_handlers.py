@@ -71,6 +71,7 @@ from chrys.foundation.events.types import (
     PresentationAttemptAccepted,
     PresentationAttemptRejected,
     QuestionToUser,
+    RequirementClarificationPhaseChanged,
     RetryAttempt,
     SessionReady,
     SettingsReloaded,
@@ -132,6 +133,19 @@ _APPROVAL_MODE_CHANGED = msg("tui.approval.mode_changed", fallback="Approval mod
 _WARNING_TITLE = msg("tui.warning.title", fallback="Warning")
 _UNKNOWN_ERROR = msg("tui.error.unknown", fallback="Unknown error")
 _AGENT_FAILED_TO_LOAD = msg("tui.agent_load.failed", fallback="Agent failed to load.")
+_BASELINE_PROVISIONAL = msg(
+    "tui.requirement_clarification.baseline_provisional",
+    fallback="Baseline candidate (provisional)",
+)
+_REQUIREMENT_PHASE_STATUS = {
+    "snapshot": msg("tui.requirement_clarification.snapshot", fallback="Freezing the turn workspace…"),
+    "initial_implementation": msg(
+        "tui.requirement_clarification.initial", fallback="Building an initial implementation…"
+    ),
+    "clarification": msg("tui.requirement_clarification.clarification", fallback="Clarifying repository requirements…"),
+    "repair": msg("tui.requirement_clarification.repair", fallback="Repairing the initial implementation…"),
+    "finalizing": msg("tui.requirement_clarification.finalizing", fallback="Finalizing the implementation…"),
+}
 _CONTEXT_PRESSURE_CONVERSATION = msg(
     "tui.context_pressure.conversation.generic",
     fallback="Conversation context compaction stopped because {reason}. The active task may exceed its model window.",
@@ -1079,7 +1093,16 @@ class BackendEventHandler:
 
         ui = self._ui()
 
-        if event.is_intermediate:
+        if event.is_provisional:
+            label = format_message(_BASELINE_PROVISIONAL)
+            await ui.add_agent_message(
+                f"_{label}_\n\n{event.text}",
+                is_final=True,
+                is_intermediate=True,
+                created_at=event.timestamp,
+            )
+            s.debug("AgentMessage", f"(provisional, {len(event.text)} chars)")
+        elif event.is_intermediate:
             await ui.add_agent_message(
                 event.text,
                 is_final=True,
@@ -1116,6 +1139,16 @@ class BackendEventHandler:
         else:
             ui.show_status(STATUS_STREAMING.bind())
             await ui.add_agent_message(event.text, is_final=False, created_at=event.timestamp)
+
+    async def on_requirement_clarification_phase(
+        self,
+        event: RequirementClarificationPhaseChanged,
+    ) -> None:
+        """Reflect internal workflow progress without closing the active turn."""
+        status = _REQUIREMENT_PHASE_STATUS.get(event.phase)
+        if status is not None and self.agent_running:
+            self._ui().show_status(status.bind())
+        self.debug("RequirementClarification", f"{event.phase} revision={event.revision}")
 
     async def on_presentation_attempt_accepted(self, event: PresentationAttemptAccepted) -> None:
         """Commit canonical provisional text and remove rejected siblings."""

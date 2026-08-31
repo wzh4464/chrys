@@ -145,7 +145,48 @@ class TurnRunner:
         injection_window: CurrentRunInjectionWindow | None = None,
         admission_preparation: PreparationTrace | None = None,
     ) -> None:
-        """Execute a fresh agent turn and finalize it."""
+        """Execute a fresh agent turn, optionally through clarification."""
+        profile = self._host._agent_profile
+        clarification_enabled = bool(profile is not None and profile.requirement_clarification.enabled)
+        if not clarification_enabled:
+            await self._run_fresh_standard(
+                text,
+                created_at=created_at,
+                contents=contents,
+                run_scope=run_scope,
+                injection_window=injection_window,
+                admission_preparation=admission_preparation,
+            )
+            return
+        if contents is None:
+            contents = await self._prepare_user_contents(text)
+            if contents is None:
+                if admission_preparation is not None:
+                    await admission_preparation.finished(outcome=PreparationOutcome.PREPARATION_FAILED)
+                return
+        from chrys.orchestration.engine.run.requirement_clarification import RequirementClarificationWorkflow
+
+        await RequirementClarificationWorkflow(self._host, self).run(
+            text,
+            created_at=created_at,
+            contents=contents,
+            run_scope=run_scope,
+            injection_window=injection_window,
+            admission_preparation=admission_preparation,
+        )
+
+    async def _run_fresh_standard(
+        self,
+        text: str,
+        created_at: datetime | str | None = None,
+        contents: list[Any] | None = None,
+        *,
+        run_scope: CurrentRunScope | None = None,
+        injection_window: CurrentRunInjectionWindow | None = None,
+        admission_preparation: PreparationTrace | None = None,
+        finalize: bool = True,
+    ) -> None:
+        """Execute the ordinary fresh pass, with optional deferred finalization."""
         _ = injection_window
         host = self._host
         if contents is None:
@@ -216,7 +257,7 @@ class TurnRunner:
             else:
                 await host._executor.run(contents, created_at=created_at)
         finally:
-            if run_scope is not None:
+            if run_scope is not None and finalize:
                 host._turn_state.close_injection_admission(run_scope)
             # The tracker was drained at prepare_turn; any pass ending before
             # a model request carried the notice (Stop, load/hook failure,
@@ -227,7 +268,8 @@ class TurnRunner:
                 text, created_at=created_at, contents=contents, item_id=self._opening_item_id
             )
         self._tag_consumed_profile_switch()
-        await self.finalize_current_run()
+        if finalize:
+            await self.finalize_current_run()
 
     async def run_retry(
         self,

@@ -16,6 +16,8 @@ _PACKET_MAX_CHARS = 8000
 _TERMS_MAX = 10
 _HITS_PER_TERM = 6
 _HITS_MAX = 60
+_ANCESTOR_COMMITS_PER_TERM = 3
+_ANCESTOR_COMMITS_PER_ROOT = 6
 _STOP_WORDS = frozenset(
     {
         "actual",
@@ -82,6 +84,7 @@ def collect_base_evidence(snapshot: WorkspaceSnapshot, requirement: str) -> str:
     hits: list[str] = []
     for root_index, root in enumerate(snapshot.roots, start=1):
         view = Path(root.view_root)
+        ancestor_commits_used = 0
         for term in terms:
             if root.git_head:
                 git = shutil.which("git")
@@ -119,6 +122,55 @@ def collect_base_evidence(snapshot: WorkspaceSnapshot, requirement: str) -> str:
             except OSError, subprocess.TimeoutExpired:
                 continue
             hits.extend(f"root-{root_index}:{line}" for line in result.stdout.splitlines()[:_HITS_PER_TERM])
+            if not root.git_head or git is None or ancestor_commits_used >= _ANCESTOR_COMMITS_PER_ROOT:
+                continue
+            try:
+                history = subprocess.run(  # noqa: S603 - executable and arguments are code-owned
+                    [
+                        git,
+                        "-C",
+                        str(view),
+                        "log",
+                        "--format=%H",
+                        f"-{_ANCESTOR_COMMITS_PER_TERM}",
+                        "-S",
+                        term,
+                        root.git_head,
+                        "--",
+                    ],
+                    stdin=subprocess.DEVNULL,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    capture_output=True,
+                    check=False,
+                    timeout=10,
+                )
+            except OSError, subprocess.TimeoutExpired:
+                continue
+            for commit in history.stdout.splitlines()[:_ANCESTOR_COMMITS_PER_TERM]:
+                if ancestor_commits_used >= _ANCESTOR_COMMITS_PER_ROOT:
+                    break
+                if not re.fullmatch(r"[0-9a-fA-F]{40,64}", commit):
+                    continue
+                ancestor_commits_used += 1
+                try:
+                    ancestor = subprocess.run(  # noqa: S603 - executable and arguments are code-owned
+                        [git, "-C", str(view), "grep", "-n", "-I", "-i", "-F", term, commit, "--"],
+                        stdin=subprocess.DEVNULL,
+                        text=True,
+                        encoding="utf-8",
+                        errors="replace",
+                        capture_output=True,
+                        check=False,
+                        timeout=10,
+                    )
+                except OSError, subprocess.TimeoutExpired:
+                    continue
+                hits.extend(
+                    f"root-{root_index}:ancestor-{commit[:12]}:{line}"
+                    for line in ancestor.stdout.splitlines()[:_HITS_PER_TERM]
+                )
     unique_hits = list(dict.fromkeys(hits))[:_HITS_MAX]
     packet = (
         "Frozen roots:\n"

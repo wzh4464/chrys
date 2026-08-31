@@ -69,6 +69,16 @@ class SnapshotRoot:
 
 
 @dataclass(frozen=True, slots=True)
+class SnapshotReference:
+    """One explicitly configured reference file and its frozen view."""
+
+    source_path: str
+    view_path: str
+    entry: SnapshotEntry
+    managed_by_root: bool
+
+
+@dataclass(frozen=True, slots=True)
 class WorkspaceSnapshot:
     """A complete recovery snapshot plus a bounded clarification view."""
 
@@ -78,6 +88,7 @@ class WorkspaceSnapshot:
     manifest_hash: str
     total_bytes: int
     entry_count: int
+    references: tuple[SnapshotReference, ...] = ()
 
     def clarification_workspace(self) -> Workspace:
         if not self.roots:
@@ -86,7 +97,11 @@ class WorkspaceSnapshot:
             WorkingDir(path=root.view_root, label=root.label, is_primary=root.is_primary) for root in self.roots
         ]
         primary = next((root.view_root for root in self.roots if root.is_primary), self.roots[0].view_root)
-        return Workspace(primary_cwd=primary, working_dirs=working_dirs)
+        return Workspace(
+            primary_cwd=primary,
+            working_dirs=working_dirs,
+            reference_files=[reference.view_path for reference in self.references if reference.entry.model_visible],
+        )
 
 
 def _encoded_relative_path(path: str) -> str:
@@ -232,6 +247,7 @@ class WorkspaceSnapshotter:
         total_bytes = 0
         total_entries = 0
         snapshots: list[SnapshotRoot] = []
+        references: list[SnapshotReference] = []
         try:
             roots = self._workspace_roots(workspace)
             for index, working_dir in enumerate(roots):
@@ -288,11 +304,21 @@ class WorkspaceSnapshotter:
                     view_root / SNAPSHOT_VIEW_MANIFEST_NAME,
                     json.dumps(view_manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
                 )
+            references, reference_bytes = self._capture_references(
+                workspace.reference_files,
+                snapshots,
+                roots_root,
+                blob_root,
+            )
+            total_bytes += reference_bytes
+            total_entries += sum(not reference.managed_by_root for reference in references)
+            self._check_total_bytes(total_bytes)
             payload = {
                 "snapshot_id": snapshot_id,
                 "total_bytes": total_bytes,
                 "entry_count": total_entries,
                 "roots": [asdict(root) for root in snapshots],
+                "references": [asdict(reference) for reference in references],
             }
             encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
             manifest_hash = hashlib.sha256(encoded).hexdigest()
@@ -304,6 +330,7 @@ class WorkspaceSnapshotter:
                 manifest_hash=manifest_hash,
                 total_bytes=total_bytes,
                 entry_count=total_entries,
+                references=tuple(references),
             )
         except BaseException:
             shutil.rmtree(artifact_root, ignore_errors=True)
@@ -356,6 +383,58 @@ class WorkspaceSnapshotter:
                 if not get_platform().is_windows:
                     destination.chmod(entry.mode)
             self._prune_empty_in_scope_dirs(source_root)
+        for reference in snapshot.references:
+            if reference.managed_by_root:
+                continue
+            self._restore_reference(reference, blob_root)
+
+    def matches(self, snapshot: WorkspaceSnapshot) -> bool:
+        """Return whether every in-scope live entry still matches *snapshot*."""
+        for root in snapshot.roots:
+            source_root = Path(root.source_root)
+            if not source_root.is_dir():
+                return False
+            try:
+                live = {
+                    relative: (path, info)
+                    for relative, path, info in self._iter_entries(
+                        source_root,
+                        excluded_roots=(Path(snapshot.artifact_root),),
+                    )
+                }
+            except WorkspaceSnapshotError:
+                return False
+            expected = {entry.relative_path: entry for entry in root.entries}
+            if live.keys() != expected.keys():
+                return False
+            for relative, entry in expected.items():
+                path, info = live[relative]
+                if stat.S_IMODE(info.st_mode) != entry.mode:
+                    return False
+                try:
+                    data = os.fsencode(os.readlink(path)) if entry.kind == "symlink" else _stable_file_bytes(path, info)
+                except WorkspaceSnapshotError, OSError:
+                    return False
+                if hashlib.sha256(data).hexdigest() != entry.content_hash:
+                    return False
+        for reference in snapshot.references:
+            if reference.managed_by_root:
+                continue
+            path = Path(reference.source_path)
+            try:
+                info = path.lstat()
+                data = (
+                    os.fsencode(os.readlink(path))
+                    if reference.entry.kind == "symlink"
+                    else _stable_file_bytes(path, info)
+                )
+            except WorkspaceSnapshotError, OSError:
+                return False
+            if stat.S_IMODE(info.st_mode) != reference.entry.mode:
+                return False
+            if hashlib.sha256(data).hexdigest() != reference.entry.content_hash:
+                return False
+        return True
 
     @staticmethod
     def discard(snapshot: WorkspaceSnapshot) -> None:
@@ -429,6 +508,143 @@ class WorkspaceSnapshotter:
                 )
             )
         return entries, total_bytes
+
+    def _capture_references(
+        self,
+        paths: list[str],
+        roots: list[SnapshotRoot],
+        roots_root: Path,
+        blob_root: Path,
+    ) -> tuple[list[SnapshotReference], int]:
+        references: list[SnapshotReference] = []
+        total_bytes = 0
+        for index, raw_path in enumerate(paths):
+            source = Path(raw_path).expanduser().absolute()
+            if not source.is_file() and not source.is_symlink():
+                raise WorkspaceSnapshotError(f"reference file is unavailable: {source}")
+            managed = self._managed_reference(source, roots)
+            if managed is not None:
+                references.append(managed)
+                continue
+            try:
+                info = source.lstat()
+            except OSError as exc:
+                raise WorkspaceSnapshotError(f"failed to stat reference file {source}: {exc}") from exc
+            view_root = roots_root / "references" / str(index)
+            ensure_owner_only_directory(view_root)
+            view_path = view_root / source.name
+            entry, size = self._capture_single_entry(
+                source,
+                source.name,
+                view_root,
+                blob_root,
+                info,
+            )
+            total_bytes += size
+            self._check_total_bytes(total_bytes)
+            references.append(
+                SnapshotReference(
+                    source_path=str(source),
+                    view_path=str(view_path),
+                    entry=entry,
+                    managed_by_root=False,
+                )
+            )
+        return references, total_bytes
+
+    @staticmethod
+    def _managed_reference(source: Path, roots: list[SnapshotRoot]) -> SnapshotReference | None:
+        for root in roots:
+            source_root = Path(root.source_root)
+            try:
+                relative = os.path.relpath(source, source_root)
+            except ValueError:
+                continue
+            if relative == os.pardir or relative.startswith(os.pardir + os.sep):
+                continue
+            entry = next((candidate for candidate in root.entries if candidate.relative_path == relative), None)
+            if entry is None:
+                continue
+            return SnapshotReference(
+                source_path=str(source),
+                view_path=str(Path(root.view_root) / relative),
+                entry=entry,
+                managed_by_root=True,
+            )
+        return None
+
+    def _capture_single_entry(
+        self,
+        path: Path,
+        relative: str,
+        view_root: Path,
+        blob_root: Path,
+        info: os.stat_result,
+    ) -> tuple[SnapshotEntry, int]:
+        mode = stat.S_IMODE(info.st_mode)
+        if stat.S_ISLNK(info.st_mode):
+            data = os.fsencode(os.readlink(path))
+            # A standalone reference view does not include the symlink's
+            # sibling/parent tree, so materializing it could point outside
+            # the frozen view even when the live target shares a directory.
+            visible = False
+            digest = hashlib.sha256(data).hexdigest()
+            _write_blob(blob_root, digest, data)
+            if visible:
+                os.symlink(os.fsdecode(data), view_root / relative, target_is_directory=path.is_dir())
+            return (
+                SnapshotEntry(
+                    relative_path_b64=_encoded_relative_path(relative),
+                    kind="symlink",
+                    mode=mode,
+                    size=len(data),
+                    content_hash=digest,
+                    model_visible=visible,
+                    metadata_reason="" if visible else "symlink_target_outside_snapshot",
+                    symlink_target_is_dir=path.is_dir(),
+                ),
+                len(data),
+            )
+        if not stat.S_ISREG(info.st_mode):
+            raise WorkspaceSnapshotError(f"unsupported reference file type: {path}")
+        data = _stable_file_bytes(path, info)
+        digest = hashlib.sha256(data).hexdigest()
+        _write_blob(blob_root, digest, data)
+        too_large = len(data) > self._max_model_file_bytes
+        binary = EncodingDetector.looks_binary(data[:SNAPSHOT_SAMPLE_BYTES])
+        visible = not too_large and not binary
+        if visible:
+            _materialize_model_entry(view_root=view_root, relative_path=relative, data=data, mode=mode)
+        return (
+            SnapshotEntry(
+                relative_path_b64=_encoded_relative_path(relative),
+                kind="file",
+                mode=mode,
+                size=len(data),
+                content_hash=digest,
+                model_visible=visible,
+                metadata_reason="too_large" if too_large else "binary" if binary else "",
+            ),
+            len(data),
+        )
+
+    @staticmethod
+    def _restore_reference(reference: SnapshotReference, blob_root: Path) -> None:
+        destination = Path(reference.source_path)
+        entry = reference.entry
+        ensure_owner_only_directory(destination.parent)
+        data = (blob_root / entry.content_hash).read_bytes()
+        if destination.exists() or destination.is_symlink():
+            if destination.is_dir() and not destination.is_symlink():
+                shutil.rmtree(destination)
+            else:
+                destination.unlink()
+        if entry.kind == "symlink":
+            os.symlink(os.fsdecode(data), destination, target_is_directory=entry.symlink_target_is_dir)
+            return
+        atomic_write_owner_only_bytes(destination, data)
+        if not get_platform().is_windows:
+            destination.chmod(entry.mode)
 
     def _iter_entries(self, source_root: Path, *, excluded_roots: tuple[Path, ...] = ()):
         excluded = {
