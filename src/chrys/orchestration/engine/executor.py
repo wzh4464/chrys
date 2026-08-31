@@ -425,6 +425,7 @@ class Executor:
             mutation_coordinator=mutation_coordinator,
             on_start_published=self._local_call_start_published,
             tool_result_ceiling_tokens=tool_result_ceiling_tokens,
+            workflow_phase_provider=lambda: self._requirement_phase,
         )
         self._interrupt = InterruptMiddleware()
         self._extra_function_middleware = tuple(extra_function_middleware)
@@ -512,6 +513,7 @@ class Executor:
                 text=self._last_response_text,
                 is_final=True,
                 requirement_phase=self._requirement_phase,
+                workflow_phase=self._requirement_phase,
                 **self._assistant_message_event_kwargs(),
                 session_id=self._session_id,
             )
@@ -690,6 +692,7 @@ class Executor:
                     is_final=not provisional,
                     is_provisional=provisional,
                     requirement_phase=self._requirement_phase,
+                    workflow_phase=self._requirement_phase,
                     structured_output_completed=operation.structured_output_completed,
                     **self._assistant_message_event_kwargs(),
                     session_id=self._session_id,
@@ -712,6 +715,7 @@ class Executor:
                     tool_kind=HOSTED_TOOL_DEFAULT_KIND_BY_FAMILY.get(view.family, ""),
                     args=view.arguments,
                     session_id=self._session_id,
+                    workflow_phase=self._requirement_phase,
                 )
             )
 
@@ -729,6 +733,7 @@ class Executor:
                     tool_kind=HOSTED_TOOL_DEFAULT_KIND_BY_FAMILY.get(view.family, ""),
                     args=view.arguments,
                     session_id=self._session_id,
+                    workflow_phase=self._requirement_phase,
                 )
             )
         elif isinstance(operation, HostedToolProgressOp):
@@ -746,6 +751,7 @@ class Executor:
                     image_contents=view.image_contents,
                     snapshot_metadata=view.metadata,
                     session_id=self._session_id,
+                    workflow_phase=self._requirement_phase,
                 )
             )
         elif isinstance(operation, HostedToolStatusOp):
@@ -767,6 +773,7 @@ class Executor:
                     provider_status=view.provider_status,
                     metadata=metadata,
                     session_id=self._session_id,
+                    workflow_phase=self._requirement_phase,
                 )
             )
         elif isinstance(operation, HostedToolResultOp):
@@ -785,6 +792,7 @@ class Executor:
                     metadata=view.metadata,
                     artifacts=self._artifact_descriptors(operation),
                     session_id=self._session_id,
+                    workflow_phase=self._requirement_phase,
                 )
             )
 
@@ -1122,7 +1130,7 @@ class Executor:
                 await self._hosted_bridge.begin_response(response_index=0)
             for hook in self._run_cycle_start_hooks:
                 hook()
-            await self._bus.publish(AgentThinking(session_id=self._session_id))
+            await self._bus.publish(AgentThinking(session_id=self._session_id, workflow_phase=self._requirement_phase))
             await self._flush_carried_compressions()
 
             if self._stream:
@@ -1704,6 +1712,7 @@ class Executor:
                                 AgentMessage(
                                     text=emitted,
                                     is_final=False,
+                                    workflow_phase=self._requirement_phase,
                                     session_id=self._session_id,
                                 )
                             )
@@ -1776,6 +1785,7 @@ class Executor:
                 is_final=not provisional,
                 is_provisional=provisional,
                 requirement_phase=self._requirement_phase,
+                workflow_phase=self._requirement_phase,
                 **event_kwargs,
                 session_id=self._session_id,
             )

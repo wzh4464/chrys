@@ -243,7 +243,12 @@ class RequirementClarificationWorkflow:
                 revision = revision.append(injection.text)
             self._revision = revision
             try:
-                artifacts.save_initial_transcript({"history": serialize_state(executor.history_state)})
+                artifacts.save_initial_transcript(
+                    {
+                        "history": serialize_state(executor.history_state),
+                        "service_session_id": executor.service_session_id,
+                    }
+                )
             except OSError as exc:
                 logger.warning("Requirement clarification P0 transcript persistence failed", exc_info=True)
                 await self._deliver_p0(p0_text, revision, detail=f"P0 transcript persistence failed: {exc}")
@@ -464,6 +469,7 @@ class RequirementClarificationWorkflow:
                 detail=detail,
                 terminal=terminal,
                 session_id=self._host._session_id,
+                workflow_phase=phase,
             )
         )
 

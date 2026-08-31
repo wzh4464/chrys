@@ -47,6 +47,7 @@ class Event:
     event_id: str = field(default_factory=lambda: uuid4().hex[:12])
     timestamp: datetime = field(default_factory=lambda: datetime.now(tz=UTC))
     session_id: str | None = None
+    workflow_phase: str = ""
 
 
 # ---------------------------------------------------------------------------
@@ -297,6 +298,9 @@ class AgentMessage(Event):
         is_intermediate: ``True`` for text returned alongside tool calls
             during the tool loop.  The agent is still running — the TUI
             should render the text but keep the running state active.
+        is_provisional: ``True`` for a complete baseline candidate that is
+            visible but must not terminate the logical turn.
+        requirement_phase: Internal workflow phase associated with this text.
     """
 
     text: str = ""

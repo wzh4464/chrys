@@ -336,6 +336,46 @@ class WorkspaceSnapshotter:
             shutil.rmtree(artifact_root, ignore_errors=True)
             raise
 
+    @staticmethod
+    def load(artifact_root: Path) -> WorkspaceSnapshot:
+        """Load and hash-verify a snapshot manifest produced by this service."""
+        manifest_path = artifact_root / SNAPSHOT_MANIFEST_NAME
+        try:
+            raw = manifest_path.read_bytes().rstrip(b"\n")
+            payload = json.loads(raw)
+            roots = tuple(
+                SnapshotRoot(
+                    source_root=item["source_root"],
+                    view_root=item["view_root"],
+                    label=item.get("label", ""),
+                    is_primary=bool(item.get("is_primary", False)),
+                    entries=tuple(SnapshotEntry(**entry) for entry in item.get("entries", [])),
+                    git_head=item.get("git_head", ""),
+                    history_bundle=item.get("history_bundle", ""),
+                )
+                for item in payload.get("roots", [])
+            )
+            references = tuple(
+                SnapshotReference(
+                    source_path=item["source_path"],
+                    view_path=item["view_path"],
+                    entry=SnapshotEntry(**item["entry"]),
+                    managed_by_root=bool(item.get("managed_by_root", False)),
+                )
+                for item in payload.get("references", [])
+            )
+            return WorkspaceSnapshot(
+                snapshot_id=payload["snapshot_id"],
+                artifact_root=str(artifact_root),
+                roots=roots,
+                manifest_hash=hashlib.sha256(raw).hexdigest(),
+                total_bytes=int(payload["total_bytes"]),
+                entry_count=int(payload["entry_count"]),
+                references=references,
+            )
+        except (KeyError, TypeError, ValueError, OSError, json.JSONDecodeError) as exc:
+            raise WorkspaceSnapshotError(f"invalid snapshot manifest at {manifest_path}: {exc}") from exc
+
     def restore(self, snapshot: WorkspaceSnapshot) -> None:
         """Restore the snapshot's in-scope working set exactly."""
         blob_root = Path(snapshot.artifact_root) / "blobs"
