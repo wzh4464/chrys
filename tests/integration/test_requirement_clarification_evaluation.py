@@ -226,6 +226,62 @@ def test_fixed_p0_materialization_uses_control_patch_and_candidate_delta(tmp_pat
     assert rendered_task["environment"]["docker_image"] == "chrys/deepswe-fixed-p0:task-one"
 
 
+def test_fixed_p0_materialization_accepts_collected_patch_and_external_delta(tmp_path: Path) -> None:
+    source = tmp_path / "source"
+    for task_name in ("task-one", "task-two"):
+        task = source / task_name
+        task.mkdir(parents=True)
+        (task / "instruction.md").write_text(f"Original {task_name}.\n", encoding="utf-8")
+        (task / "task.toml").write_text(
+            f'schema_version = "1.3"\n[environment]\ndocker_image = "example/{task_name}:base"\n',
+            encoding="utf-8",
+        )
+
+    control = tmp_path / "control"
+    control_trial = _write_trial(control, "task-one", reward=0)
+    _write_trial(control, "task-two", reward=1)
+    direct_patch = control_trial / "artifacts/model.patch"
+    expected_patch = direct_patch.read_text(encoding="utf-8")
+    collected_patch = control_trial / "artifacts/logs/artifacts/model.patch"
+    collected_patch.parent.mkdir(parents=True)
+    direct_patch.replace(collected_patch)
+
+    clarification = tmp_path / "clarification"
+    clarification_task = clarification / "task-one"
+    clarification_task.mkdir(parents=True)
+    (clarification_task / "clarified_requirement.md").write_text(
+        "Original task-one.\n\nRepository implementation guidance:\n- Preserve the compatibility path.\n",
+        encoding="utf-8",
+    )
+    output = tmp_path / "fixed-p0"
+
+    result = materialize_fixed_p0(
+        [
+            "--source-dataset",
+            str(source),
+            "--control-job",
+            str(control),
+            "--clarification-root",
+            str(clarification),
+            "--output-dir",
+            str(output),
+            "--expected-tasks",
+            "2",
+            "--expected-eligible",
+            "1",
+            "--task",
+            "task-one",
+        ]
+    )
+
+    assert result == 0
+    assert (output / "image-contexts/task-one/model.patch").read_text(encoding="utf-8") == expected_patch
+    assert not (output / "dataset/task-two").exists()
+    manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["candidate_job"] is None
+    assert manifest["clarification_root"] == str(clarification.resolve())
+
+
 def test_fixed_p0_builder_revalidates_reviewed_context(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

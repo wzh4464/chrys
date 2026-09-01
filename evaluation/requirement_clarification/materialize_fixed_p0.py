@@ -37,11 +37,18 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source-dataset", type=Path, required=True)
     parser.add_argument("--control-job", type=Path, required=True)
-    parser.add_argument("--candidate-job", type=Path, required=True)
+    delta_source = parser.add_mutually_exclusive_group(required=True)
+    delta_source.add_argument("--candidate-job", type=Path)
+    delta_source.add_argument(
+        "--clarification-root",
+        type=Path,
+        help="Directory containing TASK/clarified_requirement.md files",
+    )
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--image-repository", default="chrys/deepswe-fixed-p0")
     parser.add_argument("--expected-tasks", type=int, default=113)
     parser.add_argument("--expected-eligible", type=int)
+    parser.add_argument("--task", action="append", dest="selected_tasks", help="Materialize only this task")
     parser.add_argument("--build-images", action="store_true", help="Actually invoke docker build")
     return parser
 
@@ -59,6 +66,34 @@ def _clarification_delta(trial_dir: Path) -> str | None:
         return None
     delta = _load_mapping(paths[-1]).get("delta")
     return delta.strip() if isinstance(delta, str) and delta.strip() else None
+
+
+def _clarification_delta_from_root(root: Path, task: str, original: str) -> str | None:
+    path = root / task / "clarified_requirement.md"
+    if not path.is_file():
+        return None
+    clarified = path.read_text(encoding="utf-8")
+    if not clarified.startswith(original):
+        raise ValueError(f"clarification does not preserve the original requirement for {task}")
+    delta = clarified[len(original) :].strip()
+    return delta or None
+
+
+def _control_patch(trial_dir: Path) -> Path | None:
+    """Locate Harbor's patch across direct and recursively collected layouts."""
+    candidates = [
+        trial_dir / "artifacts/model.patch",
+        trial_dir / "artifacts/logs/artifacts/model.patch",
+    ]
+    candidates.extend(sorted((trial_dir / "artifacts").glob("**/model.patch")))
+    unique = list(dict.fromkeys(path for path in candidates if path.is_file()))
+    if not unique:
+        return None
+    if len(unique) > 1:
+        hashes = {sha256_file(path) for path in unique}
+        if len(hashes) != 1:
+            raise ValueError(f"conflicting control model.patch artifacts in {trial_dir}")
+    return unique[0]
 
 
 def _image_tag(repository: str, task: str) -> str:
@@ -112,16 +147,23 @@ def main(argv: list[str] | None = None) -> int:
     """Create build contexts and a repair dataset; image building is opt-in."""
     args = _parser().parse_args(argv)
     source_dataset = args.source_dataset.resolve(strict=True)
+    clarification_root = args.clarification_root.resolve(strict=True) if args.clarification_root else None
     output_dir = args.output_dir.resolve()
     if output_dir.exists():
         raise FileExistsError(f"refusing to overwrite output directory: {output_dir}")
 
     source_tasks = fingerprint_dataset(source_dataset, expected_tasks=args.expected_tasks)
     control = load_selected_attempts(args.control_job)
-    candidate = load_selected_attempts(args.candidate_job)
+    candidate = load_selected_attempts(args.candidate_job) if args.candidate_job else None
     source_names = {item.name for item in source_tasks}
-    if control.keys() != candidate.keys() or set(control) != source_names:
-        raise ValueError("source, control, and candidate task sets must match exactly")
+    selected_names = set(args.selected_tasks or source_names)
+    unknown = selected_names - source_names
+    if unknown:
+        raise ValueError(f"selected tasks are absent from source dataset: {sorted(unknown)}")
+    if not selected_names <= control.keys():
+        raise ValueError(f"control job is missing selected tasks: {sorted(selected_names - control.keys())}")
+    if candidate is not None and not selected_names <= candidate.keys():
+        raise ValueError(f"candidate job is missing selected tasks: {sorted(selected_names - candidate.keys())}")
 
     dataset_dir = output_dir / "dataset"
     contexts_dir = output_dir / "image-contexts"
@@ -132,19 +174,24 @@ def main(argv: list[str] | None = None) -> int:
     if args.build_images and docker is None:
         raise FileNotFoundError("docker executable not found")
 
-    for task in sorted(source_names):
+    for task in sorted(selected_names):
         control_trial, _, _ = control[task]
-        candidate_trial, _, _ = candidate[task]
-        patch = control_trial / "artifacts/model.patch"
-        delta = _clarification_delta(candidate_trial)
-        if not patch.is_file():
+        patch = _control_patch(control_trial)
+        source_task = source_dataset / task
+        original_instruction = (source_task / "instruction.md").read_text(encoding="utf-8")
+        if candidate is not None:
+            candidate_trial, _, _ = candidate[task]
+            delta = _clarification_delta(candidate_trial)
+        else:
+            assert clarification_root is not None
+            delta = _clarification_delta_from_root(clarification_root, task, original_instruction)
+        if patch is None:
             excluded[task] = "control model.patch missing"
             continue
         if delta is None:
             excluded[task] = "candidate produced no persisted clarification delta"
             continue
 
-        source_task = source_dataset / task
         task_toml_path = source_task / "task.toml"
         task_toml_text = task_toml_path.read_text(encoding="utf-8")
         task_toml = tomllib.loads(task_toml_text)
@@ -161,7 +208,6 @@ def main(argv: list[str] | None = None) -> int:
             _replace_environment_image(task_toml_text, image),
             encoding="utf-8",
         )
-        original_instruction = (source_task / "instruction.md").read_text(encoding="utf-8")
         (destination / "instruction.md").write_text(_repair_instruction(original_instruction, delta), encoding="utf-8")
 
         command = [docker or "docker", "build", "--build-arg", f"BASE_IMAGE={base_image}", "-t", image, str(context)]
@@ -181,7 +227,8 @@ def main(argv: list[str] | None = None) -> int:
         "protocol": "chrys-deepswe-fixed-p0-repair-v1",
         "source_dataset": str(source_dataset),
         "control_job": str(args.control_job.resolve(strict=True)),
-        "candidate_job": str(args.candidate_job.resolve(strict=True)),
+        "candidate_job": str(args.candidate_job.resolve(strict=True)) if args.candidate_job else None,
+        "clarification_root": str(clarification_root) if clarification_root else None,
         "source_tasks": fingerprints_as_dict(source_tasks),
         "eligible_count": len(tasks),
         "excluded": excluded,
