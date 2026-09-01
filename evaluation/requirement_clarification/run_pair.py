@@ -34,11 +34,52 @@ _DEFAULT_HARBOR_AGENT_TIMEOUT_SECONDS = 12_600.0
 _AGENT_TIMEOUT_PATTERN = re.compile(r"(?m)^(timeout_sec\s*=\s*)[0-9]+(?:\.[0-9]+)?\s*$")
 
 
-def _assert_job_is_resumable(job_dir: Path) -> None:
+def _archive_interrupted_trials(job_dir: Path, recovery_root: Path) -> list[str]:
+    """Move trials without verifier results aside so Harbor can rerun them."""
+    interrupted: list[Path] = []
+    for trial_dir in sorted(path for path in job_dir.iterdir() if path.is_dir()):
+        result_path = trial_dir / "result.json"
+        if not result_path.is_file():
+            continue
+        try:
+            result = json.loads(result_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise RuntimeError(f"cannot safely inspect interrupted trial: {result_path}") from exc
+        if not isinstance(result, dict) or result.get("verifier_result") is None:
+            interrupted.append(trial_dir)
+    if not interrupted:
+        raise RuntimeError(
+            f"job reports running trials but no verifier-incomplete trial directories were found: {job_dir}"
+        )
+
+    recovery_dir = recovery_root / datetime.now(UTC).strftime("%Y%m%dT%H%M%S.%fZ")
+    recovery_dir.mkdir(parents=True, exist_ok=False)
+    archived: list[str] = []
+    for trial_dir in interrupted:
+        shutil.move(str(trial_dir), recovery_dir / trial_dir.name)
+        archived.append(trial_dir.name)
+    write_json(
+        recovery_dir / "recovery.json",
+        {
+            "schema_version": 1,
+            "reason": "controller interrupted before verifier completion",
+            "source_job": str(job_dir),
+            "archived_trials": archived,
+        },
+    )
+    return archived
+
+
+def _assert_job_is_resumable(
+    job_dir: Path,
+    *,
+    recover_interrupted: bool = False,
+    recovery_root: Path | None = None,
+) -> list[str]:
     """Reject Harbor resume when it would replace an orphaned live trial."""
     result_path = job_dir / "result.json"
     if not result_path.is_file():
-        return
+        return None
     try:
         result = json.loads(result_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
@@ -46,10 +87,15 @@ def _assert_job_is_resumable(job_dir: Path) -> None:
     stats = result.get("stats") if isinstance(result, dict) else None
     running = stats.get("n_running_trials", 0) if isinstance(stats, dict) else 0
     if isinstance(running, int) and running > 0:
+        if recover_interrupted:
+            if recovery_root is None:
+                raise ValueError("recovery_root is required when recover_interrupted is enabled")
+            return _archive_interrupted_trials(job_dir, recovery_root)
         raise RuntimeError(
             f"refusing to resume Harbor job with {running} running trial(s): {job_dir}; "
             "resume can replace an orphaned completed agent with a new model run"
         )
+    return []
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -70,6 +116,11 @@ def _parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--arm", choices=ARMS, action="append", dest="arms")
     parser.add_argument("--resume", action="store_true", help="Resume existing Harbor jobs instead of overwriting")
+    parser.add_argument(
+        "--recover-interrupted",
+        action="store_true",
+        help="Archive verifier-incomplete trials before resume after a confirmed dead controller",
+    )
     parser.add_argument("--execute", action="store_true", help="Actually invoke Harbor and OpenRouter")
     return parser
 
@@ -282,7 +333,13 @@ def main(argv: list[str] | None = None) -> int:
         if job_dir.exists():
             if not args.resume:
                 raise FileExistsError(f"refusing to overwrite existing Harbor job: {job_dir}")
-            _assert_job_is_resumable(job_dir)
+            archived = _assert_job_is_resumable(
+                job_dir,
+                recover_interrupted=args.recover_interrupted,
+                recovery_root=output_dir / "recoveries" / arm,
+            )
+            if archived:
+                sys.stdout.write(f"Archived {len(archived)} interrupted {arm} trial(s) before resume.\n")
             resume_command = [str(harbor_binary), "jobs", "resume", "--job-path", str(job_dir)]
             sys.stdout.write(f"Resuming {arm} arm: {job_dir.name}\n")
             subprocess.run(resume_command, cwd=harbor_repo, env=environment, check=True)  # noqa: S603

@@ -70,6 +70,11 @@ boundary and refuses to resume a job with `n_running_trials > 0`: Harbor may oth
 a fresh trial and make an unintended second model call. Inspect or recover the existing trial first. The runner also
 refuses to overwrite any job unless resume was explicitly selected.
 
+If the Harbor controller was externally terminated and the associated task containers are confirmed gone, add
+`--recover-interrupted` together with `--resume`. The runner moves every trial lacking a verifier result into a
+timestamped `recoveries/<arm>/` archive before asking Harbor to rerun it. Completed verifier results are never moved,
+and interrupted artifacts remain available for audit rather than being deleted.
+
 Chrys stdout, stderr, exit status, and `model.patch` are written inside the task container before the Harbor adapter
 returns. While Chrys is running, stdout and stderr use `.tmp` names; completion atomically renames them, writes
 `chrys.returncode`, and captures the Git diff. This preserves the agent result when the controlling Harbor process

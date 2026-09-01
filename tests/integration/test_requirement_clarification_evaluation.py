@@ -47,7 +47,44 @@ def test_resume_allows_job_without_running_trials(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    _assert_job_is_resumable(job)
+    assert _assert_job_is_resumable(job) == []
+
+
+def test_recover_interrupted_archives_only_trials_without_verifier_results(tmp_path: Path) -> None:
+    job = tmp_path / "job"
+    recovery = tmp_path / "recoveries"
+    job.mkdir()
+    (job / "result.json").write_text(
+        json.dumps({"stats": {"n_running_trials": 2}}),
+        encoding="utf-8",
+    )
+    incomplete = job / "incomplete__trial"
+    complete = job / "complete__trial"
+    incomplete.mkdir()
+    complete.mkdir()
+    (incomplete / "result.json").write_text(
+        json.dumps({"verifier_result": None, "exception_info": {"exception_type": "CancelledError"}}),
+        encoding="utf-8",
+    )
+    (complete / "result.json").write_text(
+        json.dumps({"verifier_result": {"rewards": {"reward": 1}}, "exception_info": None}),
+        encoding="utf-8",
+    )
+
+    archived = _assert_job_is_resumable(
+        job,
+        recover_interrupted=True,
+        recovery_root=recovery,
+    )
+
+    assert archived == ["incomplete__trial"]
+    assert not incomplete.exists()
+    assert complete.exists()
+    recovery_dirs = [path for path in recovery.iterdir() if path.is_dir()]
+    assert len(recovery_dirs) == 1
+    assert (recovery_dirs[0] / "incomplete__trial/result.json").is_file()
+    recovery_record = json.loads((recovery_dirs[0] / "recovery.json").read_text(encoding="utf-8"))
+    assert recovery_record["archived_trials"] == ["incomplete__trial"]
 
 
 def test_materialized_dataset_widens_only_outer_agent_timeout(tmp_path: Path) -> None:
