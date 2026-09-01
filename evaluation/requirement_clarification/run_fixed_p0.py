@@ -32,6 +32,10 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--dataset", type=Path, required=True, help="Dataset emitted by materialize_fixed_p0")
     parser.add_argument("--materialization-manifest", type=Path, required=True)
     parser.add_argument("--chrys-binary", type=Path, required=True)
+    parser.add_argument(
+        "--chrys-revision",
+        help="Revision used to build --chrys-binary; defaults to the current repository HEAD",
+    )
     parser.add_argument("--secrets", type=Path, default=Path(".chrys-secrets.env"))
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--run-id", required=True)
@@ -58,7 +62,9 @@ def main(argv: list[str] | None = None) -> int:
     secrets = read_secrets_env(args.secrets.resolve(strict=True))
     tasks = fingerprint_dataset(dataset, expected_tasks=args.expected_tasks)
     harbor_binary = _harbor_binary(harbor_repo)
-    revision = _git_revision(repo_root)
+    revision = args.chrys_revision.strip() if args.chrys_revision else _git_revision(repo_root)
+    if not revision:
+        raise ValueError("--chrys-revision cannot be empty")
     profiles = render_paired_agent_profiles(
         repo_root / "src/chrys/service/profiles/agents/builtins/Code.yaml",
         output_dir / "config/agents",
