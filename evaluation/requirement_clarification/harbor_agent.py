@@ -19,6 +19,7 @@ from evaluation.requirement_clarification.protocol import (
     CODING_PHASE_TIMEOUT_SECONDS,
     CONTROL_ARM,
     MODEL_PROFILE_ID,
+    agent_profile_name,
     expected_model_lock,
     normalized_model_lock,
     sha256_file,
@@ -35,7 +36,6 @@ _REMOTE_STDERR = f"{EnvironmentPaths.agent_dir.as_posix()}/chrys.stderr.log"
 _REMOTE_RETURN_CODE = f"{EnvironmentPaths.agent_dir.as_posix()}/chrys.returncode"
 _REMOTE_MODEL_PATCH = f"{EnvironmentPaths.artifacts_dir.as_posix()}/model.patch"
 _USAGE_READ_ERRORS = (OSError, UnicodeError, json.JSONDecodeError)
-
 
 class ChrysHarborAgent(BaseAgent):
     """Upload and run a pinned offline Chrys build through Harbor."""
@@ -143,7 +143,7 @@ class ChrysHarborAgent(BaseAgent):
                 "--task",
                 remote_instruction,
                 "--agent",
-                "DeepSWEClarification" if self._run_mode == "clarification" else "DeepSWEControl",
+                agent_profile_name(self._run_mode),
                 "--model",
                 MODEL_PROFILE_ID,
                 "--workdir",

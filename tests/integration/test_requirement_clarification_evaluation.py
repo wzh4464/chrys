@@ -14,8 +14,13 @@ from evaluation.requirement_clarification import build_fixed_p0_images
 from evaluation.requirement_clarification.materialize_fixed_p0 import main as materialize_fixed_p0
 from evaluation.requirement_clarification.protocol import (
     CANDIDATE_ARM,
+    CANDIDATE_PROFILE_NAME,
     CODING_PHASE_TIMEOUT_SECONDS,
     CONTROL_ARM,
+    CONTROL_PROFILE_NAME,
+    REPAIR_ARM,
+    REPAIR_PROFILE_NAME,
+    agent_profile_name,
     expected_model_lock,
     read_secrets_env,
     render_fixed_p0_repair_profile,
@@ -144,6 +149,26 @@ def test_fixed_p0_repair_profile_is_bounded_and_incremental(tmp_path: Path) -> N
     assert "Do not run exhaustive manual end-to-end matrices" in profile["instructions"]
     assert "skills" not in profile
     assert "memory" not in profile
+
+
+@pytest.mark.parametrize(
+    ("run_mode", "expected_profile"),
+    [
+        (CONTROL_ARM, CONTROL_PROFILE_NAME),
+        (CANDIDATE_ARM, CANDIDATE_PROFILE_NAME),
+        (REPAIR_ARM, REPAIR_PROFILE_NAME),
+    ],
+)
+def test_harbor_adapter_selects_profile_for_each_run_mode(
+    run_mode: str,
+    expected_profile: str,
+) -> None:
+    assert agent_profile_name(run_mode) == expected_profile
+
+
+def test_harbor_adapter_rejects_unknown_run_mode() -> None:
+    with pytest.raises(ValueError, match="unsupported run_mode"):
+        agent_profile_name("unknown")
 
 
 def test_secrets_reader_enforces_and_normalizes_model_lock(tmp_path: Path) -> None:

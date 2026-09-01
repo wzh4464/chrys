@@ -28,6 +28,19 @@ AGENT_IMPORT_PATH = "evaluation.requirement_clarification.harbor_agent:ChrysHarb
 CONTROL_PROFILE_NAME = "DeepSWEControl"
 CANDIDATE_PROFILE_NAME = "DeepSWEClarification"
 REPAIR_PROFILE_NAME = "DeepSWEFixedP0Repair"
+_PROFILE_BY_RUN_MODE = {
+    CONTROL_ARM: CONTROL_PROFILE_NAME,
+    CANDIDATE_ARM: CANDIDATE_PROFILE_NAME,
+    REPAIR_ARM: REPAIR_PROFILE_NAME,
+}
+
+
+def agent_profile_name(run_mode: str) -> str:
+    """Return the uploaded Chrys profile name for an evaluation arm."""
+    try:
+        return _PROFILE_BY_RUN_MODE[run_mode]
+    except KeyError as error:
+        raise ValueError(f"unsupported run_mode {run_mode!r}; expected one of {ADAPTER_MODES!r}") from error
 
 _FIXED_P0_REPAIR_INSTRUCTIONS = """You are Chrys running a bounded fixed-P0 repair experiment.
 
