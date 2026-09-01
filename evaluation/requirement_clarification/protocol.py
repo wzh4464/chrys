@@ -16,7 +16,8 @@ CONTROL_ARM = "control"
 CANDIDATE_ARM = "clarification"
 ARMS = (CONTROL_ARM, CANDIDATE_ARM)
 REPAIR_ARM = "fixed-p0-repair"
-ADAPTER_MODES = (*ARMS, REPAIR_ARM)
+IMPORTED_P0_CLARIFICATION_ARM = "imported-p0-clarification"
+ADAPTER_MODES = (*ARMS, REPAIR_ARM, IMPORTED_P0_CLARIFICATION_ARM)
 
 MODEL_PROFILE_ID = "deepseek-v4-pro-0813-openrouter"
 MODEL_ID = "deepseek/deepseek-v4-pro-0813"
@@ -28,10 +29,12 @@ AGENT_IMPORT_PATH = "evaluation.requirement_clarification.harbor_agent:ChrysHarb
 CONTROL_PROFILE_NAME = "DeepSWEControl"
 CANDIDATE_PROFILE_NAME = "DeepSWEClarification"
 REPAIR_PROFILE_NAME = "DeepSWEFixedP0Repair"
+IMPORTED_P0_CLARIFICATION_PROFILE_NAME = "DeepSWEImportedP0Clarification"
 _PROFILE_BY_RUN_MODE = {
     CONTROL_ARM: CONTROL_PROFILE_NAME,
     CANDIDATE_ARM: CANDIDATE_PROFILE_NAME,
     REPAIR_ARM: REPAIR_PROFILE_NAME,
+    IMPORTED_P0_CLARIFICATION_ARM: IMPORTED_P0_CLARIFICATION_PROFILE_NAME,
 }
 
 
@@ -41,6 +44,7 @@ def agent_profile_name(run_mode: str) -> str:
         return _PROFILE_BY_RUN_MODE[run_mode]
     except KeyError as error:
         raise ValueError(f"unsupported run_mode {run_mode!r}; expected one of {ADAPTER_MODES!r}") from error
+
 
 _FIXED_P0_REPAIR_INSTRUCTIONS = """You are Chrys running a bounded fixed-P0 repair experiment.
 
@@ -192,6 +196,31 @@ def render_fixed_p0_repair_profile(code_profile_path: Path, output_path: Path) -
     )
     for section in ("skills", "compaction", "memory"):
         profile.pop(section, None)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(yaml.safe_dump(profile, sort_keys=False, width=120), encoding="utf-8")
+    return output_path
+
+
+def render_imported_p0_clarification_profile(code_profile_path: Path, output_path: Path) -> Path:
+    """Render the native clarification workflow with the existing workspace treated as P0."""
+    source = yaml.safe_load(code_profile_path.read_text(encoding="utf-8"))
+    if not isinstance(source, dict) or source.get("name") != "Code":
+        raise ValueError(f"expected the built-in Code profile: {code_profile_path}")
+    profile = dict(source)
+    profile.update(
+        {
+            "name": IMPORTED_P0_CLARIFICATION_PROFILE_NAME,
+            "id": "d33e5e000004",
+            "display_name": "DeepSWE Imported-P0 Clarification",
+            "description": "Native repository-grounded clarification and repair of a frozen baseline P0",
+            "requirement_clarification": {
+                "enabled": True,
+                "reuse_workspace_as_p0": True,
+                "initial_timeout_seconds": CODING_PHASE_TIMEOUT_SECONDS,
+                "repair_timeout_seconds": CODING_PHASE_TIMEOUT_SECONDS,
+            },
+        }
+    )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(yaml.safe_dump(profile, sort_keys=False, width=120), encoding="utf-8")
     return output_path

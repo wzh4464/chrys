@@ -20,12 +20,15 @@ from evaluation.requirement_clarification.protocol import (
     CODING_PHASE_TIMEOUT_SECONDS,
     CONTROL_ARM,
     CONTROL_PROFILE_NAME,
+    IMPORTED_P0_CLARIFICATION_ARM,
+    IMPORTED_P0_CLARIFICATION_PROFILE_NAME,
     REPAIR_ARM,
     REPAIR_PROFILE_NAME,
     agent_profile_name,
     expected_model_lock,
     read_secrets_env,
     render_fixed_p0_repair_profile,
+    render_imported_p0_clarification_profile,
     render_paired_agent_profiles,
     sha256_file,
 )
@@ -109,7 +112,7 @@ def test_materialized_dataset_widens_only_outer_agent_timeout(tmp_path: Path) ->
     task.mkdir(parents=True)
     (task / "instruction.md").write_text("do it\n", encoding="utf-8")
     (task / "task.toml").write_text(
-        "[verifier]\ntimeout_sec = 300.0\n[agent]\nnetwork_mode = \"no-network\"\ntimeout_sec = 5400.0\n",
+        '[verifier]\ntimeout_sec = 300.0\n[agent]\nnetwork_mode = "no-network"\ntimeout_sec = 5400.0\n',
         encoding="utf-8",
     )
 
@@ -157,12 +160,26 @@ def test_fixed_p0_repair_profile_is_bounded_and_incremental(tmp_path: Path) -> N
     assert "memory" not in profile
 
 
+def test_imported_p0_profile_enables_native_clarification_without_initial_generation(tmp_path: Path) -> None:
+    path = render_imported_p0_clarification_profile(
+        REPO_ROOT / "src/chrys/service/profiles/agents/builtins/Code.yaml",
+        tmp_path / "imported-p0-clarification.yaml",
+    )
+
+    profile = yaml.safe_load(path.read_text(encoding="utf-8"))
+
+    assert profile["name"] == IMPORTED_P0_CLARIFICATION_PROFILE_NAME
+    assert profile["requirement_clarification"]["enabled"] is True
+    assert profile["requirement_clarification"]["reuse_workspace_as_p0"] is True
+
+
 @pytest.mark.parametrize(
     ("run_mode", "expected_profile"),
     [
         (CONTROL_ARM, CONTROL_PROFILE_NAME),
         (CANDIDATE_ARM, CANDIDATE_PROFILE_NAME),
         (REPAIR_ARM, REPAIR_PROFILE_NAME),
+        (IMPORTED_P0_CLARIFICATION_ARM, IMPORTED_P0_CLARIFICATION_PROFILE_NAME),
     ],
 )
 def test_harbor_adapter_selects_profile_for_each_run_mode(
@@ -328,12 +345,52 @@ def test_fixed_p0_materialization_uses_control_patch_and_candidate_delta(tmp_pat
     _validate_materialized_dataset(output / "dataset", output / "manifest.json", {"task-one"})
 
     (output / "dataset/task-one/task.toml").write_text(
-        rendered_text
-        + '\n[[verifier.collect]]\ncommand = "git diff HEAD > /logs/artifacts/model.patch"\n',
+        rendered_text + '\n[[verifier.collect]]\ncommand = "git diff HEAD > /logs/artifacts/model.patch"\n',
         encoding="utf-8",
     )
     with pytest.raises(ValueError, match=r"overwrites model\.patch"):
         _validate_materialized_dataset(output / "dataset", output / "manifest.json", {"task-one"})
+
+
+def test_imported_p0_materialization_preserves_original_requirement_and_empty_p0(tmp_path: Path) -> None:
+    source = tmp_path / "source"
+    task = source / "task-one"
+    task.mkdir(parents=True)
+    instruction = "Original requirement.\n"
+    (task / "instruction.md").write_text(instruction, encoding="utf-8")
+    (task / "task.toml").write_text(
+        'schema_version = "1.3"\n[verifier]\nenvironment_mode = "separate"\n'
+        '[environment]\ndocker_image = "example/source@sha256:abc"\n',
+        encoding="utf-8",
+    )
+    control = tmp_path / "control"
+    trial = _write_trial(control, "task-one", reward=0)
+    (trial / "artifacts/model.patch").write_text("", encoding="utf-8")
+    output = tmp_path / "imported-p0"
+
+    result = materialize_fixed_p0(
+        [
+            "--source-dataset",
+            str(source),
+            "--control-job",
+            str(control),
+            "--native-clarification",
+            "--output-dir",
+            str(output),
+            "--expected-tasks",
+            "1",
+            "--expected-eligible",
+            "1",
+        ]
+    )
+
+    assert result == 0
+    assert (output / "dataset/task-one/instruction.md").read_text(encoding="utf-8") == instruction
+    assert (output / "image-contexts/task-one/model.patch").read_bytes() == b""
+    manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["protocol"] == "chrys-deepswe-imported-p0-clarification-v1"
+    assert manifest["tasks"]["task-one"]["delta_sha256"] is None
+    assert _validate_materialized_dataset(output / "dataset", output / "manifest.json", {"task-one"}) is True
 
 
 def test_fixed_p0_materialization_accepts_collected_patch_and_external_delta(tmp_path: Path) -> None:

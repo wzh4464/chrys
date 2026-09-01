@@ -10,5 +10,6 @@ api_key: "{{OPENROUTER_API_KEY}}"
 http_connect_timeout: 10
 http_read_timeout: 600
 http_max_retries: 2
+chat_options: '{"extra_body":{"reasoning":{"effort":"high"}}}'
 stream: true
 vision: false

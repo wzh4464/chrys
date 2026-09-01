@@ -70,6 +70,7 @@ class RequirementClarificationWorkflow:
         host: RequirementClarificationHost,
         runner: TurnRunner,
         *,
+        reuse_workspace_as_p0: bool = False,
         initial_timeout_seconds: float = 5400.0,
         repair_timeout_seconds: float = 5400.0,
     ) -> None:
@@ -84,6 +85,7 @@ class RequirementClarificationWorkflow:
         self._artifacts: ClarificationArtifactStore | None = None
         self._s0: WorkspaceSnapshot | None = None
         self._p0: WorkspaceSnapshot | None = None
+        self._reuse_workspace_as_p0 = reuse_workspace_as_p0
         self._initial_timeout_seconds = initial_timeout_seconds
         self._repair_timeout_seconds = repair_timeout_seconds
 
@@ -199,12 +201,17 @@ class RequirementClarificationWorkflow:
         s0: WorkspaceSnapshot | None = None
         p0: WorkspaceSnapshot | None = None
         try:
+            s0_capture_options: dict[str, Any] = {
+                "snapshot_id": f"{self._workflow_id}-s0",
+                "include_git_history": True,
+            }
+            if self._reuse_workspace_as_p0:
+                s0_capture_options["committed_git_head_only"] = True
             s0 = await asyncio.to_thread(
                 self._snapshotter.capture,
                 workspace,
                 artifacts.root / "s0",
-                snapshot_id=f"{self._workflow_id}-s0",
-                include_git_history=True,
+                **s0_capture_options,
             )
             self._s0 = s0
         except Exception as exc:
@@ -225,47 +232,59 @@ class RequirementClarificationWorkflow:
         try:
             await self._phase(RequirementWorkflowPhase.INITIAL_IMPLEMENTATION, revision.number)
             executor.set_requirement_phase(RequirementWorkflowPhase.INITIAL_IMPLEMENTATION)
-            try:
-                async with asyncio.timeout(self._initial_timeout_seconds):
-                    await self._runner._run_fresh_standard(
-                        text,
-                        created_at=created_at,
-                        contents=contents,
-                        run_scope=run_scope,
-                        injection_window=injection_window,
-                        admission_preparation=admission_preparation,
-                        finalize=False,
+            if self._reuse_workspace_as_p0:
+                await self._runner._prepare_fresh_without_execution(
+                    text,
+                    created_at=created_at,
+                    contents=contents,
+                    run_scope=run_scope,
+                    admission_preparation=admission_preparation,
+                )
+                p0_text = "Reused the existing workspace implementation as P0."
+                p0_history = h0
+                baseline_injections: list[ConsumedInjection] = []
+            else:
+                try:
+                    async with asyncio.timeout(self._initial_timeout_seconds):
+                        await self._runner._run_fresh_standard(
+                            text,
+                            created_at=created_at,
+                            contents=contents,
+                            run_scope=run_scope,
+                            injection_window=injection_window,
+                            admission_preparation=admission_preparation,
+                            finalize=False,
+                        )
+                except TimeoutError:
+                    if executor.is_running:
+                        await executor.interrupt()
+                    executor.set_requirement_phase("")
+                    await self._phase(
+                        RequirementWorkflowPhase.INTERRUPTED,
+                        revision.number,
+                        detail=f"initial implementation exceeded {self._initial_timeout_seconds:g} seconds",
+                        terminal=True,
                     )
-            except TimeoutError:
-                if executor.is_running:
-                    await executor.interrupt()
-                executor.set_requirement_phase("")
-                await self._phase(
-                    RequirementWorkflowPhase.INTERRUPTED,
-                    revision.number,
-                    detail=f"initial implementation exceeded {self._initial_timeout_seconds:g} seconds",
-                    terminal=True,
-                )
-                await self._runner.finalize_current_run()
-                return
-            if executor.run_failed or executor.was_interrupted:
-                executor.set_requirement_phase("")
-                await self._phase(
-                    RequirementWorkflowPhase.INTERRUPTED
-                    if executor.was_interrupted
-                    else RequirementWorkflowPhase.DEGRADED,
-                    revision.number,
-                    terminal=True,
-                )
-                await self._runner.finalize_current_run()
-                return
+                    await self._runner.finalize_current_run()
+                    return
+                if executor.run_failed or executor.was_interrupted:
+                    executor.set_requirement_phase("")
+                    await self._phase(
+                        RequirementWorkflowPhase.INTERRUPTED
+                        if executor.was_interrupted
+                        else RequirementWorkflowPhase.DEGRADED,
+                        revision.number,
+                        terminal=True,
+                    )
+                    await self._runner.finalize_current_run()
+                    return
 
-            p0_text = executor.last_response_text
-            p0_history = executor.snapshot_history()
-            baseline_injections = list(host._consumed_injections)
-            for injection in baseline_injections:
-                revision = revision.append(injection.text)
-            self._revision = revision
+                p0_text = executor.last_response_text
+                p0_history = executor.snapshot_history()
+                baseline_injections = list(host._consumed_injections)
+                for injection in baseline_injections:
+                    revision = revision.append(injection.text)
+                self._revision = revision
             try:
                 artifacts.save_initial_transcript(
                     {

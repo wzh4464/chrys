@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from evaluation.requirement_clarification.protocol import (
+    IMPORTED_P0_CLARIFICATION_ARM,
     MODEL_PROFILE_ID,
     REPAIR_ARM,
     fingerprint_dataset,
@@ -22,6 +23,7 @@ from evaluation.requirement_clarification.protocol import (
     fingerprints_as_dict,
     read_secrets_env,
     render_fixed_p0_repair_profile,
+    render_imported_p0_clarification_profile,
     sha256_file,
     validate_run_id,
     write_json,
@@ -56,11 +58,16 @@ def _mapping(value: object, name: str) -> dict[str, Any]:
     return value
 
 
-def _validate_materialized_dataset(dataset: Path, manifest_path: Path, task_names: set[str]) -> None:
+def _validate_materialized_dataset(dataset: Path, manifest_path: Path, task_names: set[str]) -> bool:
     """Reject stale or unsafe fixed-P0 inputs before any model call."""
     manifest = _mapping(json.loads(manifest_path.read_text(encoding="utf-8")), "root")
-    if manifest.get("protocol") != "chrys-deepswe-fixed-p0-repair-v1":
+    protocol = manifest.get("protocol")
+    if protocol not in {
+        "chrys-deepswe-fixed-p0-repair-v1",
+        "chrys-deepswe-imported-p0-clarification-v1",
+    }:
         raise ValueError("not a fixed-P0 materialization manifest")
+    native_clarification = protocol == "chrys-deepswe-imported-p0-clarification-v1"
     manifest_tasks = _mapping(manifest.get("tasks"), "tasks")
     if set(manifest_tasks) != task_names:
         raise ValueError("materialization manifest tasks do not match the repair dataset")
@@ -87,9 +94,17 @@ def _validate_materialized_dataset(dataset: Path, manifest_path: Path, task_name
         control_patch = contexts_root / task / "model.patch"
         if not control_patch.is_file() or sha256_file(control_patch) != metadata.get("control_patch_sha256"):
             raise ValueError(f"fixed-P0 task {task} control patch is missing or changed")
+        if native_clarification and metadata.get("delta_sha256") is not None:
+            raise ValueError(f"imported-P0 task {task} must not contain a precomputed delta")
+    return native_clarification
 
 
-def _validate_collected_patches(job_dir: Path, task_names: set[str]) -> dict[str, dict[str, object]]:
+def _validate_collected_patches(
+    job_dir: Path,
+    task_names: set[str],
+    *,
+    allow_empty: bool = False,
+) -> dict[str, dict[str, object]]:
     """Require one non-empty convention artifact for every completed repair task."""
     attempts = load_selected_attempts(job_dir)
     if set(attempts) != task_names:
@@ -101,9 +116,13 @@ def _validate_collected_patches(job_dir: Path, task_names: set[str]) -> dict[str
             trial_dir / "artifacts/logs/artifacts/model.patch",
             trial_dir / "artifacts/model.patch",
         )
-        patch = next((path for path in candidates if path.is_file() and path.stat().st_size > 0), None)
+        patch = next(
+            (path for path in candidates if path.is_file() and (allow_empty or path.stat().st_size > 0)),
+            None,
+        )
         if patch is None:
-            raise RuntimeError(f"fixed-P0 task {task} did not publish a non-empty model.patch")
+            expected = "model.patch" if allow_empty else "non-empty model.patch"
+            raise RuntimeError(f"fixed-P0 task {task} did not publish a {expected}")
         patches[task] = {
             "path": str(patch),
             "size": patch.stat().st_size,
@@ -127,18 +146,31 @@ def main(argv: list[str] | None = None) -> int:
 
     secrets = read_secrets_env(args.secrets.resolve(strict=True))
     tasks = fingerprint_dataset(dataset, expected_tasks=args.expected_tasks)
-    _validate_materialized_dataset(dataset, materialization_manifest, {task.name for task in tasks})
+    native_clarification = _validate_materialized_dataset(
+        dataset,
+        materialization_manifest,
+        {task.name for task in tasks},
+    )
     harbor_binary = _harbor_binary(harbor_repo)
     revision = args.chrys_revision.strip() if args.chrys_revision else _git_revision(repo_root)
     if not revision:
         raise ValueError("--chrys-revision cannot be empty")
-    agent_profile = render_fixed_p0_repair_profile(
-        repo_root / "src/chrys/service/profiles/agents/builtins/Code.yaml",
-        output_dir / "config/agents/fixed-p0-repair.yaml",
-    )
+    code_profile = repo_root / "src/chrys/service/profiles/agents/builtins/Code.yaml"
+    if native_clarification:
+        arm = IMPORTED_P0_CLARIFICATION_ARM
+        agent_profile = render_imported_p0_clarification_profile(
+            code_profile,
+            output_dir / "config/agents/imported-p0-clarification.yaml",
+        )
+    else:
+        arm = REPAIR_ARM
+        agent_profile = render_fixed_p0_repair_profile(
+            code_profile,
+            output_dir / "config/agents/fixed-p0-repair.yaml",
+        )
     model_profile = repo_root / "evaluation/requirement_clarification/profiles" / f"{MODEL_PROFILE_ID}.yaml"
     jobs_dir = output_dir / "jobs"
-    job_name = f"{run_id}-{REPAIR_ARM}"
+    job_name = f"{run_id}-{arm}"
     command = build_harbor_command(
         harbor_binary=harbor_binary,
         dataset=dataset,
@@ -147,13 +179,15 @@ def main(argv: list[str] | None = None) -> int:
         chrys_binary=chrys_binary,
         agent_profile=agent_profile,
         model_profile=model_profile,
-        arm=REPAIR_ARM,
+        arm=arm,
         revision=revision,
         concurrency=args.concurrency,
     )
     manifest = {
         "schema_version": 1,
-        "protocol": "chrys-deepswe-fixed-p0-repair-v1",
+        "protocol": (
+            "chrys-deepswe-imported-p0-clarification-v1" if native_clarification else "chrys-deepswe-fixed-p0-repair-v1"
+        ),
         "run_id": run_id,
         "chrys_revision": revision,
         "dataset": str(dataset),
@@ -186,7 +220,11 @@ def main(argv: list[str] | None = None) -> int:
             raise FileExistsError(f"refusing to overwrite existing Harbor job: {job_dir}")
         command = [str(harbor_binary), "jobs", "resume", "--job-path", str(job_dir)]
     subprocess.run(command, cwd=harbor_repo, env=environment, check=True)  # noqa: S603
-    patch_records = _validate_collected_patches(job_dir, {task.name for task in tasks})
+    patch_records = _validate_collected_patches(
+        job_dir,
+        {task.name for task in tasks},
+        allow_empty=native_clarification,
+    )
     write_json(output_dir / "postflight.json", {"schema_version": 1, "patches": patch_records})
     return 0
 

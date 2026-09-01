@@ -343,6 +343,7 @@ class RequirementClarificationConfig:
     """
 
     enabled: bool = False
+    reuse_workspace_as_p0: bool = False
     initial_timeout_seconds: float = 5400.0
     repair_timeout_seconds: float = 5400.0
 

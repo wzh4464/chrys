@@ -44,6 +44,11 @@ def _parser() -> argparse.ArgumentParser:
         type=Path,
         help="Directory containing TASK/clarified_requirement.md files",
     )
+    delta_source.add_argument(
+        "--native-clarification",
+        action="store_true",
+        help="Keep the original requirement so Chrys generates a fresh delta from committed S0",
+    )
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--image-repository", default="chrys/deepswe-fixed-p0")
     parser.add_argument("--expected-tasks", type=int, default=113)
@@ -139,10 +144,7 @@ def _prepare_fixed_p0_task_toml(source: str, image: str) -> str:
     lines = [
         line
         for block in blocks
-        if not (
-            block[0].strip() == "[[verifier.collect]]"
-            and "/logs/artifacts/model.patch" in "".join(block)
-        )
+        if not (block[0].strip() == "[[verifier.collect]]" and "/logs/artifacts/model.patch" in "".join(block))
         for line in block
     ]
     in_environment = False
@@ -202,7 +204,9 @@ def main(argv: list[str] | None = None) -> int:
         patch = _control_patch(control_trial)
         source_task = source_dataset / task
         original_instruction = (source_task / "instruction.md").read_text(encoding="utf-8")
-        if candidate is not None:
+        if args.native_clarification:
+            delta = None
+        elif candidate is not None:
             candidate_trial, _, _ = candidate[task]
             delta = _clarification_delta(candidate_trial)
         else:
@@ -211,7 +215,7 @@ def main(argv: list[str] | None = None) -> int:
         if patch is None:
             excluded[task] = "control model.patch missing"
             continue
-        if delta is None:
+        if delta is None and not args.native_clarification:
             excluded[task] = "candidate produced no persisted clarification delta"
             continue
 
@@ -231,7 +235,10 @@ def main(argv: list[str] | None = None) -> int:
             _prepare_fixed_p0_task_toml(task_toml_text, image),
             encoding="utf-8",
         )
-        (destination / "instruction.md").write_text(_repair_instruction(original_instruction, delta), encoding="utf-8")
+        instruction = (
+            original_instruction if args.native_clarification else _repair_instruction(original_instruction, delta)
+        )
+        (destination / "instruction.md").write_text(instruction, encoding="utf-8")
 
         command = [docker or "docker", "build", "--build-arg", f"BASE_IMAGE={base_image}", "-t", image, str(context)]
         commands[task] = command
@@ -239,7 +246,7 @@ def main(argv: list[str] | None = None) -> int:
             "base_image": base_image,
             "fixed_p0_image": image,
             "control_patch_sha256": sha256_file(patch),
-            "delta_sha256": hashlib.sha256(delta.encode()).hexdigest(),
+            "delta_sha256": hashlib.sha256(delta.encode()).hexdigest() if delta is not None else None,
             "source_task_sha256": next(item.sha256 for item in source_tasks if item.name == task),
         }
 
@@ -247,11 +254,16 @@ def main(argv: list[str] | None = None) -> int:
         raise ValueError(f"expected {args.expected_eligible} eligible tasks, found {len(tasks)}")
     manifest = {
         "schema_version": 1,
-        "protocol": "chrys-deepswe-fixed-p0-repair-v1",
+        "protocol": (
+            "chrys-deepswe-imported-p0-clarification-v1"
+            if args.native_clarification
+            else "chrys-deepswe-fixed-p0-repair-v1"
+        ),
         "source_dataset": str(source_dataset),
         "control_job": str(args.control_job.resolve(strict=True)),
         "candidate_job": str(args.candidate_job.resolve(strict=True)) if args.candidate_job else None,
         "clarification_root": str(clarification_root) if clarification_root else None,
+        "native_clarification": args.native_clarification,
         "source_tasks": fingerprints_as_dict(source_tasks),
         "eligible_count": len(tasks),
         "excluded": excluded,

@@ -97,6 +97,7 @@ class _Runner:
         self.host = host
         self.workspace_file = workspace_file
         self.finalized = 0
+        self.imported_p0_prepared = 0
 
     async def _run_fresh_standard(self, text: str, **kwargs) -> None:
         assert kwargs["finalize"] is False
@@ -108,6 +109,10 @@ class _Runner:
     async def finalize_current_run(self) -> None:
         self.finalized += 1
 
+    async def _prepare_fresh_without_execution(self, _text: str, **_kwargs) -> None:
+        assert self.workspace_file.read_text(encoding="utf-8") == "P0\n"
+        self.imported_p0_prepared += 1
+
 
 class _Snapshotter:
     def __init__(self, workspace_file: Path) -> None:
@@ -115,9 +120,17 @@ class _Snapshotter:
         self.calls: list[str] = []
         self.restored = 0
 
-    def capture(self, _workspace, artifact_root: Path, *, snapshot_id: str, include_git_history: bool):
+    def capture(
+        self,
+        _workspace,
+        artifact_root: Path,
+        *,
+        snapshot_id: str,
+        include_git_history: bool,
+        committed_git_head_only: bool = False,
+    ):
         artifact_root.mkdir(parents=True)
-        self.calls.append("s0" if include_git_history else "p0")
+        self.calls.append("s0-head" if committed_git_head_only else "s0" if include_git_history else "p0")
         return WorkspaceSnapshot(
             snapshot_id=snapshot_id,
             artifact_root=str(artifact_root),
@@ -169,10 +182,12 @@ def test_history_background_uses_only_user_and_assistant_text() -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("repair_fails", [False, True, "timeout"])
+@pytest.mark.parametrize("reuse_workspace_as_p0", [False, True])
 async def test_workflow_orders_p0_before_delta_and_restores_p0_on_repair_failure(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     repair_fails: bool | str,
+    reuse_workspace_as_p0: bool,
 ) -> None:
     async def _direct(function, /, *args, **kwargs):
         return function(*args, **kwargs)
@@ -194,7 +209,7 @@ async def test_workflow_orders_p0_before_delta_and_restores_p0_on_repair_failure
     workspace_root = tmp_path / "workspace"
     workspace_root.mkdir()
     workspace_file = workspace_root / "value.txt"
-    workspace_file.write_text("S0\n", encoding="utf-8")
+    workspace_file.write_text("P0\n" if reuse_workspace_as_p0 else "S0\n", encoding="utf-8")
     executor = _Executor(
         workspace_file,
         repair_fails=repair_fails is True,
@@ -225,6 +240,7 @@ async def test_workflow_orders_p0_before_delta_and_restores_p0_on_repair_failure
     workflow = RequirementClarificationWorkflow(
         host,
         runner,
+        reuse_workspace_as_p0=reuse_workspace_as_p0,
         repair_timeout_seconds=0.001 if repair_fails == "timeout" else 5400,
     )
     workflow._snapshotter = snapshotter
@@ -249,14 +265,16 @@ async def test_workflow_orders_p0_before_delta_and_restores_p0_on_repair_failure
         admission_preparation=None,
     )
 
-    assert snapshotter.calls == ["s0", "p0"]
+    assert snapshotter.calls == ["s0-head" if reuse_workspace_as_p0 else "s0", "p0"]
+    assert runner.imported_p0_prepared == int(reuse_workspace_as_p0)
     assert order == ["delta"]
     assert executor.repair_started_from == []
     assert host._reminder_middleware.values[0].startswith("[REQUIREMENT_CLARIFICATION_REPAIR]")
     assert runner.finalized == 1
     if repair_fails:
         assert snapshotter.restored == 1
-        assert executor.published_finals == ["P0"]
+        expected_p0_text = "Reused the existing workspace implementation as P0." if reuse_workspace_as_p0 else "P0"
+        assert executor.published_finals == [expected_p0_text]
         assert workspace_file.read_text(encoding="utf-8") == "P0\n"
         assert phases[-1] == RequirementWorkflowPhase.DEGRADED
     else:

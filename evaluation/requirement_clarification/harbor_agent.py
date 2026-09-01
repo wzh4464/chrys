@@ -19,6 +19,7 @@ from evaluation.requirement_clarification.protocol import (
     ADAPTER_MODES,
     CODING_PHASE_TIMEOUT_SECONDS,
     CONTROL_ARM,
+    IMPORTED_P0_CLARIFICATION_ARM,
     MODEL_PROFILE_ID,
     REPAIR_ARM,
     agent_profile_name,
@@ -101,7 +102,7 @@ class ChrysHarborAgent(BaseAgent):
         )
         if permissions.return_code != 0:
             raise RuntimeError(f"failed to set Chrys runtime permissions: {permissions.stderr or permissions.stdout}")
-        if self._run_mode == REPAIR_ARM:
+        if self._run_mode in {REPAIR_ARM, IMPORTED_P0_CLARIFICATION_ARM}:
             captured = await environment.exec(
                 f"python3 {shlex.quote(_REMOTE_PATCH_HELPER)} record-base "
                 f"--workspace /app --output {shlex.quote(_REMOTE_BASE_REVISION)}",
@@ -170,16 +171,13 @@ class ChrysHarborAgent(BaseAgent):
         if self._run_mode == CONTROL_ARM:
             # Harbor's task deadline is widened for the two-pass candidate.
             # Keep the one-pass control on the identical P0 coding budget.
-            command = (
-                f"timeout --signal=INT --kill-after=30 {CODING_PHASE_TIMEOUT_SECONDS:g} "
-                f"{command}"
-            )
+            command = f"timeout --signal=INT --kill-after=30 {CODING_PHASE_TIMEOUT_SECONDS:g} {command}"
         # Capture the result inside the task container.  Harbor's controlling
         # process can disappear while ``environment.exec`` is awaiting Chrys;
         # the shell and Chrys may still finish, so host-side post-processing is
         # not a durable completion boundary.
         patch_command = f"git -C /app diff --binary HEAD > {_REMOTE_MODEL_PATCH}.tmp"
-        if self._run_mode == REPAIR_ARM:
+        if self._run_mode in {REPAIR_ARM, IMPORTED_P0_CLARIFICATION_ARM}:
             patch_command = (
                 f"python3 {shlex.quote(_REMOTE_PATCH_HELPER)} capture "
                 f"--workspace /app "

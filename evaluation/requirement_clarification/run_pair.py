@@ -94,8 +94,7 @@ def _assert_job_is_resumable(
             archived = _archive_interrupted_trials(job_dir, recovery_root)
             if not archived:
                 raise RuntimeError(
-                    "job reports running trials but no verifier-incomplete trial directories were found: "
-                    f"{job_dir}"
+                    f"job reports running trials but no verifier-incomplete trial directories were found: {job_dir}"
                 )
             return archived
         raise RuntimeError(

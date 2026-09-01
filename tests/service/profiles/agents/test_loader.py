@@ -74,12 +74,23 @@ def test_load_requirement_clarification_phase_timeouts(tmp_path: Path) -> None:
     assert profile.requirement_clarification.repair_timeout_seconds == 34.5
 
 
+def test_load_requirement_clarification_reuses_workspace_as_p0(tmp_path: Path) -> None:
+    path = tmp_path / "clarification-imported-p0.yaml"
+    path.write_text(
+        "name: clarification\nrequirement_clarification:\n  enabled: true\n  reuse_workspace_as_p0: true\n",
+        encoding="utf-8",
+    )
+
+    profile = load_profile_from_yaml(path)
+
+    assert profile.requirement_clarification.reuse_workspace_as_p0 is True
+
+
 @pytest.mark.parametrize("value", ["0", "-1", "true", '"90"'])
 def test_load_requirement_clarification_rejects_invalid_phase_timeout(tmp_path: Path, value: str) -> None:
     path = tmp_path / "clarification-invalid.yaml"
     path.write_text(
-        "name: clarification\nrequirement_clarification:\n  enabled: true\n"
-        f"  repair_timeout_seconds: {value}\n",
+        f"name: clarification\nrequirement_clarification:\n  enabled: true\n  repair_timeout_seconds: {value}\n",
         encoding="utf-8",
     )
 

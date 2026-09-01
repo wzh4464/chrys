@@ -33,6 +33,20 @@ def test_requirement_clarification_enabled_round_trip(tmp_path: Path) -> None:
     assert restored.requirement_clarification.enabled is True
 
 
+def test_requirement_clarification_imported_p0_round_trip(tmp_path: Path) -> None:
+    profile = AgentProfile(
+        name="clarifying-imported-p0",
+        requirement_clarification=RequirementClarificationConfig(
+            enabled=True,
+            reuse_workspace_as_p0=True,
+        ),
+    )
+
+    restored = load_profile_from_yaml(save_profile(profile, target_dir=tmp_path))
+
+    assert restored.requirement_clarification.reuse_workspace_as_p0 is True
+
+
 @pytest.mark.parametrize("body", ['enabled: "yes"', "enabled: 1", "proposal_count: 3"])
 def test_requirement_clarification_rejects_non_contract_fields(tmp_path: Path, body: str) -> None:
     path = tmp_path / "invalid.yaml"

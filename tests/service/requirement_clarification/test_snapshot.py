@@ -148,6 +148,34 @@ def test_git_snapshot_freezes_head_and_s0_worktree(tmp_path: Path) -> None:
     assert frozen_head.stdout == "COMMITTED = 1\n"
 
 
+@pytest.mark.skipif(shutil.which("git") is None, reason="git unavailable")
+def test_committed_head_snapshot_excludes_imported_p0_worktree(tmp_path: Path) -> None:
+    workspace_root = tmp_path / "workspace"
+    workspace_root.mkdir()
+    subprocess.run(["git", "init", "-q", str(workspace_root)], check=True)
+    subprocess.run(["git", "-C", str(workspace_root), "config", "user.email", "test@example.com"], check=True)
+    subprocess.run(["git", "-C", str(workspace_root), "config", "user.name", "Test"], check=True)
+    source = workspace_root / "source.py"
+    source.write_text("S0 = 1\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(workspace_root), "add", "source.py"], check=True)
+    subprocess.run(["git", "-C", str(workspace_root), "commit", "-qm", "initial"], check=True)
+    source.write_text("P0 = 2\n", encoding="utf-8")
+    (workspace_root / "p0-only.py").write_text("P0_ONLY = True\n", encoding="utf-8")
+
+    snapshot = WorkspaceSnapshotter().capture(
+        Workspace.from_cwd(str(workspace_root)),
+        tmp_path / "artifact",
+        snapshot_id="s0",
+        include_git_history=True,
+        committed_git_head_only=True,
+    )
+    view = Path(snapshot.roots[0].view_root)
+
+    assert source.read_text(encoding="utf-8") == "P0 = 2\n"
+    assert (view / "source.py").read_text(encoding="utf-8") == "S0 = 1\n"
+    assert not (view / "p0-only.py").exists()
+
+
 def test_snapshot_freezes_and_restores_explicit_reference_file(tmp_path: Path) -> None:
     workspace_root = tmp_path / "workspace"
     workspace_root.mkdir()

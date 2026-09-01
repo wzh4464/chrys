@@ -235,8 +235,11 @@ class WorkspaceSnapshotter:
         *,
         snapshot_id: str,
         include_git_history: bool,
+        committed_git_head_only: bool = False,
     ) -> WorkspaceSnapshot:
         """Capture every in-scope workspace entry or fail without a partial result."""
+        if committed_git_head_only and not include_git_history:
+            raise WorkspaceSnapshotError("committed-head capture requires Git history")
         if artifact_root.exists():
             raise WorkspaceSnapshotError(f"snapshot artifact already exists: {artifact_root}")
         ensure_owner_only_directory(artifact_root)
@@ -265,11 +268,24 @@ class WorkspaceSnapshotter:
                     self._check_total_bytes(total_bytes)
                 else:
                     ensure_owner_only_directory(view_root)
+                capture_root = source_root
+                view_is_source = False
+                if committed_git_head_only:
+                    if not git_head:
+                        raise WorkspaceSnapshotError(f"committed-head capture requires a Git workspace: {source_root}")
+                    checkout = _git_output(view_root, "checkout", "--detach", "--force", git_head)
+                    if checkout.returncode:
+                        raise WorkspaceSnapshotError(
+                            f"failed to materialize committed HEAD for {source_root}: {checkout.stderr.strip()}"
+                        )
+                    capture_root = view_root
+                    view_is_source = True
                 entries, root_bytes = self._capture_root(
-                    source_root,
+                    capture_root,
                     view_root,
                     blob_root,
                     excluded_roots=(artifact_root,),
+                    view_is_source=view_is_source,
                 )
                 total_bytes += root_bytes
                 total_entries += len(entries)
@@ -310,6 +326,8 @@ class WorkspaceSnapshotter:
                 roots_root,
                 blob_root,
             )
+            if committed_git_head_only and any(not reference.managed_by_root for reference in references):
+                raise WorkspaceSnapshotError("committed-head capture does not support external reference files")
             total_bytes += reference_bytes
             total_entries += sum(not reference.managed_by_root for reference in references)
             self._check_total_bytes(total_bytes)
@@ -487,6 +505,7 @@ class WorkspaceSnapshotter:
         blob_root: Path,
         *,
         excluded_roots: tuple[Path, ...] = (),
+        view_is_source: bool = False,
     ) -> tuple[list[SnapshotEntry], int]:
         entries: list[SnapshotEntry] = []
         total_bytes = 0
@@ -507,9 +526,12 @@ class WorkspaceSnapshotter:
                 digest = hashlib.sha256(data).hexdigest()
                 _write_blob(blob_root, digest, data)
                 if visible:
-                    destination = _safe_view_destination(view_root, relative)
-                    ensure_owner_only_directory(destination.parent)
-                    os.symlink(os.fsdecode(data), destination, target_is_directory=target_is_dir)
+                    if not view_is_source:
+                        destination = _safe_view_destination(view_root, relative)
+                        ensure_owner_only_directory(destination.parent)
+                        os.symlink(os.fsdecode(data), destination, target_is_directory=target_is_dir)
+                elif view_is_source:
+                    path.unlink()
                 entries.append(
                     SnapshotEntry(
                         relative_path_b64=_encoded_relative_path(relative),
@@ -535,7 +557,13 @@ class WorkspaceSnapshotter:
             visible = not too_large and not binary
             reason = "too_large" if too_large else "binary" if binary else ""
             if visible:
-                _materialize_model_entry(view_root=view_root, relative_path=relative, data=data, mode=mode)
+                if view_is_source:
+                    if not get_platform().is_windows:
+                        path.chmod(0o500 if mode & 0o111 else 0o400)
+                else:
+                    _materialize_model_entry(view_root=view_root, relative_path=relative, data=data, mode=mode)
+            elif view_is_source:
+                path.unlink()
             entries.append(
                 SnapshotEntry(
                     relative_path_b64=_encoded_relative_path(relative),

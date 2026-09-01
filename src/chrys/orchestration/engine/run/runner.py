@@ -169,6 +169,7 @@ class TurnRunner:
         await RequirementClarificationWorkflow(
             self._host,
             self,
+            reuse_workspace_as_p0=profile.requirement_clarification.reuse_workspace_as_p0,
             initial_timeout_seconds=profile.requirement_clarification.initial_timeout_seconds,
             repair_timeout_seconds=profile.requirement_clarification.repair_timeout_seconds,
         ).run(
@@ -275,6 +276,69 @@ class TurnRunner:
         self._tag_consumed_profile_switch()
         if finalize:
             await self.finalize_current_run()
+
+    async def _prepare_fresh_without_execution(
+        self,
+        text: str,
+        *,
+        created_at: datetime | str | None,
+        contents: list[Any],
+        run_scope: CurrentRunScope | None,
+        admission_preparation: PreparationTrace | None,
+    ) -> None:
+        """Open a fresh turn while leaving an imported workspace P0 untouched."""
+        host = self._host
+        try:
+            await self.pre_run(
+                reset_batch_id=True,
+                preparation_scope_operation_id=self._preparation_operation_id(admission_preparation),
+            )
+            if admission_preparation is not None:
+                await admission_preparation.finished(outcome=PreparationOutcome.FRESH_TURN)
+        except asyncio.CancelledError:
+            if admission_preparation is not None:
+                admission_preparation.finished_soon(outcome=PreparationOutcome.CANCELLED)
+            raise
+        except BaseException:
+            if admission_preparation is not None:
+                admission_preparation.finished_soon(outcome=PreparationOutcome.PREPARATION_FAILED)
+            raise
+        preamble = self._open_turn_preamble()
+        try:
+            if preamble is not None:
+                await preamble.started()
+                self._bind_turn_preamble(preamble)
+            await self._fire_before_turn(
+                text,
+                target_operation_id=(
+                    preamble.operation_id if preamble is not None and preamble.start_committed else None
+                ),
+            )
+            await self._compute_workspace_notice(is_retry=False)
+            write_rollback_snapshot = host._capture_rollback_snapshot_writer()
+            await asyncio.to_thread(write_rollback_snapshot)
+            await self._refresh_runtime_skills(update_active_turn=False)
+            self._queue_skill_reference_reminder(text, for_next_turn=True)
+            if host._reminder_middleware is not None:
+                if run_scope is not None:
+                    host._reminder_middleware.prepare_turn(
+                        reminder_scope=run_scope.reminder_scope,
+                        usage=host._runtime_meta.last_usage_details or None,
+                    )
+                else:
+                    host._reminder_middleware.prepare_turn(usage=host._runtime_meta.last_usage_details or None)
+            host._executor.set_user_messages([text] if text else [])
+            host._turn_state.set_current_input(text, contents, created_at)
+            if preamble is not None:
+                await preamble.finished(outcome=PreparationOutcome.HANDOFF)
+        except asyncio.CancelledError:
+            if preamble is not None:
+                preamble.finished_soon(outcome=PreparationOutcome.INTERRUPTED)
+            raise
+        except BaseException:
+            if preamble is not None:
+                preamble.finished_soon(outcome=PreparationOutcome.FAILED)
+            raise
 
     async def run_retry(
         self,
