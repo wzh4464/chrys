@@ -12,14 +12,13 @@ from dataclasses import asdict
 from pathlib import Path
 
 from evaluation.requirement_clarification.protocol import (
-    CONTROL_ARM,
     MODEL_PROFILE_ID,
     REPAIR_ARM,
     fingerprint_dataset,
     fingerprint_file,
     fingerprints_as_dict,
     read_secrets_env,
-    render_paired_agent_profiles,
+    render_fixed_p0_repair_profile,
     validate_run_id,
     write_json,
 )
@@ -65,9 +64,9 @@ def main(argv: list[str] | None = None) -> int:
     revision = args.chrys_revision.strip() if args.chrys_revision else _git_revision(repo_root)
     if not revision:
         raise ValueError("--chrys-revision cannot be empty")
-    profiles = render_paired_agent_profiles(
+    agent_profile = render_fixed_p0_repair_profile(
         repo_root / "src/chrys/service/profiles/agents/builtins/Code.yaml",
-        output_dir / "config/agents",
+        output_dir / "config/agents/fixed-p0-repair.yaml",
     )
     model_profile = repo_root / "evaluation/requirement_clarification/profiles" / f"{MODEL_PROFILE_ID}.yaml"
     jobs_dir = output_dir / "jobs"
@@ -78,7 +77,7 @@ def main(argv: list[str] | None = None) -> int:
         jobs_dir=jobs_dir,
         job_name=job_name,
         chrys_binary=chrys_binary,
-        agent_profile=profiles[CONTROL_ARM],
+        agent_profile=agent_profile,
         model_profile=model_profile,
         arm=REPAIR_ARM,
         revision=revision,
@@ -98,7 +97,7 @@ def main(argv: list[str] | None = None) -> int:
             "chrys_binary": asdict(fingerprint_file(chrys_binary)),
             "harbor_binary": asdict(fingerprint_file(harbor_binary)),
             "model_profile": asdict(fingerprint_file(model_profile)),
-            "agent_profile": asdict(fingerprint_file(profiles[CONTROL_ARM])),
+            "agent_profile": asdict(fingerprint_file(agent_profile)),
         },
         "command": command,
         "secrets": ["OPENROUTER_API_KEY", "CHRYS_MODEL_LOCK"],

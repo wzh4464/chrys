@@ -18,6 +18,7 @@ from evaluation.requirement_clarification.protocol import (
     CONTROL_ARM,
     expected_model_lock,
     read_secrets_env,
+    render_fixed_p0_repair_profile,
     render_paired_agent_profiles,
     sha256_file,
 )
@@ -125,6 +126,24 @@ def test_rendered_profiles_are_a_strict_feature_flag_pair(tmp_path: Path) -> Non
     assert candidate["requirement_clarification"] == {"enabled": True, **timeouts}
     assert control["instructions"] == candidate["instructions"]
     assert control["tools"] == candidate["tools"]
+
+
+def test_fixed_p0_repair_profile_is_bounded_and_incremental(tmp_path: Path) -> None:
+    path = render_fixed_p0_repair_profile(
+        REPO_ROOT / "src/chrys/service/profiles/agents/builtins/Code.yaml",
+        tmp_path / "fixed-p0-repair.yaml",
+    )
+
+    profile = yaml.safe_load(path.read_text(encoding="utf-8"))
+
+    assert profile["name"] == "DeepSWEFixedP0Repair"
+    assert profile["requirement_clarification"]["enabled"] is False
+    assert profile["sub_agents"] == {"max_total_concurrency": 1, "agents": []}
+    assert profile["tools"]["builtins"] == ["filesystem.write", "filesystem.read", "shell", "search"]
+    assert "If P0 already satisfies every ΔR bullet, make no changes and finish immediately" in profile["instructions"]
+    assert "Do not run exhaustive manual end-to-end matrices" in profile["instructions"]
+    assert "skills" not in profile
+    assert "memory" not in profile
 
 
 def test_secrets_reader_enforces_and_normalizes_model_lock(tmp_path: Path) -> None:

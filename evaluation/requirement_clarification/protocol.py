@@ -27,6 +27,31 @@ CODING_PHASE_TIMEOUT_SECONDS = 5400.0
 AGENT_IMPORT_PATH = "evaluation.requirement_clarification.harbor_agent:ChrysHarborAgent"
 CONTROL_PROFILE_NAME = "DeepSWEControl"
 CANDIDATE_PROFILE_NAME = "DeepSWEClarification"
+REPAIR_PROFILE_NAME = "DeepSWEFixedP0Repair"
+
+_FIXED_P0_REPAIR_INSTRUCTIONS = """You are Chrys running a bounded fixed-P0 repair experiment.
+
+The workspace already contains the exact matched baseline implementation P0. Do not implement the
+requirement from scratch, reset the workspace, create branches, or commit. Preserve every correct P0
+change. The task text contains the authoritative original requirement followed by a small ΔR section.
+Your only objective is to repair concrete P0 gaps identified by ΔR.
+
+Use this bounded workflow:
+1. Inspect `git diff --stat` and the relevant portions of `git diff` once. Map each ΔR bullet to P0.
+2. If P0 already satisfies every ΔR bullet, make no changes and finish immediately.
+3. Otherwise read only the directly implicated declarations, data flow, consumers, and existing tests.
+   Do not re-audit the whole feature, add unrelated hardening, refactor, or improve style.
+4. Make the minimum edits needed for unmet ΔR bullets. Add or change tests only when they directly
+   verify those edits.
+5. Run one focused test command. If it fails, diagnose the concrete failure and repair it; do not try
+   many equivalent command variants. After focused tests pass, run at most one broader relevant suite
+   when it is reasonably fast. Do not run exhaustive manual end-to-end matrices.
+6. Review the final diff once against ΔR and stop. Do not keep exploring after the mapped gaps and
+   focused tests are complete.
+
+Keep tool calls purposeful and batched. Prefer one search/read operation that answers a question over
+many incremental probes. Report only the retained P0 behavior, the minimal repair, and verification.
+"""
 
 _PROFILE_IDS = {
     CONTROL_ARM: "d33e5e000001",
@@ -128,6 +153,35 @@ def render_paired_agent_profiles(code_profile_path: Path, output_dir: Path) -> d
         rendered[arm] = destination
     assert_paired_profiles(rendered[CONTROL_ARM], rendered[CANDIDATE_ARM])
     return rendered
+
+
+def render_fixed_p0_repair_profile(code_profile_path: Path, output_path: Path) -> Path:
+    """Render a minimal, incrementally scoped agent profile for fixed-P0 repair."""
+    source = yaml.safe_load(code_profile_path.read_text(encoding="utf-8"))
+    if not isinstance(source, dict) or source.get("name") != "Code":
+        raise ValueError(f"expected the built-in Code profile: {code_profile_path}")
+    profile = dict(source)
+    profile.update(
+        {
+            "name": REPAIR_PROFILE_NAME,
+            "id": "d33e5e000003",
+            "display_name": "DeepSWE Fixed-P0 Repair",
+            "description": "Bounded incremental repair of a frozen baseline P0",
+            "instructions": _FIXED_P0_REPAIR_INSTRUCTIONS,
+            "tools": {"builtins": ["filesystem.write", "filesystem.read", "shell", "search"]},
+            "sub_agents": {"max_total_concurrency": 1, "agents": []},
+            "requirement_clarification": {
+                "enabled": False,
+                "initial_timeout_seconds": CODING_PHASE_TIMEOUT_SECONDS,
+                "repair_timeout_seconds": CODING_PHASE_TIMEOUT_SECONDS,
+            },
+        }
+    )
+    for section in ("skills", "compaction", "memory"):
+        profile.pop(section, None)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(yaml.safe_dump(profile, sort_keys=False, width=120), encoding="utf-8")
+    return output_path
 
 
 def assert_paired_profiles(control_path: Path, candidate_path: Path) -> None:
