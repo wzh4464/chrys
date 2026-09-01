@@ -56,6 +56,26 @@ def test_chrys_acp_dispatches_to_acp_subcommand(monkeypatch) -> None:
     assert calls == [["--agent", "Code"]]
 
 
+def test_chrys_pact_agent_dispatches_to_external_agent(monkeypatch) -> None:
+    calls: list[list[str]] = []
+
+    def fake_pact_main(argv: list[str]) -> int:
+        calls.append(argv)
+        return 12
+
+    import chrys.pact.cli as pact_module
+
+    monkeypatch.setattr(pact_module, "main", fake_pact_main)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["chrys", "pact-agent", "--agent", "Code", "--allow-unverified"],
+    )
+
+    assert cli_app.main() == 12
+    assert calls == [["--agent", "Code", "--allow-unverified"]]
+
+
 def test_chrys_serve_dispatches_to_serve_subcommand(monkeypatch) -> None:
     calls: list[list[str]] = []
 
@@ -223,6 +243,7 @@ def test_chrys_help_shows_top_level_modes(monkeypatch, capsys) -> None:
     assert "agents" in out.out
     assert "models" in out.out
     assert "acp" in out.out
+    assert "pact-agent" in out.out
     assert "serve" in out.out
     assert "List available agent profiles" in out.out
     assert "List available model profiles" in out.out
@@ -247,6 +268,7 @@ def test_chrys_short_help_shows_top_level_modes(monkeypatch, capsys) -> None:
     assert "agents" in out.out
     assert "models" in out.out
     assert "acp" in out.out
+    assert "pact-agent" in out.out
     assert "serve" in out.out
     assert "Run an Agent Client Protocol stdio server" in out.out
     assert "Start the HTTP server" not in out.out
@@ -316,14 +338,14 @@ def test_chrys_install_rejects_additional_args(monkeypatch, capsys) -> None:
 
 def test_pyapp_build_scripts_use_cli_dispatcher() -> None:
     root = REPO_ROOT
+    cd_workflow = (root / ".github" / "workflows" / "cd.yml").read_text(encoding="utf-8")
 
     assert "PYAPP_EXEC_SPEC=chrys.app.cli.app:pyapp_main" in (root / "scripts" / "build.sh").read_text(encoding="utf-8")
     assert '$env:PYAPP_EXEC_SPEC = "chrys.app.cli.app:pyapp_main"' in (root / "scripts" / "build.ps1").read_text(
         encoding="utf-8"
     )
-    assert 'PYAPP_EXEC_SPEC: "chrys.app.cli.app:pyapp_main"' in (root / ".github" / "workflows" / "cd.yml").read_text(
-        encoding="utf-8"
-    )
+    assert 'PYAPP_EXEC_SPEC: "chrys.app.cli.app:pyapp_main"' in cd_workflow
+    assert '"$binary" pact-agent --help > /dev/null' in cd_workflow
 
 
 def test_pyapp_build_renames_runtime_python_on_process_name_sensitive_platforms() -> None:

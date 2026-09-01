@@ -106,6 +106,66 @@ Tool calls need your approval by default. You can hand that decision to an LLM j
 turn it off. `/diff` reviews what the agent changed, and `/rollback` rewinds a turn — the chat
 *and*, after showing you the diff, your working tree.
 
+## Run governed long tasks with PACT
+
+This branch provides an external ACP agent for PACT R3 Campaigns. Wheel and source installs expose
+the `chrys-pact` console script; the single-file release exposes the same agent through
+`chrys pact-agent`. The process uses one ACP boundary from Primary Chrys, then runs Worker,
+Reviewer, Planner, and Manager through fresh in-process Chrys sessions. PACT Work State and
+artifacts remain authoritative; stock Primary Chrys shows coarse Campaign/role cards, inner tool
+terminal updates, usage, and the final summary.
+
+Inner roles run with `ApprovalMode.BYPASS` and no user interaction. This avoids nested approval
+prompts; it does not provide an operating-system sandbox.
+
+Configure the external agent with exactly one verification mode:
+
+```yaml
+# ~/.chrys/agents/ChrysPact.yaml
+name: ChrysPact
+display_name: Chrys PACT
+description: Run an accepted long-term plan through a governed PACT Campaign.
+acp:
+  command: chrys
+  args: ["pact-agent", "--agent", "Code", "--verify", "uv run pytest"]
+  result_mode: last_segment
+  idle_timeout_seconds: 0
+```
+
+`idle_timeout_seconds: 0` disables the stock ACP idle timer. A valid PACT verification or
+promotion phase can run longer than the stock ten-minute idle window without producing ACP
+traffic; explicit user cancellation and the Primary Chrys child-process teardown remain the
+outer lifecycle controls.
+
+Use `--allow-unverified` instead of `--verify` only when unverified execution is explicitly
+accepted. Add `ChrysPact` to the Primary agent's `sub_agents.agents` list with tool name
+`chrys_pact` and `max_concurrency: 1`.
+
+Primary prepares the accepted inputs beneath one request directory:
+
+```text
+.pact-io/chrys-pact/<request-id>/goal-contract.json
+.pact-io/chrys-pact/<request-id>/initial-plan.json
+```
+
+It then sends one text-only ACP prompt:
+
+```json
+{
+  "schema": "chrys-pact/run-request/v1",
+  "contract_path": ".pact-io/chrys-pact/<request-id>/goal-contract.json",
+  "plan_path": ".pact-io/chrys-pact/<request-id>/initial-plan.json"
+}
+```
+
+The integration pins upstream PACT R3 at
+`aa9073bed4970481a035755990e1682e9de486d8`; it does not fork or modify `pact-core`.
+ACP cancellation is best effort because this R3 release has no canonical Campaign
+cancellation state. Cooperative role paths use bounded cleanup; if an in-process runtime stays
+unresponsive, Primary must force-close the outer child and may not receive a cancelled response.
+See the [integration design](docs/design/chrys-pact-integration.md) for the exact boundary and
+deferred work.
+
 ## Make it yours
 
 An agent is one YAML file. Here is the bundled `QA` agent, trimmed:
@@ -194,9 +254,9 @@ picks up real-network integration tests that CI skips. Use `-n0` to debug a flak
 but it is still the fastest way to learn the conventions and invariants this README leaves
 out.
 
-Proposed integration designs:
+Integration design:
 
-- [Chrys × PACT R3 integration](docs/design/chrys-pact-integration.md) — `/pact` TUI command, ACP role execution, EventBus presentation, input contract, and demo slices.
+- [Primary Chrys × chrys_pact × PACT R3 integration](docs/design/chrys-pact-integration.md) — one outer ACP agent boundary, an in-process Chrys role runtime, canonical PACT Work State, and staged lifecycle delivery.
 
 ## License
 

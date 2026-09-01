@@ -60,6 +60,13 @@ def _run_acp(argv: list[str]) -> int:
     return acp_main(argv)
 
 
+def _run_pact_agent(argv: list[str]) -> int:
+    """Run the external Chrys-PACT ACP agent from the packaged executable."""
+    from chrys.pact.cli import main as pact_main
+
+    return pact_main(argv)
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Help-only parser; real dispatch lives in ``main()``."""
     parser = argparse.ArgumentParser(
@@ -71,6 +78,7 @@ def build_parser() -> argparse.ArgumentParser:
             "  agents      List available agent profiles\n"
             "  models      List available model profiles\n"
             "  acp         Run an Agent Client Protocol stdio server\n"
+            "  pact-agent  Run the external PACT Campaign ACP agent\n"
             f"  serve       Host the {APP_DISPLAY_NAME} TUI in a browser\n"
             "  trajectory  Export recorded trajectory analytics (perfetto/json/csv)\n"
             f"  install     Install {APP_DISPLAY_NAME} to PATH\n\n"
@@ -139,6 +147,8 @@ def main() -> int:
         return _run_serve(argv[1:])
     if argv and argv[0] == "acp":
         return _run_acp(argv[1:])
+    if argv and argv[0] == "pact-agent":
+        return _run_pact_agent(argv[1:])
     if argv and argv[0] == "trajectory":
         from chrys.app.cli.trajectory import main as trajectory_main
 

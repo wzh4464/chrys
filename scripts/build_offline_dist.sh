@@ -137,7 +137,7 @@ echo "==> Base distribution: CPython $PY_VERSION"
 # --locked fails the build on a stale lock instead of silently bundling a
 # resolution nobody reviewed.
 REQUIREMENTS="$WORK_DIR/requirements.txt"
-EXPORT_ARGS=(--locked --no-dev --no-emit-project --format requirements-txt)
+EXPORT_ARGS=(--locked --no-dev --no-emit-project --no-emit-package pact-core --format requirements-txt)
 IFS=',' read -ra EXTRA_LIST <<< "$EXTRAS"
 for extra in "${EXTRA_LIST[@]}"; do
     if [ -n "$extra" ]; then
@@ -149,6 +149,18 @@ echo "==> Exporting locked dependencies (extras: $EXTRAS)..."
 uv export "${EXPORT_ARGS[@]}" -o "$(native_path "$REQUIREMENTS")" --quiet
 DEP_COUNT=$(grep -c '^[A-Za-z0-9]' "$REQUIREMENTS" || true)
 echo "    $DEP_COUNT locked distributions"
+
+# Git requirements have no distribution hash, so uv correctly refuses to mix
+# them into a --require-hashes install.  Keep the registry closure hash-locked
+# above, then read the exact immutable pact-core commit from the same uv.lock.
+# The helper fails closed if the repository changes, the ref is mutable, or
+# uv.lock records different requested and resolved commits.
+PACT_REPOSITORY="https://github.com/SELab-Leibniz/pact.git"
+PACT_REQUIREMENT=$("$PY" "$(native_path "$SCRIPT_DIR/locked_git_requirement.py")" \
+    --lock "$(native_path "$PROJECT_ROOT/uv.lock")" \
+    --package pact-core \
+    --repository "$PACT_REPOSITORY")
+echo "    pact-core locked to ${PACT_REQUIREMENT##*@}"
 
 # ── Install into the distribution ─────────────────────────────────────
 if [ -n "${OFFLINE_ONLY_BINARY:-}" ]; then
@@ -193,6 +205,10 @@ else
     echo "==> Installing dependencies (source builds permitted)..."
 fi
 uv pip install "${INSTALL_ARGS[@]}" -r "$(native_path "$REQUIREMENTS")" --quiet
+
+echo "==> Installing locked pact-core Git dependency..."
+uv pip install --python "$(native_path "$PY")" --no-deps --compile-bytecode \
+    "$PACT_REQUIREMENT" --quiet
 
 echo "==> Installing chrys..."
 CHRYS_SOURCE="${WHEEL:-$PROJECT_ROOT}"
