@@ -33,7 +33,10 @@ def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     manifest_path = args.manifest.resolve(strict=True)
     manifest = _mapping(json.loads(manifest_path.read_text(encoding="utf-8")), name="root")
-    if manifest.get("protocol") != "chrys-deepswe-fixed-p0-repair-v1":
+    if manifest.get("protocol") not in {
+        "chrys-deepswe-fixed-p0-repair-v1",
+        "chrys-deepswe-imported-p0-clarification-v1",
+    }:
         raise ValueError("not a fixed-P0 materialization manifest")
     tasks = _mapping(manifest.get("tasks"), name="tasks")
     commands = _mapping(manifest.get("docker_commands"), name="docker_commands")
