@@ -125,22 +125,28 @@ def _base_image(task_toml: dict[str, Any], task: str) -> str:
     return image
 
 
-def _replace_environment_image(source: str, image: str) -> str:
+def _prepare_fixed_p0_task_toml(source: str, image: str) -> str:
+    """Pin the P0 image and remove the redundant model.patch artifact mount."""
     lines = source.splitlines(keepends=True)
     in_environment = False
+    before_first_table = True
     replacements = 0
-    for index, line in enumerate(lines):
+    rendered: list[str] = []
+    for line in lines:
         stripped = line.strip()
         if stripped.startswith("[") and stripped.endswith("]"):
+            before_first_table = False
             in_environment = stripped == "[environment]"
+        if before_first_table and re.match(r"^artifacts\s*=", stripped):
             continue
         if in_environment and re.match(r"^docker_image\s*=", stripped):
             newline = "\n" if line.endswith("\n") else ""
-            lines[index] = f"docker_image = {json.dumps(image)}{newline}"
+            line = f"docker_image = {json.dumps(image)}{newline}"
             replacements += 1
+        rendered.append(line)
     if replacements != 1:
         raise ValueError(f"expected one environment.docker_image assignment, found {replacements}")
-    return "".join(lines)
+    return "".join(rendered)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -205,7 +211,7 @@ def main(argv: list[str] | None = None) -> int:
         destination = dataset_dir / task
         shutil.copytree(source_task, destination)
         (destination / "task.toml").write_text(
-            _replace_environment_image(task_toml_text, image),
+            _prepare_fixed_p0_task_toml(task_toml_text, image),
             encoding="utf-8",
         )
         (destination / "instruction.md").write_text(_repair_instruction(original_instruction, delta), encoding="utf-8")

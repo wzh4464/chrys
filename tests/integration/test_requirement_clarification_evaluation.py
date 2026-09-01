@@ -290,7 +290,8 @@ def test_fixed_p0_materialization_uses_control_patch_and_candidate_delta(tmp_pat
     task.mkdir(parents=True)
     (task / "instruction.md").write_text("Original requirement.\n", encoding="utf-8")
     (task / "task.toml").write_text(
-        'schema_version = "1.3"\n[environment]\ndocker_image = "example/source@sha256:abc"\n'
+        'schema_version = "1.3"\nartifacts = ["/logs/artifacts/model.patch"]\n'
+        '[environment]\ndocker_image = "example/source@sha256:abc"\n'
         '[agent]\nnetwork_mode = "no-network"\n',
         encoding="utf-8",
     )
@@ -326,6 +327,7 @@ def test_fixed_p0_materialization_uses_control_patch_and_candidate_delta(tmp_pat
     assert "Require stable compatibility." in instruction
     rendered_task = tomllib.loads((output / "dataset/task-one/task.toml").read_text(encoding="utf-8"))
     assert rendered_task["environment"]["docker_image"] == "chrys/deepswe-fixed-p0:task-one"
+    assert "artifacts" not in rendered_task
 
 
 def test_fixed_p0_materialization_accepts_collected_patch_and_external_delta(tmp_path: Path) -> None:
