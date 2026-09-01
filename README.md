@@ -194,6 +194,10 @@ picks up real-network integration tests that CI skips. Use `-n0` to debug a flak
 but it is still the fastest way to learn the conventions and invariants this README leaves
 out.
 
+Proposed integration designs:
+
+- [Chrys × PACT R3 integration](docs/design/chrys-pact-integration.md) — `/pact` TUI command, ACP role execution, EventBus presentation, input contract, and demo slices.
+
 ## License
 
 MIT. Copyright (c) 2026 Chrys.
