@@ -4,7 +4,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+import subprocess
 import tomllib
 from pathlib import Path
 
@@ -27,6 +29,7 @@ from evaluation.requirement_clarification.protocol import (
     render_paired_agent_profiles,
     sha256_file,
 )
+from evaluation.requirement_clarification.recover_fixed_p0_patch import capture_p0, reconstruct_patch
 from evaluation.requirement_clarification.run_pair import _assert_job_is_resumable, _materialize_dataset
 from evaluation.requirement_clarification.summarize import compare_jobs, summarize_job
 
@@ -169,6 +172,61 @@ def test_harbor_adapter_selects_profile_for_each_run_mode(
 def test_harbor_adapter_rejects_unknown_run_mode() -> None:
     with pytest.raises(ValueError, match="unsupported run_mode"):
         agent_profile_name("unknown")
+
+
+def test_fixed_p0_patch_reconstruction_preserves_p0_and_final_mutations(tmp_path: Path) -> None:
+    workspace = tmp_path / "repo"
+    workspace.mkdir()
+    subprocess.run(["git", "init", "-q", str(workspace)], check=True)
+    subprocess.run(["git", "-C", str(workspace), "config", "user.email", "test@example.com"], check=True)
+    subprocess.run(["git", "-C", str(workspace), "config", "user.name", "Test"], check=True)
+    tracked = workspace / "tracked.txt"
+    tracked.write_text("base\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(workspace), "add", "tracked.txt"], check=True)
+    subprocess.run(["git", "-C", str(workspace), "commit", "-qm", "base"], check=True)
+
+    tracked.write_text("p0\n", encoding="utf-8")
+    added = workspace / "added.txt"
+    added.write_text("p0 added\n", encoding="utf-8")
+    p0_patch = tmp_path / "p0.patch"
+    capture_p0(workspace, p0_patch)
+
+    session = tmp_path / "sessions/session-one"
+    blobs = session / "mutations"
+    blobs.mkdir(parents=True)
+    final = b"p1\n"
+    final_hash = hashlib.sha256(final).hexdigest()
+    (blobs / final_hash).write_bytes(final)
+    (session / "session.json").write_text(
+        json.dumps(
+            {
+                "state": {
+                    "chrys_mutations": {
+                        "turns": [
+                            {
+                                "mutations": [
+                                    {
+                                        "path": str(tracked),
+                                        "operation": "modify",
+                                        "after_hash": final_hash,
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    output = tmp_path / "p1.patch"
+
+    assert reconstruct_patch(tmp_path, workspace, p0_patch, output) == 1
+    assert tracked.read_text(encoding="utf-8") == "p1\n"
+    assert added.read_text(encoding="utf-8") == "p0 added\n"
+    rendered = output.read_text(encoding="utf-8")
+    assert "+p1" in rendered
+    assert "+p0 added" in rendered
 
 
 def test_secrets_reader_enforces_and_normalizes_model_lock(tmp_path: Path) -> None:

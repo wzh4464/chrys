@@ -225,6 +225,8 @@ def build_harbor_command(
         "--agent-include-logs",
         "chrys.stderr.log",
         "--agent-include-logs",
+        "patch-reconstruction.log",
+        "--agent-include-logs",
         "experiment.json",
         "--agent-include-logs",
         "chrys-sessions/**",

@@ -14,11 +14,13 @@ from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
 from harbor.models.trial.paths import EnvironmentPaths
 
+from evaluation.requirement_clarification import recover_fixed_p0_patch
 from evaluation.requirement_clarification.protocol import (
     ADAPTER_MODES,
     CODING_PHASE_TIMEOUT_SECONDS,
     CONTROL_ARM,
     MODEL_PROFILE_ID,
+    REPAIR_ARM,
     agent_profile_name,
     expected_model_lock,
     normalized_model_lock,
@@ -29,13 +31,17 @@ from evaluation.requirement_clarification.protocol import (
 _REMOTE_ROOT = "/tmp/chrys-evaluation"
 _REMOTE_HOME = f"{_REMOTE_ROOT}/home"
 _REMOTE_BINARY = f"{_REMOTE_ROOT}/bin/chrys"
+_REMOTE_PATCH_HELPER = f"{_REMOTE_ROOT}/bin/recover_fixed_p0_patch.py"
+_REMOTE_P0_PATCH = f"{_REMOTE_ROOT}/fixed-p0.patch"
 _REMOTE_AGENT_PROFILE = f"{_REMOTE_HOME}/.chrys/agents/DeepSWEEvaluation.yaml"
 _REMOTE_MODEL_PROFILE = f"{_REMOTE_HOME}/.chrys/models/{MODEL_PROFILE_ID}.yaml"
 _REMOTE_STDOUT = f"{EnvironmentPaths.agent_dir.as_posix()}/chrys.stdout.json"
 _REMOTE_STDERR = f"{EnvironmentPaths.agent_dir.as_posix()}/chrys.stderr.log"
 _REMOTE_RETURN_CODE = f"{EnvironmentPaths.agent_dir.as_posix()}/chrys.returncode"
+_REMOTE_PATCH_LOG = f"{EnvironmentPaths.agent_dir.as_posix()}/patch-reconstruction.log"
 _REMOTE_MODEL_PATCH = f"{EnvironmentPaths.artifacts_dir.as_posix()}/model.patch"
 _USAGE_READ_ERRORS = (OSError, UnicodeError, json.JSONDecodeError)
+
 
 class ChrysHarborAgent(BaseAgent):
     """Upload and run a pinned offline Chrys build through Harbor."""
@@ -84,16 +90,26 @@ class ChrysHarborAgent(BaseAgent):
         if setup.return_code != 0:
             raise RuntimeError(f"failed to create Chrys runtime directories: {setup.stderr or setup.stdout}")
         await environment.upload_file(self._chrys_binary, _REMOTE_BINARY)
+        await environment.upload_file(Path(recover_fixed_p0_patch.__file__).resolve(strict=True), _REMOTE_PATCH_HELPER)
         await environment.upload_file(self._agent_profile, _REMOTE_AGENT_PROFILE)
         await environment.upload_file(self._model_profile, _REMOTE_MODEL_PROFILE)
         permissions = await environment.exec(
-            f"chmod 755 {shlex.quote(_REMOTE_BINARY)} && "
+            f"chmod 755 {shlex.quote(_REMOTE_BINARY)} {shlex.quote(_REMOTE_PATCH_HELPER)} && "
             f"chmod 644 {shlex.quote(_REMOTE_AGENT_PROFILE)} {shlex.quote(_REMOTE_MODEL_PROFILE)}",
             timeout_sec=30,
             user="root",
         )
         if permissions.return_code != 0:
             raise RuntimeError(f"failed to set Chrys runtime permissions: {permissions.stderr or permissions.stdout}")
+        if self._run_mode == REPAIR_ARM:
+            captured = await environment.exec(
+                f"python3 {shlex.quote(_REMOTE_PATCH_HELPER)} capture "
+                f"--workspace /app --output {shlex.quote(_REMOTE_P0_PATCH)}",
+                timeout_sec=60,
+                user="root",
+            )
+            if captured.return_code != 0:
+                raise RuntimeError(f"failed to capture fixed P0: {captured.stderr or captured.stdout}")
 
     def _runtime_env(self) -> dict[str, str]:
         api_key = self._get_env("OPENROUTER_API_KEY")
@@ -162,16 +178,27 @@ class ChrysHarborAgent(BaseAgent):
         # process can disappear while ``environment.exec`` is awaiting Chrys;
         # the shell and Chrys may still finish, so host-side post-processing is
         # not a durable completion boundary.
+        patch_command = f"git -C /app diff --binary HEAD > {_REMOTE_MODEL_PATCH}.tmp"
+        if self._run_mode == REPAIR_ARM:
+            patch_command = (
+                f"python3 {shlex.quote(_REMOTE_PATCH_HELPER)} reconstruct "
+                f"--workspace /app "
+                f"--session-root {shlex.quote(EnvironmentPaths.agent_dir.as_posix() + '/chrys-sessions')} "
+                f"--p0-patch {shlex.quote(_REMOTE_P0_PATCH)} "
+                f"--output {_REMOTE_MODEL_PATCH}.tmp > {_REMOTE_PATCH_LOG}.tmp 2>&1"
+            )
         durable_command = (
             f"set +e; {command} > {_REMOTE_STDOUT}.tmp 2> {_REMOTE_STDERR}.tmp; "
             "chrys_rc=$?; "
             f"mv {_REMOTE_STDOUT}.tmp {_REMOTE_STDOUT}; "
             f"mv {_REMOTE_STDERR}.tmp {_REMOTE_STDERR}; "
-            f"git -C /app diff --binary > {_REMOTE_MODEL_PATCH}.tmp; "
+            f"{patch_command}; "
+            "patch_rc=$?; "
+            f"if [ -f {_REMOTE_PATCH_LOG}.tmp ]; then mv {_REMOTE_PATCH_LOG}.tmp {_REMOTE_PATCH_LOG}; fi; "
             f"mv {_REMOTE_MODEL_PATCH}.tmp {_REMOTE_MODEL_PATCH}; "
             f"printf '%s\\n' \"$chrys_rc\" > {_REMOTE_RETURN_CODE}.tmp; "
             f"mv {_REMOTE_RETURN_CODE}.tmp {_REMOTE_RETURN_CODE}; "
-            'exit "$chrys_rc"'
+            'if [ "$chrys_rc" -ne 0 ]; then exit "$chrys_rc"; fi; exit "$patch_rc"'
         )
         result = await environment.exec(durable_command, env=self._runtime_env())
         stdout_path = self.logs_dir / "chrys.stdout.json"
