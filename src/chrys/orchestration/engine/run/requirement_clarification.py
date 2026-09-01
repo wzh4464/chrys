@@ -65,7 +65,14 @@ class RequirementClarificationHost(Protocol):
 class RequirementClarificationWorkflow:
     """Keep P0 deliverable while deriving ΔR exclusively from frozen S0."""
 
-    def __init__(self, host: RequirementClarificationHost, runner: TurnRunner) -> None:
+    def __init__(
+        self,
+        host: RequirementClarificationHost,
+        runner: TurnRunner,
+        *,
+        initial_timeout_seconds: float = 5400.0,
+        repair_timeout_seconds: float = 5400.0,
+    ) -> None:
         self._host = host
         self._runner = runner
         self._workflow_id = uuid4().hex
@@ -77,6 +84,8 @@ class RequirementClarificationWorkflow:
         self._artifacts: ClarificationArtifactStore | None = None
         self._s0: WorkspaceSnapshot | None = None
         self._p0: WorkspaceSnapshot | None = None
+        self._initial_timeout_seconds = initial_timeout_seconds
+        self._repair_timeout_seconds = repair_timeout_seconds
 
     @property
     def accepts_amendments(self) -> bool:
@@ -216,15 +225,29 @@ class RequirementClarificationWorkflow:
         try:
             await self._phase(RequirementWorkflowPhase.INITIAL_IMPLEMENTATION, revision.number)
             executor.set_requirement_phase(RequirementWorkflowPhase.INITIAL_IMPLEMENTATION)
-            await self._runner._run_fresh_standard(
-                text,
-                created_at=created_at,
-                contents=contents,
-                run_scope=run_scope,
-                injection_window=injection_window,
-                admission_preparation=admission_preparation,
-                finalize=False,
-            )
+            try:
+                async with asyncio.timeout(self._initial_timeout_seconds):
+                    await self._runner._run_fresh_standard(
+                        text,
+                        created_at=created_at,
+                        contents=contents,
+                        run_scope=run_scope,
+                        injection_window=injection_window,
+                        admission_preparation=admission_preparation,
+                        finalize=False,
+                    )
+            except TimeoutError:
+                if executor.is_running:
+                    await executor.interrupt()
+                executor.set_requirement_phase("")
+                await self._phase(
+                    RequirementWorkflowPhase.INTERRUPTED,
+                    revision.number,
+                    detail=f"initial implementation exceeded {self._initial_timeout_seconds:g} seconds",
+                    terminal=True,
+                )
+                await self._runner.finalize_current_run()
+                return
             if executor.run_failed or executor.was_interrupted:
                 executor.set_requirement_phase("")
                 await self._phase(
@@ -269,6 +292,7 @@ class RequirementClarificationWorkflow:
                 return
 
             while True:
+                repair_timed_out = False
                 revision = self._revision
                 await self._phase(RequirementWorkflowPhase.CLARIFICATION, revision.number)
                 try:
@@ -330,7 +354,14 @@ class RequirementClarificationWorkflow:
                 if host._reminder_middleware is not None:
                     host._reminder_middleware.queue_hook_reminders([reminder])
                 executor.set_user_messages(list(revision.messages))
-                await executor.run(contents, created_at=created_at)
+                try:
+                    async with asyncio.timeout(self._repair_timeout_seconds):
+                        await executor.run(contents, created_at=created_at)
+                except TimeoutError:
+                    if executor.is_running:
+                        await executor.interrupt()
+                    executor.run_failed = True
+                    repair_timed_out = True
                 if revision.number != self._revision.number:
                     try:
                         await asyncio.to_thread(self._snapshotter.restore, p0)
@@ -366,7 +397,12 @@ class RequirementClarificationWorkflow:
                     all_injections = [*baseline_injections, *self._late_injections]
                     host._consumed_injections[:] = _reanchor_injections(all_injections, executor.history_state)
                     executor.adopt_fallback_success(p0_text)
-                    await self._deliver_p0(p0_text, revision, detail="repair failed; restored P0")
+                    detail = (
+                        f"repair exceeded {self._repair_timeout_seconds:g} seconds; restored P0"
+                        if repair_timed_out
+                        else "repair failed; restored P0"
+                    )
+                    await self._deliver_p0(p0_text, revision, detail=detail)
                     return
                 break
 

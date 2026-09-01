@@ -55,6 +55,36 @@ def test_load_minimal_yaml(tmp_path: Path) -> None:
     assert profile.instructions == ""
     assert profile.tools.builtins == []
     assert profile.sub_agents.max_total_concurrency == 3
+    assert profile.requirement_clarification.initial_timeout_seconds == 5400.0
+    assert profile.requirement_clarification.repair_timeout_seconds == 5400.0
+
+
+def test_load_requirement_clarification_phase_timeouts(tmp_path: Path) -> None:
+    path = tmp_path / "clarification.yaml"
+    path.write_text(
+        "name: clarification\nrequirement_clarification:\n  enabled: true\n"
+        "  initial_timeout_seconds: 12\n  repair_timeout_seconds: 34.5\n",
+        encoding="utf-8",
+    )
+
+    profile = load_profile_from_yaml(path)
+
+    assert profile.requirement_clarification.enabled is True
+    assert profile.requirement_clarification.initial_timeout_seconds == 12.0
+    assert profile.requirement_clarification.repair_timeout_seconds == 34.5
+
+
+@pytest.mark.parametrize("value", ["0", "-1", "true", '"90"'])
+def test_load_requirement_clarification_rejects_invalid_phase_timeout(tmp_path: Path, value: str) -> None:
+    path = tmp_path / "clarification-invalid.yaml"
+    path.write_text(
+        "name: clarification\nrequirement_clarification:\n  enabled: true\n"
+        f"  repair_timeout_seconds: {value}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(AgentProfileLoadError, match="repair_timeout_seconds"):
+        load_profile_from_yaml(path)
 
 
 def test_load_sub_agents_uses_default_concurrency_limits(tmp_path: Path) -> None:

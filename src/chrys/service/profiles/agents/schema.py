@@ -336,13 +336,15 @@ class MemoryConfig:
 class RequirementClarificationConfig:
     """Repository-grounded baseline/clarification/repair workflow.
 
-    The first product version intentionally exposes only the activation
-    switch.  Proposal count, selector count, prompt contract, and rendering
-    bounds are code-owned and versioned together so interactive behavior and
-    evaluation runs cannot silently drift through profile tuning.
+    Proposal count, selector count, prompt contract, and rendering bounds are
+    code-owned and versioned together.  The two coding passes have separate
+    wall-clock budgets so clarification work cannot consume either pass's
+    allowance.
     """
 
     enabled: bool = False
+    initial_timeout_seconds: float = 5400.0
+    repair_timeout_seconds: float = 5400.0
 
 
 @dataclass

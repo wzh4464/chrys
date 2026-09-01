@@ -16,6 +16,8 @@ from harbor.models.trial.paths import EnvironmentPaths
 
 from evaluation.requirement_clarification.protocol import (
     ADAPTER_MODES,
+    CODING_PHASE_TIMEOUT_SECONDS,
+    CONTROL_ARM,
     MODEL_PROFILE_ID,
     expected_model_lock,
     normalized_model_lock,
@@ -149,6 +151,13 @@ class ChrysHarborAgent(BaseAgent):
                 "--json",
             )
         )
+        if self._run_mode == CONTROL_ARM:
+            # Harbor's task deadline is widened for the two-pass candidate.
+            # Keep the one-pass control on the identical P0 coding budget.
+            command = (
+                f"timeout --signal=INT --kill-after=30 {CODING_PHASE_TIMEOUT_SECONDS:g} "
+                f"{command}"
+            )
         # Capture the result inside the task container.  Harbor's controlling
         # process can disappear while ``environment.exec`` is awaiting Chrys;
         # the shell and Chrys may still finish, so host-side post-processing is

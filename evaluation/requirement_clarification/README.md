@@ -84,6 +84,18 @@ Each trial retains:
 - the complete Chrys session tree, including private P0/ΔR/workflow artifacts for the clarification arm;
 - `model.patch` and the normal DeepSWE verifier output.
 
+### Time budgets
+
+The two coding passes have independent wall-clock budgets:
+
+- initial implementation P0: 5,400 seconds (90 minutes);
+- ΔR-guided P0 repair: 5,400 seconds (90 minutes).
+
+Clarification does not consume either coding budget. `run_pair` materializes an immutable dataset copy whose Harbor
+agent deadline defaults to 12,600 seconds, leaving 30 minutes for clarification and orchestration around the two
+coding passes. The one-pass control is still stopped after 5,400 seconds by the adapter, so widening Harbor's outer
+safety deadline does not give it extra coding time. Both values are recorded in the generated profiles/manifest.
+
 The API key is passed as an execution environment value, never a command argument. Project dotenv loading is disabled
 inside the task container, so repository-controlled `.env` files cannot replace the key or routing configuration.
 

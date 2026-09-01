@@ -7,6 +7,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -28,6 +29,9 @@ from evaluation.requirement_clarification.protocol import (
     validate_run_id,
     write_json,
 )
+
+_DEFAULT_HARBOR_AGENT_TIMEOUT_SECONDS = 12_600.0
+_AGENT_TIMEOUT_PATTERN = re.compile(r"(?m)^(timeout_sec\s*=\s*)[0-9]+(?:\.[0-9]+)?\s*$")
 
 
 def _assert_job_is_resumable(job_dir: Path) -> None:
@@ -58,10 +62,43 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--run-id", required=True, help="Immutable label shared by both arms")
     parser.add_argument("--expected-tasks", type=int, default=113)
     parser.add_argument("--concurrency", type=int, default=2)
+    parser.add_argument(
+        "--harbor-agent-timeout-seconds",
+        type=float,
+        default=_DEFAULT_HARBOR_AGENT_TIMEOUT_SECONDS,
+        help="Outer safety deadline; coding passes retain their independent 5400s limits",
+    )
     parser.add_argument("--arm", choices=ARMS, action="append", dest="arms")
     parser.add_argument("--resume", action="store_true", help="Resume existing Harbor jobs instead of overwriting")
     parser.add_argument("--execute", action="store_true", help="Actually invoke Harbor and OpenRouter")
     return parser
+
+
+def _materialize_dataset(source: Path, destination: Path, *, agent_timeout_seconds: float) -> Path:
+    """Copy a dataset and widen only each task's outer Harbor agent deadline."""
+    if agent_timeout_seconds <= 0:
+        raise ValueError("--harbor-agent-timeout-seconds must be positive")
+    if destination.exists():
+        raise FileExistsError(f"refusing to overwrite materialized dataset: {destination}")
+    shutil.copytree(source, destination, symlinks=True)
+    for task_toml in sorted(destination.glob("*/task.toml")):
+        text = task_toml.read_text(encoding="utf-8")
+        marker = "[agent]"
+        start = text.find(marker)
+        if start < 0:
+            raise ValueError(f"task has no [agent] section: {task_toml}")
+        end = text.find("\n[", start + len(marker))
+        end = len(text) if end < 0 else end
+        section = text[start:end]
+        updated, count = _AGENT_TIMEOUT_PATTERN.subn(
+            rf"\g<1>{agent_timeout_seconds:g}",
+            section,
+            count=1,
+        )
+        if count != 1:
+            raise ValueError(f"task [agent] section must contain one timeout_sec: {task_toml}")
+        task_toml.write_text(f"{text[:start]}{updated}{text[end:]}", encoding="utf-8")
+    return destination.resolve(strict=True)
 
 
 def _git_revision(repo_root: Path) -> str:
@@ -162,7 +199,7 @@ def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     repo_root = Path(__file__).resolve().parents[2]
     harbor_repo = args.harbor_repo.resolve(strict=True)
-    dataset = args.dataset.resolve(strict=True)
+    source_dataset = args.dataset.resolve(strict=True)
     chrys_binary = args.chrys_binary.resolve(strict=True)
     secrets_path = args.secrets.resolve(strict=True)
     output_dir = args.output_dir.resolve()
@@ -171,6 +208,16 @@ def main(argv: list[str] | None = None) -> int:
         raise ValueError("--concurrency must be positive")
 
     secrets = read_secrets_env(secrets_path)
+    staged_dataset = output_dir / "dataset"
+    dataset = (
+        staged_dataset.resolve(strict=True)
+        if args.resume and staged_dataset.exists()
+        else _materialize_dataset(
+            source_dataset,
+            staged_dataset,
+            agent_timeout_seconds=args.harbor_agent_timeout_seconds,
+        )
+    )
     tasks = fingerprint_dataset(dataset, expected_tasks=args.expected_tasks)
     harbor_binary = _harbor_binary(harbor_repo)
     revision = _git_revision(repo_root)
@@ -204,6 +251,8 @@ def main(argv: list[str] | None = None) -> int:
         "run_id": run_id,
         "chrys_revision": revision,
         "dataset": str(dataset),
+        "source_dataset": str(source_dataset),
+        "harbor_agent_timeout_seconds": args.harbor_agent_timeout_seconds,
         "tasks": fingerprints_as_dict(tasks),
         "task_count": len(tasks),
         "concurrency": args.concurrency,

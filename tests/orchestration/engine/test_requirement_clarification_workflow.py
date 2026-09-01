@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import copy
 from dataclasses import dataclass
 from pathlib import Path
@@ -40,7 +41,7 @@ class _HistoryCheckpoint:
 
 
 class _Executor:
-    def __init__(self, workspace_file: Path, *, repair_fails: bool = False) -> None:
+    def __init__(self, workspace_file: Path, *, repair_fails: bool = False, repair_delay: float = 0) -> None:
         self.history_state = {"messages": [], "compressed_msgs": [], "turn_counter": 0}
         self.service_session_id = "provider-h0"
         self.run_failed = False
@@ -50,6 +51,7 @@ class _Executor:
         self.phase = ""
         self.workspace_file = workspace_file
         self.repair_fails = repair_fails
+        self.repair_delay = repair_delay
         self.repair_started_from: list[str] = []
         self.published_finals: list[str] = []
 
@@ -70,6 +72,8 @@ class _Executor:
 
     async def run(self, contents: list[Any], created_at=None) -> None:
         _ = created_at
+        if self.repair_delay:
+            await asyncio.sleep(self.repair_delay)
         self.repair_started_from = [message.text for message in self.history_state["messages"]]
         assert self.workspace_file.read_text(encoding="utf-8") == "P0\n"
         self.history_state["messages"].extend([Message("user", contents), Message("assistant", ["P1"])])
@@ -164,11 +168,11 @@ def test_history_background_uses_only_user_and_assistant_text() -> None:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("repair_fails", [False, True])
+@pytest.mark.parametrize("repair_fails", [False, True, "timeout"])
 async def test_workflow_orders_p0_before_delta_and_restores_p0_on_repair_failure(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    repair_fails: bool,
+    repair_fails: bool | str,
 ) -> None:
     async def _direct(function, /, *args, **kwargs):
         return function(*args, **kwargs)
@@ -191,7 +195,11 @@ async def test_workflow_orders_p0_before_delta_and_restores_p0_on_repair_failure
     workspace_root.mkdir()
     workspace_file = workspace_root / "value.txt"
     workspace_file.write_text("S0\n", encoding="utf-8")
-    executor = _Executor(workspace_file, repair_fails=repair_fails)
+    executor = _Executor(
+        workspace_file,
+        repair_fails=repair_fails is True,
+        repair_delay=0.05 if repair_fails == "timeout" else 0,
+    )
     history = SessionHistoryManager()
     history.bind(executor.history_state)
     host = SimpleNamespace(
@@ -214,7 +222,11 @@ async def test_workflow_orders_p0_before_delta_and_restores_p0_on_repair_failure
     )
     runner = _Runner(host, workspace_file)
     snapshotter = _Snapshotter(workspace_file)
-    workflow = RequirementClarificationWorkflow(host, runner)
+    workflow = RequirementClarificationWorkflow(
+        host,
+        runner,
+        repair_timeout_seconds=0.001 if repair_fails == "timeout" else 5400,
+    )
     workflow._snapshotter = snapshotter
     phases: list[str] = []
     finals: list[str] = []

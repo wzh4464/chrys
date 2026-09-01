@@ -22,6 +22,7 @@ MODEL_PROFILE_ID = "deepseek-v4-pro-0813-openrouter"
 MODEL_ID = "deepseek/deepseek-v4-pro-0813"
 HARBOR_MODEL_NAME = f"openrouter/{MODEL_ID}"
 OPENROUTER_HOST = "openrouter.ai"
+CODING_PHASE_TIMEOUT_SECONDS = 5400.0
 
 AGENT_IMPORT_PATH = "evaluation.requirement_clarification.harbor_agent:ChrysHarborAgent"
 CONTROL_PROFILE_NAME = "DeepSWEControl"
@@ -117,7 +118,11 @@ def render_paired_agent_profiles(code_profile_path: Path, output_dir: Path) -> d
         profile["id"] = _PROFILE_IDS[arm]
         profile["display_name"] = f"DeepSWE {'Control' if arm == CONTROL_ARM else 'Clarification'}"
         profile["description"] = "Pinned DeepSWE requirement-clarification experiment profile"
-        profile["requirement_clarification"] = {"enabled": arm == CANDIDATE_ARM}
+        profile["requirement_clarification"] = {
+            "enabled": arm == CANDIDATE_ARM,
+            "initial_timeout_seconds": CODING_PHASE_TIMEOUT_SECONDS,
+            "repair_timeout_seconds": CODING_PHASE_TIMEOUT_SECONDS,
+        }
         destination = output_dir / f"{arm}.yaml"
         destination.write_text(yaml.safe_dump(profile, sort_keys=False, width=120), encoding="utf-8")
         rendered[arm] = destination
@@ -138,9 +143,13 @@ def assert_paired_profiles(control_path: Path, candidate_path: Path) -> None:
     candidate_shared = {key: value for key, value in candidate.items() if key not in ignored}
     if control_shared != candidate_shared:
         raise ValueError("paired agent profiles differ outside identity and requirement_clarification")
-    if control["requirement_clarification"] != {"enabled": False}:
+    expected_timeouts = {
+        "initial_timeout_seconds": CODING_PHASE_TIMEOUT_SECONDS,
+        "repair_timeout_seconds": CODING_PHASE_TIMEOUT_SECONDS,
+    }
+    if control["requirement_clarification"] != {"enabled": False, **expected_timeouts}:
         raise ValueError("control profile must disable requirement clarification")
-    if candidate["requirement_clarification"] != {"enabled": True}:
+    if candidate["requirement_clarification"] != {"enabled": True, **expected_timeouts}:
         raise ValueError("candidate profile must enable requirement clarification")
 
 

@@ -14,13 +14,14 @@ from evaluation.requirement_clarification import build_fixed_p0_images
 from evaluation.requirement_clarification.materialize_fixed_p0 import main as materialize_fixed_p0
 from evaluation.requirement_clarification.protocol import (
     CANDIDATE_ARM,
+    CODING_PHASE_TIMEOUT_SECONDS,
     CONTROL_ARM,
     expected_model_lock,
     read_secrets_env,
     render_paired_agent_profiles,
     sha256_file,
 )
-from evaluation.requirement_clarification.run_pair import _assert_job_is_resumable
+from evaluation.requirement_clarification.run_pair import _assert_job_is_resumable, _materialize_dataset
 from evaluation.requirement_clarification.summarize import compare_jobs, summarize_job
 
 from tests.support.paths import REPO_ROOT
@@ -49,6 +50,23 @@ def test_resume_allows_job_without_running_trials(tmp_path: Path) -> None:
     _assert_job_is_resumable(job)
 
 
+def test_materialized_dataset_widens_only_outer_agent_timeout(tmp_path: Path) -> None:
+    source = tmp_path / "source"
+    task = source / "task-one"
+    task.mkdir(parents=True)
+    (task / "instruction.md").write_text("do it\n", encoding="utf-8")
+    (task / "task.toml").write_text(
+        "[verifier]\ntimeout_sec = 300.0\n[agent]\nnetwork_mode = \"no-network\"\ntimeout_sec = 5400.0\n",
+        encoding="utf-8",
+    )
+
+    staged = _materialize_dataset(source, tmp_path / "staged", agent_timeout_seconds=12600)
+
+    rendered = tomllib.loads((staged / "task-one/task.toml").read_text(encoding="utf-8"))
+    assert rendered["verifier"]["timeout_sec"] == 300.0
+    assert rendered["agent"]["timeout_sec"] == 12600
+
+
 def test_rendered_profiles_are_a_strict_feature_flag_pair(tmp_path: Path) -> None:
     profiles = render_paired_agent_profiles(
         REPO_ROOT / "src/chrys/service/profiles/agents/builtins/Code.yaml",
@@ -58,8 +76,12 @@ def test_rendered_profiles_are_a_strict_feature_flag_pair(tmp_path: Path) -> Non
     control = yaml.safe_load(profiles[CONTROL_ARM].read_text(encoding="utf-8"))
     candidate = yaml.safe_load(profiles[CANDIDATE_ARM].read_text(encoding="utf-8"))
 
-    assert control["requirement_clarification"] == {"enabled": False}
-    assert candidate["requirement_clarification"] == {"enabled": True}
+    timeouts = {
+        "initial_timeout_seconds": CODING_PHASE_TIMEOUT_SECONDS,
+        "repair_timeout_seconds": CODING_PHASE_TIMEOUT_SECONDS,
+    }
+    assert control["requirement_clarification"] == {"enabled": False, **timeouts}
+    assert candidate["requirement_clarification"] == {"enabled": True, **timeouts}
     assert control["instructions"] == candidate["instructions"]
     assert control["tools"] == candidate["tools"]
 

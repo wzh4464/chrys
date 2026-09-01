@@ -166,7 +166,12 @@ class TurnRunner:
                 return
         from chrys.orchestration.engine.run.requirement_clarification import RequirementClarificationWorkflow
 
-        await RequirementClarificationWorkflow(self._host, self).run(
+        await RequirementClarificationWorkflow(
+            self._host,
+            self,
+            initial_timeout_seconds=profile.requirement_clarification.initial_timeout_seconds,
+            repair_timeout_seconds=profile.requirement_clarification.repair_timeout_seconds,
+        ).run(
             text,
             created_at=created_at,
             contents=contents,
