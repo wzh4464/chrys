@@ -59,9 +59,12 @@ def test_recover_interrupted_archives_only_trials_without_verifier_results(tmp_p
         encoding="utf-8",
     )
     incomplete = job / "incomplete__trial"
+    no_result = job / "no-result__trial"
     complete = job / "complete__trial"
     incomplete.mkdir()
+    no_result.mkdir()
     complete.mkdir()
+    (no_result / "config.json").write_text("{}", encoding="utf-8")
     (incomplete / "result.json").write_text(
         json.dumps({"verifier_result": None, "exception_info": {"exception_type": "CancelledError"}}),
         encoding="utf-8",
@@ -77,14 +80,15 @@ def test_recover_interrupted_archives_only_trials_without_verifier_results(tmp_p
         recovery_root=recovery,
     )
 
-    assert archived == ["incomplete__trial"]
+    assert archived == ["incomplete__trial", "no-result__trial"]
     assert not incomplete.exists()
+    assert not no_result.exists()
     assert complete.exists()
     recovery_dirs = [path for path in recovery.iterdir() if path.is_dir()]
     assert len(recovery_dirs) == 1
     assert (recovery_dirs[0] / "incomplete__trial/result.json").is_file()
     recovery_record = json.loads((recovery_dirs[0] / "recovery.json").read_text(encoding="utf-8"))
-    assert recovery_record["archived_trials"] == ["incomplete__trial"]
+    assert recovery_record["archived_trials"] == ["incomplete__trial", "no-result__trial"]
 
 
 def test_materialized_dataset_widens_only_outer_agent_timeout(tmp_path: Path) -> None:

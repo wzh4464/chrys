@@ -39,7 +39,10 @@ def _archive_interrupted_trials(job_dir: Path, recovery_root: Path) -> list[str]
     interrupted: list[Path] = []
     for trial_dir in sorted(path for path in job_dir.iterdir() if path.is_dir()):
         result_path = trial_dir / "result.json"
+        config_path = trial_dir / "config.json"
         if not result_path.is_file():
+            if config_path.is_file():
+                interrupted.append(trial_dir)
             continue
         try:
             result = json.loads(result_path.read_text(encoding="utf-8"))
