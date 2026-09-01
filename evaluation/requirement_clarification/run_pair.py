@@ -48,9 +48,7 @@ def _archive_interrupted_trials(job_dir: Path, recovery_root: Path) -> list[str]
         if not isinstance(result, dict) or result.get("verifier_result") is None:
             interrupted.append(trial_dir)
     if not interrupted:
-        raise RuntimeError(
-            f"job reports running trials but no verifier-incomplete trial directories were found: {job_dir}"
-        )
+        return []
 
     recovery_dir = recovery_root / datetime.now(UTC).strftime("%Y%m%dT%H%M%S.%fZ")
     recovery_dir.mkdir(parents=True, exist_ok=False)
@@ -90,7 +88,13 @@ def _assert_job_is_resumable(
         if recover_interrupted:
             if recovery_root is None:
                 raise ValueError("recovery_root is required when recover_interrupted is enabled")
-            return _archive_interrupted_trials(job_dir, recovery_root)
+            archived = _archive_interrupted_trials(job_dir, recovery_root)
+            if not archived:
+                raise RuntimeError(
+                    "job reports running trials but no verifier-incomplete trial directories were found: "
+                    f"{job_dir}"
+                )
+            return archived
         raise RuntimeError(
             f"refusing to resume Harbor job with {running} running trial(s): {job_dir}; "
             "resume can replace an orphaned completed agent with a new model run"
