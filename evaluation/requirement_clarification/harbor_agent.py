@@ -14,7 +14,7 @@ from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
 from harbor.models.trial.paths import EnvironmentPaths
 
-from evaluation.requirement_clarification import recover_fixed_p0_patch
+from evaluation.requirement_clarification import capture_fixed_p0_patch
 from evaluation.requirement_clarification.protocol import (
     ADAPTER_MODES,
     CODING_PHASE_TIMEOUT_SECONDS,
@@ -31,8 +31,8 @@ from evaluation.requirement_clarification.protocol import (
 _REMOTE_ROOT = "/tmp/chrys-evaluation"
 _REMOTE_HOME = f"{_REMOTE_ROOT}/home"
 _REMOTE_BINARY = f"{_REMOTE_ROOT}/bin/chrys"
-_REMOTE_PATCH_HELPER = f"{_REMOTE_ROOT}/bin/recover_fixed_p0_patch.py"
-_REMOTE_P0_PATCH = f"{_REMOTE_ROOT}/fixed-p0.patch"
+_REMOTE_PATCH_HELPER = f"{_REMOTE_ROOT}/bin/capture_fixed_p0_patch.py"
+_REMOTE_BASE_REVISION = f"{_REMOTE_ROOT}/fixed-p0-base.txt"
 _REMOTE_AGENT_PROFILE = f"{_REMOTE_HOME}/.chrys/agents/DeepSWEEvaluation.yaml"
 _REMOTE_MODEL_PROFILE = f"{_REMOTE_HOME}/.chrys/models/{MODEL_PROFILE_ID}.yaml"
 _REMOTE_STDOUT = f"{EnvironmentPaths.agent_dir.as_posix()}/chrys.stdout.json"
@@ -90,7 +90,7 @@ class ChrysHarborAgent(BaseAgent):
         if setup.return_code != 0:
             raise RuntimeError(f"failed to create Chrys runtime directories: {setup.stderr or setup.stdout}")
         await environment.upload_file(self._chrys_binary, _REMOTE_BINARY)
-        await environment.upload_file(Path(recover_fixed_p0_patch.__file__).resolve(strict=True), _REMOTE_PATCH_HELPER)
+        await environment.upload_file(Path(capture_fixed_p0_patch.__file__).resolve(strict=True), _REMOTE_PATCH_HELPER)
         await environment.upload_file(self._agent_profile, _REMOTE_AGENT_PROFILE)
         await environment.upload_file(self._model_profile, _REMOTE_MODEL_PROFILE)
         permissions = await environment.exec(
@@ -103,13 +103,13 @@ class ChrysHarborAgent(BaseAgent):
             raise RuntimeError(f"failed to set Chrys runtime permissions: {permissions.stderr or permissions.stdout}")
         if self._run_mode == REPAIR_ARM:
             captured = await environment.exec(
-                f"python3 {shlex.quote(_REMOTE_PATCH_HELPER)} capture "
-                f"--workspace /app --output {shlex.quote(_REMOTE_P0_PATCH)}",
+                f"python3 {shlex.quote(_REMOTE_PATCH_HELPER)} record-base "
+                f"--workspace /app --output {shlex.quote(_REMOTE_BASE_REVISION)}",
                 timeout_sec=60,
                 user="root",
             )
             if captured.return_code != 0:
-                raise RuntimeError(f"failed to capture fixed P0: {captured.stderr or captured.stdout}")
+                raise RuntimeError(f"failed to record fixed-P0 base: {captured.stderr or captured.stdout}")
 
     def _runtime_env(self) -> dict[str, str]:
         api_key = self._get_env("OPENROUTER_API_KEY")
@@ -181,10 +181,9 @@ class ChrysHarborAgent(BaseAgent):
         patch_command = f"git -C /app diff --binary HEAD > {_REMOTE_MODEL_PATCH}.tmp"
         if self._run_mode == REPAIR_ARM:
             patch_command = (
-                f"python3 {shlex.quote(_REMOTE_PATCH_HELPER)} reconstruct "
+                f"python3 {shlex.quote(_REMOTE_PATCH_HELPER)} capture "
                 f"--workspace /app "
-                f"--session-root {shlex.quote(EnvironmentPaths.agent_dir.as_posix() + '/chrys-sessions')} "
-                f"--p0-patch {shlex.quote(_REMOTE_P0_PATCH)} "
+                f"--base-file {shlex.quote(_REMOTE_BASE_REVISION)} "
                 f"--output {_REMOTE_MODEL_PATCH}.tmp > {_REMOTE_PATCH_LOG}.tmp 2>&1"
             )
         durable_command = (

@@ -126,8 +126,25 @@ def _base_image(task_toml: dict[str, Any], task: str) -> str:
 
 
 def _prepare_fixed_p0_task_toml(source: str, image: str) -> str:
-    """Pin the P0 image and remove the redundant model.patch artifact mount."""
+    """Pin P0 and remove legacy patch publication that conflicts with the adapter."""
     lines = source.splitlines(keepends=True)
+    blocks: list[list[str]] = []
+    for line in lines:
+        if line.lstrip().startswith("["):
+            blocks.append([line])
+        elif blocks:
+            blocks[-1].append(line)
+        else:
+            blocks.append([line])
+    lines = [
+        line
+        for block in blocks
+        if not (
+            block[0].strip() == "[[verifier.collect]]"
+            and "/logs/artifacts/model.patch" in "".join(block)
+        )
+        for line in block
+    ]
     in_environment = False
     before_first_table = True
     replacements = 0

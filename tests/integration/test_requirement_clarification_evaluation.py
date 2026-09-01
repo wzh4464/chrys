@@ -4,7 +4,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import subprocess
 import tomllib
@@ -13,6 +12,7 @@ from pathlib import Path
 import pytest
 import yaml
 from evaluation.requirement_clarification import build_fixed_p0_images
+from evaluation.requirement_clarification.capture_fixed_p0_patch import capture_patch, record_base
 from evaluation.requirement_clarification.materialize_fixed_p0 import main as materialize_fixed_p0
 from evaluation.requirement_clarification.protocol import (
     CANDIDATE_ARM,
@@ -29,7 +29,10 @@ from evaluation.requirement_clarification.protocol import (
     render_paired_agent_profiles,
     sha256_file,
 )
-from evaluation.requirement_clarification.recover_fixed_p0_patch import capture_p0, reconstruct_patch
+from evaluation.requirement_clarification.run_fixed_p0 import (
+    _validate_collected_patches,
+    _validate_materialized_dataset,
+)
 from evaluation.requirement_clarification.run_pair import _assert_job_is_resumable, _materialize_dataset
 from evaluation.requirement_clarification.summarize import compare_jobs, summarize_job
 
@@ -174,7 +177,7 @@ def test_harbor_adapter_rejects_unknown_run_mode() -> None:
         agent_profile_name("unknown")
 
 
-def test_fixed_p0_patch_reconstruction_preserves_p0_and_final_mutations(tmp_path: Path) -> None:
+def test_fixed_p0_patch_capture_includes_p0_untracked_and_committed_p1(tmp_path: Path) -> None:
     workspace = tmp_path / "repo"
     workspace.mkdir()
     subprocess.run(["git", "init", "-q", str(workspace)], check=True)
@@ -185,45 +188,19 @@ def test_fixed_p0_patch_reconstruction_preserves_p0_and_final_mutations(tmp_path
     subprocess.run(["git", "-C", str(workspace), "add", "tracked.txt"], check=True)
     subprocess.run(["git", "-C", str(workspace), "commit", "-qm", "base"], check=True)
 
+    base_file = tmp_path / "base.txt"
+    base_revision = record_base(workspace, base_file)
     tracked.write_text("p0\n", encoding="utf-8")
     added = workspace / "added.txt"
     added.write_text("p0 added\n", encoding="utf-8")
-    p0_patch = tmp_path / "p0.patch"
-    capture_p0(workspace, p0_patch)
-
-    session = tmp_path / "sessions/session-one"
-    blobs = session / "mutations"
-    blobs.mkdir(parents=True)
-    final = b"p1\n"
-    final_hash = hashlib.sha256(final).hexdigest()
-    (blobs / final_hash).write_bytes(final)
-    (session / "session.json").write_text(
-        json.dumps(
-            {
-                "state": {
-                    "chrys_mutations": {
-                        "turns": [
-                            {
-                                "mutations": [
-                                    {
-                                        "path": str(tracked),
-                                        "operation": "modify",
-                                        "after_hash": final_hash,
-                                    }
-                                ]
-                            }
-                        ]
-                    }
-                }
-            }
-        ),
-        encoding="utf-8",
-    )
+    tracked.write_text("p1\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(workspace), "add", "tracked.txt"], check=True)
+    subprocess.run(["git", "-C", str(workspace), "commit", "-qm", "p1 tracked"], check=True)
     output = tmp_path / "p1.patch"
 
-    assert reconstruct_patch(tmp_path, workspace, p0_patch, output) == 1
-    assert tracked.read_text(encoding="utf-8") == "p1\n"
-    assert added.read_text(encoding="utf-8") == "p0 added\n"
+    capture_patch(workspace, base_file.read_text(encoding="utf-8"), output)
+
+    assert base_revision in base_file.read_text(encoding="utf-8")
     rendered = output.read_text(encoding="utf-8")
     assert "+p1" in rendered
     assert "+p0 added" in rendered
@@ -284,6 +261,20 @@ def test_summary_reports_strict_paired_flips(tmp_path: Path) -> None:
     assert comparison["mcnemar_exact_two_sided_p"] == 1.0
 
 
+def test_fixed_p0_postflight_rejects_empty_patch(tmp_path: Path) -> None:
+    job = tmp_path / "job"
+    trial = _write_trial(job, "task-one", reward=0)
+    patch = trial / "artifacts/model.patch"
+    patch.write_text("", encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match=r"non-empty model\.patch"):
+        _validate_collected_patches(job, {"task-one"})
+
+    patch.write_text("complete P1\n", encoding="utf-8")
+    records = _validate_collected_patches(job, {"task-one"})
+    assert records["task-one"]["size"] == len("complete P1\n")
+
+
 def test_fixed_p0_materialization_uses_control_patch_and_candidate_delta(tmp_path: Path) -> None:
     source = tmp_path / "source"
     task = source / "task-one"
@@ -291,6 +282,9 @@ def test_fixed_p0_materialization_uses_control_patch_and_candidate_delta(tmp_pat
     (task / "instruction.md").write_text("Original requirement.\n", encoding="utf-8")
     (task / "task.toml").write_text(
         'schema_version = "1.3"\nartifacts = ["/logs/artifacts/model.patch"]\n'
+        '[verifier]\nenvironment_mode = "separate"\n'
+        '[[verifier.collect]]\ncommand = "git diff HEAD > /logs/artifacts/model.patch"\n'
+        '[[verifier.collect]]\ncommand = "collect-unrelated-evidence"\n'
         '[environment]\ndocker_image = "example/source@sha256:abc"\n'
         '[agent]\nnetwork_mode = "no-network"\n',
         encoding="utf-8",
@@ -328,6 +322,18 @@ def test_fixed_p0_materialization_uses_control_patch_and_candidate_delta(tmp_pat
     rendered_task = tomllib.loads((output / "dataset/task-one/task.toml").read_text(encoding="utf-8"))
     assert rendered_task["environment"]["docker_image"] == "chrys/deepswe-fixed-p0:task-one"
     assert "artifacts" not in rendered_task
+    assert rendered_task["verifier"]["collect"] == [{"command": "collect-unrelated-evidence"}]
+    rendered_text = (output / "dataset/task-one/task.toml").read_text(encoding="utf-8")
+    assert "/logs/artifacts/model.patch" not in rendered_text
+    _validate_materialized_dataset(output / "dataset", output / "manifest.json", {"task-one"})
+
+    (output / "dataset/task-one/task.toml").write_text(
+        rendered_text
+        + '\n[[verifier.collect]]\ncommand = "git diff HEAD > /logs/artifacts/model.patch"\n',
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match=r"overwrites model\.patch"):
+        _validate_materialized_dataset(output / "dataset", output / "manifest.json", {"task-one"})
 
 
 def test_fixed_p0_materialization_accepts_collected_patch_and_external_delta(tmp_path: Path) -> None:

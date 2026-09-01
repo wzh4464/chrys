@@ -5,11 +5,14 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import subprocess
 import sys
+import tomllib
 from dataclasses import asdict
 from pathlib import Path
+from typing import Any
 
 from evaluation.requirement_clarification.protocol import (
     MODEL_PROFILE_ID,
@@ -19,10 +22,12 @@ from evaluation.requirement_clarification.protocol import (
     fingerprints_as_dict,
     read_secrets_env,
     render_fixed_p0_repair_profile,
+    sha256_file,
     validate_run_id,
     write_json,
 )
 from evaluation.requirement_clarification.run_pair import _git_revision, _harbor_binary, build_harbor_command
+from evaluation.requirement_clarification.summarize import load_selected_attempts
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -45,6 +50,68 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _mapping(value: object, name: str) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        raise ValueError(f"materialization manifest {name} must be an object")
+    return value
+
+
+def _validate_materialized_dataset(dataset: Path, manifest_path: Path, task_names: set[str]) -> None:
+    """Reject stale or unsafe fixed-P0 inputs before any model call."""
+    manifest = _mapping(json.loads(manifest_path.read_text(encoding="utf-8")), "root")
+    if manifest.get("protocol") != "chrys-deepswe-fixed-p0-repair-v1":
+        raise ValueError("not a fixed-P0 materialization manifest")
+    manifest_tasks = _mapping(manifest.get("tasks"), "tasks")
+    if set(manifest_tasks) != task_names:
+        raise ValueError("materialization manifest tasks do not match the repair dataset")
+    if manifest.get("eligible_count") != len(task_names):
+        raise ValueError("materialization manifest eligible_count does not match the repair dataset")
+
+    contexts_root = manifest_path.parent / "image-contexts"
+    for task in sorted(task_names):
+        metadata = _mapping(manifest_tasks[task], f"tasks.{task}")
+        task_toml_path = dataset / task / "task.toml"
+        config = tomllib.loads(task_toml_path.read_text(encoding="utf-8"))
+        if config.get("artifacts"):
+            raise ValueError(f"fixed-P0 task {task} must not declare top-level artifacts")
+        verifier = _mapping(config.get("verifier"), f"dataset.{task}.verifier")
+        if verifier.get("environment_mode") != "separate":
+            raise ValueError(f"fixed-P0 task {task} must use a separate verifier environment")
+        for hook in verifier.get("collect", []):
+            command = hook.get("command") if isinstance(hook, dict) else None
+            if isinstance(command, str) and "/logs/artifacts/model.patch" in command:
+                raise ValueError(f"fixed-P0 task {task} has a collect hook that overwrites model.patch")
+        environment = _mapping(config.get("environment"), f"dataset.{task}.environment")
+        if environment.get("docker_image") != metadata.get("fixed_p0_image"):
+            raise ValueError(f"fixed-P0 task {task} image does not match its materialization manifest")
+        control_patch = contexts_root / task / "model.patch"
+        if not control_patch.is_file() or sha256_file(control_patch) != metadata.get("control_patch_sha256"):
+            raise ValueError(f"fixed-P0 task {task} control patch is missing or changed")
+
+
+def _validate_collected_patches(job_dir: Path, task_names: set[str]) -> dict[str, dict[str, object]]:
+    """Require one non-empty convention artifact for every completed repair task."""
+    attempts = load_selected_attempts(job_dir)
+    if set(attempts) != task_names:
+        raise RuntimeError("completed fixed-P0 job tasks do not match the prepared dataset")
+    patches: dict[str, dict[str, object]] = {}
+    for task in sorted(task_names):
+        trial_dir, _, _ = attempts[task]
+        candidates = (
+            trial_dir / "artifacts/logs/artifacts/model.patch",
+            trial_dir / "artifacts/model.patch",
+        )
+        patch = next((path for path in candidates if path.is_file() and path.stat().st_size > 0), None)
+        if patch is None:
+            raise RuntimeError(f"fixed-P0 task {task} did not publish a non-empty model.patch")
+        patches[task] = {
+            "path": str(patch),
+            "size": patch.stat().st_size,
+            "sha256": sha256_file(patch),
+        }
+    return patches
+
+
 def main(argv: list[str] | None = None) -> int:
     """Freeze repair inputs; execute only after an explicit flag."""
     args = _parser().parse_args(argv)
@@ -60,6 +127,7 @@ def main(argv: list[str] | None = None) -> int:
 
     secrets = read_secrets_env(args.secrets.resolve(strict=True))
     tasks = fingerprint_dataset(dataset, expected_tasks=args.expected_tasks)
+    _validate_materialized_dataset(dataset, materialization_manifest, {task.name for task in tasks})
     harbor_binary = _harbor_binary(harbor_repo)
     revision = args.chrys_revision.strip() if args.chrys_revision else _git_revision(repo_root)
     if not revision:
@@ -118,6 +186,8 @@ def main(argv: list[str] | None = None) -> int:
             raise FileExistsError(f"refusing to overwrite existing Harbor job: {job_dir}")
         command = [str(harbor_binary), "jobs", "resume", "--job-path", str(job_dir)]
     subprocess.run(command, cwd=harbor_repo, env=environment, check=True)  # noqa: S603
+    patch_records = _validate_collected_patches(job_dir, {task.name for task in tasks})
+    write_json(output_dir / "postflight.json", {"schema_version": 1, "patches": patch_records})
     return 0
 
 
