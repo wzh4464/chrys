@@ -71,6 +71,7 @@ class RequirementClarificationWorkflow:
         runner: TurnRunner,
         *,
         reuse_workspace_as_p0: bool = False,
+        clarification_timeout_seconds: float = 1800.0,
         initial_timeout_seconds: float = 5400.0,
         repair_timeout_seconds: float = 5400.0,
     ) -> None:
@@ -86,6 +87,7 @@ class RequirementClarificationWorkflow:
         self._s0: WorkspaceSnapshot | None = None
         self._p0: WorkspaceSnapshot | None = None
         self._reuse_workspace_as_p0 = reuse_workspace_as_p0
+        self._clarification_timeout_seconds = clarification_timeout_seconds
         self._initial_timeout_seconds = initial_timeout_seconds
         self._repair_timeout_seconds = repair_timeout_seconds
 
@@ -322,11 +324,12 @@ class RequirementClarificationWorkflow:
                         session_dir=session_dir,
                         report_usage=host._accumulate_side_call_usage,
                     )
-                    result = await ClarificationService(model).clarify(
-                        revision=revision,
-                        background=history_background,
-                        snapshot=s0,
-                    )
+                    async with asyncio.timeout(self._clarification_timeout_seconds):
+                        result = await ClarificationService(model).clarify(
+                            revision=revision,
+                            background=history_background,
+                            snapshot=s0,
+                        )
                 except Exception as exc:
                     logger.warning("Requirement clarification side calls failed", exc_info=True)
                     await self._deliver_p0(p0_text, self._revision, detail=f"clarification failed: {exc}")

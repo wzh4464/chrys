@@ -17,6 +17,7 @@ from evaluation.requirement_clarification.materialize_fixed_p0 import main as ma
 from evaluation.requirement_clarification.protocol import (
     CANDIDATE_ARM,
     CANDIDATE_PROFILE_NAME,
+    CLARIFICATION_TIMEOUT_SECONDS,
     CODING_PHASE_TIMEOUT_SECONDS,
     CONTROL_ARM,
     CONTROL_PROFILE_NAME,
@@ -133,6 +134,7 @@ def test_rendered_profiles_are_a_strict_feature_flag_pair(tmp_path: Path) -> Non
     candidate = yaml.safe_load(profiles[CANDIDATE_ARM].read_text(encoding="utf-8"))
 
     timeouts = {
+        "clarification_timeout_seconds": CLARIFICATION_TIMEOUT_SECONDS,
         "initial_timeout_seconds": CODING_PHASE_TIMEOUT_SECONDS,
         "repair_timeout_seconds": CODING_PHASE_TIMEOUT_SECONDS,
     }
@@ -171,6 +173,7 @@ def test_imported_p0_profile_enables_native_clarification_without_initial_genera
     assert profile["name"] == IMPORTED_P0_CLARIFICATION_PROFILE_NAME
     assert profile["requirement_clarification"]["enabled"] is True
     assert profile["requirement_clarification"]["reuse_workspace_as_p0"] is True
+    assert profile["requirement_clarification"]["clarification_timeout_seconds"] == 1800
 
 
 @pytest.mark.parametrize(
@@ -360,7 +363,8 @@ def test_imported_p0_materialization_preserves_original_requirement_and_empty_p0
     (task / "instruction.md").write_text(instruction, encoding="utf-8")
     (task / "task.toml").write_text(
         'schema_version = "1.3"\n[verifier]\nenvironment_mode = "separate"\n'
-        '[environment]\ndocker_image = "example/source@sha256:abc"\n',
+        '[environment]\ndocker_image = "example/source@sha256:abc"\n'
+        "[agent]\ntimeout_sec = 5400\n",
         encoding="utf-8",
     )
     control = tmp_path / "control"
@@ -390,6 +394,8 @@ def test_imported_p0_materialization_preserves_original_requirement_and_empty_p0
     manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["protocol"] == "chrys-deepswe-imported-p0-clarification-v1"
     assert manifest["tasks"]["task-one"]["delta_sha256"] is None
+    rendered_task = tomllib.loads((output / "dataset/task-one/task.toml").read_text(encoding="utf-8"))
+    assert rendered_task["agent"]["timeout_sec"] == 7500
     assert _validate_materialized_dataset(output / "dataset", output / "manifest.json", {"task-one"}) is True
 
 

@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from evaluation.requirement_clarification.protocol import (
+    IMPORTED_P0_AGENT_TIMEOUT_SECONDS,
     fingerprint_dataset,
     fingerprints_as_dict,
     sha256_file,
@@ -130,7 +131,12 @@ def _base_image(task_toml: dict[str, Any], task: str) -> str:
     return image
 
 
-def _prepare_fixed_p0_task_toml(source: str, image: str) -> str:
+def _prepare_fixed_p0_task_toml(
+    source: str,
+    image: str,
+    *,
+    agent_timeout_seconds: float | None = None,
+) -> str:
     """Pin P0 and remove legacy patch publication that conflicts with the adapter."""
     lines = source.splitlines(keepends=True)
     blocks: list[list[str]] = []
@@ -165,7 +171,25 @@ def _prepare_fixed_p0_task_toml(source: str, image: str) -> str:
         rendered.append(line)
     if replacements != 1:
         raise ValueError(f"expected one environment.docker_image assignment, found {replacements}")
-    return "".join(rendered)
+    result = "".join(rendered)
+    if agent_timeout_seconds is None:
+        return result
+    marker = "[agent]"
+    start = result.find(marker)
+    if start < 0:
+        raise ValueError("imported-P0 task has no [agent] section")
+    end = result.find("\n[", start + len(marker))
+    end = len(result) if end < 0 else end
+    section = result[start:end]
+    updated, count = re.subn(
+        r"(?m)^(timeout_sec\s*=\s*)[0-9]+(?:\.[0-9]+)?\s*$",
+        rf"\g<1>{agent_timeout_seconds:g}",
+        section,
+        count=1,
+    )
+    if count != 1:
+        raise ValueError("imported-P0 task [agent] section must contain one timeout_sec")
+    return f"{result[:start]}{updated}{result[end:]}"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -232,7 +256,11 @@ def main(argv: list[str] | None = None) -> int:
         destination = dataset_dir / task
         shutil.copytree(source_task, destination)
         (destination / "task.toml").write_text(
-            _prepare_fixed_p0_task_toml(task_toml_text, image),
+            _prepare_fixed_p0_task_toml(
+                task_toml_text,
+                image,
+                agent_timeout_seconds=(IMPORTED_P0_AGENT_TIMEOUT_SECONDS if args.native_clarification else None),
+            ),
             encoding="utf-8",
         )
         instruction = (
@@ -264,6 +292,7 @@ def main(argv: list[str] | None = None) -> int:
         "candidate_job": str(args.candidate_job.resolve(strict=True)) if args.candidate_job else None,
         "clarification_root": str(clarification_root) if clarification_root else None,
         "native_clarification": args.native_clarification,
+        "agent_timeout_seconds": IMPORTED_P0_AGENT_TIMEOUT_SECONDS if args.native_clarification else None,
         "source_tasks": fingerprints_as_dict(source_tasks),
         "eligible_count": len(tasks),
         "excluded": excluded,

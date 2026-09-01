@@ -562,10 +562,11 @@ def _parse_requirement_clarification(raw: object) -> RequirementClarificationCon
     if not isinstance(reuse_workspace_as_p0, bool):
         msg = "Agent profile field 'requirement_clarification.reuse_workspace_as_p0' must be a boolean"
         raise AgentProfileLoadError(msg)
-    timeout_fields = ("initial_timeout_seconds", "repair_timeout_seconds")
+    timeout_fields = ("clarification_timeout_seconds", "initial_timeout_seconds", "repair_timeout_seconds")
     timeouts: dict[str, float] = {}
     for field_name in timeout_fields:
-        value = raw_map.get(field_name, 5400.0)
+        default = 1800.0 if field_name == "clarification_timeout_seconds" else 5400.0
+        value = raw_map.get(field_name, default)
         if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
             msg = f"Agent profile field 'requirement_clarification.{field_name}' must be a positive number"
             raise AgentProfileLoadError(msg)

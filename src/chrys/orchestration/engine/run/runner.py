@@ -170,6 +170,7 @@ class TurnRunner:
             self._host,
             self,
             reuse_workspace_as_p0=profile.requirement_clarification.reuse_workspace_as_p0,
+            clarification_timeout_seconds=profile.requirement_clarification.clarification_timeout_seconds,
             initial_timeout_seconds=profile.requirement_clarification.initial_timeout_seconds,
             repair_timeout_seconds=profile.requirement_clarification.repair_timeout_seconds,
         ).run(

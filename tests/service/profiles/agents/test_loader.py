@@ -55,6 +55,7 @@ def test_load_minimal_yaml(tmp_path: Path) -> None:
     assert profile.instructions == ""
     assert profile.tools.builtins == []
     assert profile.sub_agents.max_total_concurrency == 3
+    assert profile.requirement_clarification.clarification_timeout_seconds == 1800.0
     assert profile.requirement_clarification.initial_timeout_seconds == 5400.0
     assert profile.requirement_clarification.repair_timeout_seconds == 5400.0
 
@@ -63,13 +64,14 @@ def test_load_requirement_clarification_phase_timeouts(tmp_path: Path) -> None:
     path = tmp_path / "clarification.yaml"
     path.write_text(
         "name: clarification\nrequirement_clarification:\n  enabled: true\n"
-        "  initial_timeout_seconds: 12\n  repair_timeout_seconds: 34.5\n",
+        "  clarification_timeout_seconds: 6\n  initial_timeout_seconds: 12\n  repair_timeout_seconds: 34.5\n",
         encoding="utf-8",
     )
 
     profile = load_profile_from_yaml(path)
 
     assert profile.requirement_clarification.enabled is True
+    assert profile.requirement_clarification.clarification_timeout_seconds == 6.0
     assert profile.requirement_clarification.initial_timeout_seconds == 12.0
     assert profile.requirement_clarification.repair_timeout_seconds == 34.5
 

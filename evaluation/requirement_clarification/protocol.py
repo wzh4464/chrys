@@ -24,6 +24,8 @@ MODEL_ID = "deepseek/deepseek-v4-pro-0813"
 HARBOR_MODEL_NAME = f"openrouter/{MODEL_ID}"
 OPENROUTER_HOST = "openrouter.ai"
 CODING_PHASE_TIMEOUT_SECONDS = 5400.0
+CLARIFICATION_TIMEOUT_SECONDS = 1800.0
+IMPORTED_P0_AGENT_TIMEOUT_SECONDS = 7500.0
 
 AGENT_IMPORT_PATH = "evaluation.requirement_clarification.harbor_agent:ChrysHarborAgent"
 CONTROL_PROFILE_NAME = "DeepSWEControl"
@@ -162,6 +164,7 @@ def render_paired_agent_profiles(code_profile_path: Path, output_dir: Path) -> d
         profile["description"] = "Pinned DeepSWE requirement-clarification experiment profile"
         profile["requirement_clarification"] = {
             "enabled": arm == CANDIDATE_ARM,
+            "clarification_timeout_seconds": CLARIFICATION_TIMEOUT_SECONDS,
             "initial_timeout_seconds": CODING_PHASE_TIMEOUT_SECONDS,
             "repair_timeout_seconds": CODING_PHASE_TIMEOUT_SECONDS,
         }
@@ -189,6 +192,7 @@ def render_fixed_p0_repair_profile(code_profile_path: Path, output_path: Path) -
             "sub_agents": {"max_total_concurrency": 1, "agents": []},
             "requirement_clarification": {
                 "enabled": False,
+                "clarification_timeout_seconds": CLARIFICATION_TIMEOUT_SECONDS,
                 "initial_timeout_seconds": CODING_PHASE_TIMEOUT_SECONDS,
                 "repair_timeout_seconds": CODING_PHASE_TIMEOUT_SECONDS,
             },
@@ -216,6 +220,7 @@ def render_imported_p0_clarification_profile(code_profile_path: Path, output_pat
             "requirement_clarification": {
                 "enabled": True,
                 "reuse_workspace_as_p0": True,
+                "clarification_timeout_seconds": CLARIFICATION_TIMEOUT_SECONDS,
                 "initial_timeout_seconds": CODING_PHASE_TIMEOUT_SECONDS,
                 "repair_timeout_seconds": CODING_PHASE_TIMEOUT_SECONDS,
             },
@@ -240,6 +245,7 @@ def assert_paired_profiles(control_path: Path, candidate_path: Path) -> None:
     if control_shared != candidate_shared:
         raise ValueError("paired agent profiles differ outside identity and requirement_clarification")
     expected_timeouts = {
+        "clarification_timeout_seconds": CLARIFICATION_TIMEOUT_SECONDS,
         "initial_timeout_seconds": CODING_PHASE_TIMEOUT_SECONDS,
         "repair_timeout_seconds": CODING_PHASE_TIMEOUT_SECONDS,
     }
