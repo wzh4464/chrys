@@ -4,6 +4,8 @@
 
 本文记录 `feature/requirement-clarification` 分支中已经落地的产品实现，描述当前代码的真实行为。
 实施前方案仍保存在工作区上层的 `PLAN-0831.md`；若方案与本文不一致，以本文和当前代码为准。
+启用方式、TUI 友好的执行图、完整 artifact tree、逐文件语义和下游 AI 读取规则见更短的
+[`REQUIREMENT-CLARIFICATION-GUIDE.md`](REQUIREMENT-CLARIFICATION-GUIDE.md)；本文保留深层实现、隔离和恢复契约。
 
 本次合入没有把 `variant_clarification` 的实验 runner 原样嵌入 Chrys，而是保留其 Route A
 语义，将产品能力拆入 Chrys 既有的 profile、service、orchestration、event、TUI、session 和
@@ -241,13 +243,65 @@ clarification.private.json
 summary.json
 s0/
 p0/
+01-input/
+  requirement.md
+  workspace-snapshot.json
+  manifest.json
+02-initial-trial/
+  response.json
+  transcript.private.json
+03-clarification/
+  candidates/
+    proposal-1.private.json
+    proposal-2.private.json
+    proposal-3.private.json
+  decision/
+    selection.private.json
+  sources/
+    delta.md
+  deliverable/
+    clarified-requirement.md
+    manifest.json
+04-repair/
+  attempts/
+    revision-<n>/
+      response.json
+      transcript.private.json
+05-outcome/
+  final-response.md
+  clarified-requirement.md
+  clarified-requirement-delta.md
+  summary.json
+06-pact-input/
+  goal-contract.json
+  initial-plan.json
+  generation.private.json
 ```
 
 `workflow.json` 原子记录 phase、terminal、revision、配置 fingerprints 和快照引用。proposal、selection、
-usage 和 ΔR 保存在 `clarification.private.json`，不会混入普通 session history。
+usage 和 ΔR 仍聚合保存在兼容文件 `clarification.private.json`，不会混入普通 session history。编号目录是
+按 phase 组织的审计视图：用户 authority 与 S0 metadata、P0 trial、三个 candidate proposal、selector 的
+raw/cleaned decision、实际注入 repair 的 delta、每个 revision 的 repair attempt，以及最终 outcome 分别
+保存。每个新 JSON 都带内部 schema 和 artifact version；私有 transcript、proposal 和 selection 继续使用
+owner-only 存储。
 
-正常终态会销毁 S0/P0 的大体积恢复快照。Session rollback 会删除被回滚 turn 之后的 workflow
-artifacts。
+`03-clarification/deliverable/clarified-requirement.md` 是完整的澄清需求单，由原始需求、按 revision 排序的
+amendments 和最终 delta 确定性拼装，不再调用模型改写。`05-outcome/clarified-requirement.md` 是该文件的
+字节一致副本；`clarified-requirement-delta.md` 只包含原始需求和 delta，不包含 amendments、proposal 私有
+元数据或 repair response。`summary.json` 保存三个 outcome 文件的路径与内容 hash。
+
+selector 完成后还会执行两个独立的结构化 side call：先从用户 requirement authority 生成 PACT Runtime
+Goal Contract v1，再结合 Goal Contract、S0 evidence、proposal 和 selection 生成 Initial Plan v1。Chrys
+在落盘前确定性验证 AC/Mission ID、coverage、引用和 dependency DAG。验证成功时，两个 closed-shape
+canonical JSON 静默写入 `06-pact-input/`；generation 状态、revision 和内容 hash 单独保存在
+`generation.private.json`。该阶段不调用 PACT、不等待用户输入，生成或写盘失败也不改变现有 ΔR/repair
+流程的结果。
+
+根目录的 `h0.private.json`、`initial_implementation.private.json`、`clarification.private.json`、`s0/` 和
+`p0/` 暂时保留作为恢复和旧 evaluation consumer 的兼容边界。正常终态仍会销毁 S0/P0 的大体积恢复
+快照，`01-input/workspace-snapshot.json` 只保留稳定的快照元数据。
+
+Session rollback 会删除被回滚 turn 之后的 workflow artifacts。
 
 当前崩溃恢复策略是“安全提升完整 P0”，不是从中断点继续运行 ΔR/repair：
 

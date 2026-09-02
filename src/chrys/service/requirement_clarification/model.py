@@ -17,11 +17,18 @@ from chrys.service.llm.route_sessions import derive_llm_route_session_id
 from chrys.service.profiles.models.options import effective_chat_options
 from chrys.service.profiles.models.schema import ModelProfile
 from chrys.service.requirement_clarification.prompts import (
+    pact_goal_contract_instructions,
+    pact_initial_plan_instructions,
     proposal_instructions,
     selector_instructions,
 )
 from chrys.service.requirement_clarification.snapshot import WorkspaceSnapshot
-from chrys.service.requirement_clarification.types import ClarificationProposal, ClarificationSelection
+from chrys.service.requirement_clarification.types import (
+    ClarificationProposal,
+    ClarificationSelection,
+    PactGoalContract,
+    PactInitialPlan,
+)
 from chrys.service.tools.registry import ToolRegistry
 
 ResponseT = TypeVar("ResponseT", bound=BaseModel)
@@ -33,6 +40,10 @@ class ClarificationModelRunner(Protocol):
     async def propose(self, prompt: str, *, sample_index: int) -> tuple[ClarificationProposal, dict[str, object]]: ...
 
     async def select(self, prompt: str) -> tuple[ClarificationSelection, dict[str, object]]: ...
+
+    async def generate_pact_goal_contract(self, prompt: str) -> tuple[PactGoalContract, dict[str, object]]: ...
+
+    async def generate_pact_initial_plan(self, prompt: str) -> tuple[PactInitialPlan, dict[str, object]]: ...
 
 
 def _stateless_options[ResponseT: BaseModel](
@@ -93,6 +104,24 @@ class ChrysClarificationModel:
             response_format=ClarificationSelection,
             instructions=selector_instructions(),
             route_kind="requirement-clarification-selector",
+            route_part="1",
+        )
+
+    async def generate_pact_goal_contract(self, prompt: str) -> tuple[PactGoalContract, dict[str, object]]:
+        return await self._run(
+            prompt,
+            response_format=PactGoalContract,
+            instructions=pact_goal_contract_instructions(),
+            route_kind="requirement-clarification-pact-goal-contract",
+            route_part="1",
+        )
+
+    async def generate_pact_initial_plan(self, prompt: str) -> tuple[PactInitialPlan, dict[str, object]]:
+        return await self._run(
+            prompt,
+            response_format=PactInitialPlan,
+            instructions=pact_initial_plan_instructions(),
+            route_kind="requirement-clarification-pact-initial-plan",
             route_part="1",
         )
 

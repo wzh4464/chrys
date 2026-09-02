@@ -82,6 +82,7 @@ class RequirementClarificationWorkflow:
         self._phase_name = RequirementWorkflowPhase.SNAPSHOT
         self._revision = RequirementRevision(number=1, messages=())
         self._late_injections: list[ConsumedInjection] = []
+        self._latest_delta = ""
         self._stop_requested = False
         self._artifacts: ClarificationArtifactStore | None = None
         self._s0: WorkspaceSnapshot | None = None
@@ -110,6 +111,15 @@ class RequirementClarificationWorkflow:
         if not self.accepts_amendments or not text:
             return False
         self._revision = self._revision.append(text)
+        self._latest_delta = ""
+        if self._artifacts is not None:
+            try:
+                self._artifacts.save_requirement_input(
+                    revision=self._revision.number,
+                    messages=self._revision.messages,
+                )
+            except OSError:
+                logger.warning("Failed to persist amended requirement input", exc_info=True)
         self._late_injections.append(
             ConsumedInjection(
                 text=text,
@@ -172,6 +182,7 @@ class RequirementClarificationWorkflow:
         try:
             artifacts = ClarificationArtifactStore(session_dir, host._turn_number + 1)
             self._artifacts = artifacts
+            artifacts.save_requirement_input(revision=revision.number, messages=revision.messages)
             h0 = executor.snapshot_history()
             history_background = _history_background(executor.history_state)
             artifacts.save_history_checkpoint(
@@ -216,6 +227,17 @@ class RequirementClarificationWorkflow:
                 **s0_capture_options,
             )
             self._s0 = s0
+            try:
+                artifacts.save_snapshot_metadata(
+                    {
+                        "workflow_id": self._workflow_id,
+                        "revision": revision.number,
+                        "s0": _snapshot_record(s0),
+                        "p0": None,
+                    }
+                )
+            except OSError:
+                logger.warning("Failed to persist requirement-clarification snapshot metadata", exc_info=True)
         except Exception as exc:
             logger.warning("Requirement clarification S0 capture failed", exc_info=True)
             await self._degraded(f"S0 capture failed: {exc}")
@@ -288,6 +310,8 @@ class RequirementClarificationWorkflow:
                     revision = revision.append(injection.text)
                 self._revision = revision
             try:
+                artifacts.save_requirement_input(revision=revision.number, messages=revision.messages)
+                artifacts.save_initial_response(revision=revision.number, response=p0_text)
                 artifacts.save_initial_transcript(
                     {
                         "history": serialize_state(executor.history_state),
@@ -307,6 +331,17 @@ class RequirementClarificationWorkflow:
                     include_git_history=False,
                 )
                 self._p0 = p0
+                try:
+                    artifacts.save_snapshot_metadata(
+                        {
+                            "workflow_id": self._workflow_id,
+                            "revision": revision.number,
+                            "s0": _snapshot_record(s0),
+                            "p0": _snapshot_record(p0),
+                        }
+                    )
+                except OSError:
+                    logger.warning("Failed to update requirement-clarification snapshot metadata", exc_info=True)
             except Exception as exc:
                 logger.warning("Requirement clarification P0 capture failed", exc_info=True)
                 await self._deliver_p0(p0_text, revision, detail=f"P0 checkpoint failed: {exc}")
@@ -316,16 +351,18 @@ class RequirementClarificationWorkflow:
                 repair_timed_out = False
                 revision = self._revision
                 await self._phase(RequirementWorkflowPhase.CLARIFICATION, revision.number)
-                try:
-                    model = ChrysClarificationModel(
+                clarification_service = ClarificationService(
+                    ChrysClarificationModel(
                         profile=model_profile,
                         snapshot=s0,
                         session_id=host._session_id,
                         session_dir=session_dir,
                         report_usage=host._accumulate_side_call_usage,
                     )
+                )
+                try:
                     async with asyncio.timeout(self._clarification_timeout_seconds):
-                        result = await ClarificationService(model).clarify(
+                        result = await clarification_service.clarify(
                             revision=revision,
                             background=history_background,
                             snapshot=s0,
@@ -337,7 +374,30 @@ class RequirementClarificationWorkflow:
                 if revision.number != self._revision.number:
                     continue
                 try:
-                    artifacts.save_result(result)
+                    async with asyncio.timeout(self._clarification_timeout_seconds):
+                        pact_input, pact_usage = await clarification_service.generate_pact_input(
+                            result=result,
+                            revision=revision,
+                            background=history_background,
+                            snapshot=s0,
+                        )
+                    result = replace(
+                        result,
+                        pact_input=pact_input,
+                        usage_details=(*result.usage_details, *pact_usage),
+                    )
+                except Exception as exc:
+                    pact_generation_error = f"{type(exc).__name__}: {exc}"[:1000]
+                    result = replace(
+                        result,
+                        pact_generation_error=pact_generation_error,
+                        warnings=(*result.warnings, f"PACT input generation failed: {pact_generation_error}"),
+                    )
+                if revision.number != self._revision.number:
+                    continue
+                self._latest_delta = result.delta
+                try:
+                    artifacts.save_result(result, requirement_messages=revision.messages)
                 except OSError as exc:
                     logger.warning("Requirement clarification result persistence failed", exc_info=True)
                     await self._deliver_p0(
@@ -346,6 +406,10 @@ class RequirementClarificationWorkflow:
                         detail=f"clarification result persistence failed: {exc}",
                     )
                     return
+                try:
+                    artifacts.save_pact_generation(result)
+                except OSError:
+                    logger.warning("Failed to persist generated PACT inputs", exc_info=True)
                 if self._stop_requested:
                     await self._deliver_p0(p0_text, revision, detail="workflow stopped after P0")
                     return
@@ -384,6 +448,28 @@ class RequirementClarificationWorkflow:
                         await executor.interrupt()
                     executor.run_failed = True
                     repair_timed_out = True
+                if revision.number != self._revision.number:
+                    repair_status = "invalidated_by_amendment"
+                elif repair_timed_out:
+                    repair_status = "timed_out"
+                elif executor.was_interrupted:
+                    repair_status = "interrupted"
+                elif executor.run_failed:
+                    repair_status = "failed"
+                else:
+                    repair_status = "succeeded"
+                try:
+                    artifacts.save_repair_attempt(
+                        revision=revision.number,
+                        status=repair_status,
+                        response=executor.last_response_text,
+                        transcript={
+                            "history": serialize_state(executor.history_state),
+                            "service_session_id": executor.service_session_id,
+                        },
+                    )
+                except OSError:
+                    logger.warning("Failed to persist requirement-clarification repair attempt", exc_info=True)
                 if revision.number != self._revision.number:
                     try:
                         await asyncio.to_thread(self._snapshotter.restore, p0)
@@ -438,8 +524,12 @@ class RequirementClarificationWorkflow:
                         "workflow_id": self._workflow_id,
                         "revision": revision.number,
                         "outcome": "repaired",
+                        "accepted_phase": "repair",
+                        "final_response": executor.last_response_text,
                         "strategy_version": result.strategy_version,
-                    }
+                    },
+                    requirement_messages=revision.messages,
+                    delta=result.delta,
                 )
             except OSError:
                 logger.warning("Failed to persist requirement-clarification summary", exc_info=True)
@@ -478,6 +568,22 @@ class RequirementClarificationWorkflow:
         await executor.publish_last_response_as_final()
         await self._phase(RequirementWorkflowPhase.FINALIZING, revision.number, detail=detail)
         await self._runner.finalize_current_run()
+        if self._artifacts is not None:
+            try:
+                self._artifacts.save_summary(
+                    {
+                        "workflow_id": self._workflow_id,
+                        "revision": revision.number,
+                        "outcome": "p0_promoted",
+                        "accepted_phase": "initial_trial",
+                        "final_response": text,
+                        "detail": detail,
+                    },
+                    requirement_messages=revision.messages,
+                    delta=self._latest_delta,
+                )
+            except OSError:
+                logger.warning("Failed to persist requirement-clarification fallback summary", exc_info=True)
         await self._phase(phase, revision.number, detail=detail, terminal=True)
 
     async def _degraded(self, detail: str) -> None:
@@ -503,6 +609,8 @@ class RequirementClarificationWorkflow:
             try:
                 self._artifacts.save_workflow_record(
                     {
+                        "schema": "chrys/requirement-clarification/workflow/v1",
+                        "artifact_version": 1,
                         "version": 1,
                         "workflow_id": self._workflow_id,
                         "phase": phase,

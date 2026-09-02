@@ -6,7 +6,11 @@ from __future__ import annotations
 
 import json
 
-from chrys.service.requirement_clarification.types import ClarificationProposal
+from chrys.service.requirement_clarification.types import (
+    ClarificationProposal,
+    ClarificationSelection,
+    PactGoalContract,
+)
 
 STRATEGY_VERSION = "chrys-requirement-clarification-v1"
 PROPOSAL_COUNT = 3
@@ -46,6 +50,23 @@ validation, error, or compatibility consequence. Do not expose evidence, confide
 selection gates, XML, or process commentary inside statement text.
 """
 
+_PACT_GOAL_CONTRACT_INSTRUCTIONS = """You generate a PACT Runtime Goal Contract v1 as schema JSON only.
+The user's requirement messages are the sole authority for completion obligations. Produce one concise outcome goal,
+atomic externally observable acceptance criteria with stable descriptive ids, and only explicitly supported non-goals.
+Do not add repository implementation details, file names, functions, missions, test commands, hidden grader details, or
+requirements inferred only from repository conventions. Use an empty non_goals array when none are stated or clearly
+bounded by the user's request. Return exactly the closed pact-runtime/goal-contract/v1 shape.
+"""
+
+_PACT_INITIAL_PLAN_INSTRUCTIONS = """You generate a PACT Runtime Initial Plan v1 as schema JSON only.
+Treat the supplied Goal Contract as immutable authority. Use the frozen-repository evidence and clarification results
+to create a small end-to-end mission graph. Every mission must cover at least one existing acceptance criterion, and
+every acceptance criterion must be covered. Dependencies must reference mission ids and form a DAG. Put cross-mission
+implementation invariants in constraints. verification_intent describes public evidence to collect, never hidden
+grader commands. Do not emit runtime-owned state or extra fields. Return exactly the closed
+pact-runtime/initial-plan/v1 shape.
+"""
+
 _FOCUSES = (
     "Map repository ownership and extension seams for the requested public surfaces.",
     "Trace the requested value or operation from declaration through transport/state to consumers.",
@@ -59,6 +80,14 @@ def proposal_instructions() -> str:
 
 def selector_instructions() -> str:
     return _SELECTOR_INSTRUCTIONS
+
+
+def pact_goal_contract_instructions() -> str:
+    return _PACT_GOAL_CONTRACT_INSTRUCTIONS
+
+
+def pact_initial_plan_instructions() -> str:
+    return _PACT_INITIAL_PLAN_INSTRUCTIONS
 
 
 def build_proposal_prompt(
@@ -92,6 +121,34 @@ def build_selector_prompt(
         f"Bounded prior conversation background (non-authoritative):\n{background or '[none]'}\n\n"
         f"Deterministic frozen-repository evidence packet:\n{base_evidence}\n\n"
         f"Candidate packets:\n{encoded}"
+    )
+
+
+def build_pact_goal_contract_prompt(requirement: str, background: str) -> str:
+    """Build the user-authority-only Goal Contract prompt."""
+    return (
+        f"Authoritative requirement messages:\n{requirement}\n\n"
+        f"Bounded prior conversation background (non-authoritative):\n{background or '[none]'}"
+    )
+
+
+def build_pact_initial_plan_prompt(
+    goal_contract: PactGoalContract,
+    base_evidence: str,
+    proposals: list[ClarificationProposal],
+    selection: ClarificationSelection,
+) -> str:
+    """Build the repository-grounded Initial Plan prompt."""
+    encoded_proposals = "\n\n".join(
+        f"Proposal {index}:\n{proposal.model_dump_json(indent=2)}" for index, proposal in enumerate(proposals, start=1)
+    )
+    return (
+        "Validated Goal Contract:\n"
+        + goal_contract.model_dump_json(indent=2, by_alias=True)
+        + f"\n\nDeterministic frozen-repository evidence packet:\n{base_evidence}\n\n"
+        + f"Private clarification proposals:\n{encoded_proposals}\n\n"
+        + "Cleaned clarification selection:\n"
+        + selection.model_dump_json(indent=2)
     )
 
 

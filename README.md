@@ -157,6 +157,11 @@ clarification guidance from a frozen turn-start workspace, then runs a fresh rep
 baseline files. Only the repaired response is terminal; if clarification or repair fails,
 Chrys safely promotes the baseline. External ACP agent profiles cannot enable this workflow.
 
+See the [Requirement Clarification Guide](REQUIREMENT-CLARIFICATION-GUIDE.md) for enablement,
+the execution flow, the complete artifact tree, and which files downstream agents should consume.
+The deeper implementation and recovery contract is documented in
+[REQUIREMENT-CLARIFICATION-INTEGRATION.md](REQUIREMENT-CLARIFICATION-INTEGRATION.md).
+
 Drop a file of the same shape into `~/.chrys/agents/` and it shows up in the picker and in
 `chrys agents`. Reuse a built-in's name and yours shadows it. The same file can attach MCP
 servers, [Agent Skills](https://agentskills.io/specification) directories, or an external

@@ -126,6 +126,56 @@ class ClarificationSelection(BaseModel):
     guidance_points: list[SelectedGuidancePoint] = Field(default_factory=list, max_length=5)
 
 
+class PactAcceptanceCriterion(BaseModel):
+    """One stable, user-authoritative PACT completion obligation."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]*$", max_length=120)
+    text: str = Field(min_length=1, max_length=2000)
+
+
+class PactGoalContract(BaseModel):
+    """Closed PACT Runtime Goal Contract v1 payload."""
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    schema_id: Literal["pact-runtime/goal-contract/v1"] = Field(alias="schema")
+    goal: str = Field(min_length=1, max_length=4000)
+    acceptance_criteria: list[PactAcceptanceCriterion] = Field(min_length=1, max_length=100)
+    non_goals: list[str] = Field(max_length=100)
+
+
+class PactMission(BaseModel):
+    """One mission in a closed PACT Runtime Initial Plan v1 payload."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]*$", max_length=120)
+    objective: str = Field(min_length=1, max_length=4000)
+    target_ac_ids: list[str] = Field(min_length=1, max_length=100)
+    dependencies: list[str] = Field(max_length=100)
+    verification_intent: str = Field(min_length=1, max_length=4000)
+
+
+class PactInitialPlan(BaseModel):
+    """Closed PACT Runtime Initial Plan v1 payload."""
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    schema_id: Literal["pact-runtime/initial-plan/v1"] = Field(alias="schema")
+    constraints: list[str] = Field(max_length=100)
+    missions: list[PactMission] = Field(min_length=1, max_length=100)
+
+
+@dataclass(frozen=True, slots=True)
+class PactRuntimeInput:
+    """Validated pair written as the two canonical PACT input files."""
+
+    goal_contract: PactGoalContract
+    initial_plan: PactInitialPlan
+
+
 @dataclass(frozen=True, slots=True)
 class ClarificationResult:
     """Validated public delta plus private evidence-bearing model outputs."""
@@ -134,6 +184,9 @@ class ClarificationResult:
     revision: int
     delta: str
     selection: ClarificationSelection
+    raw_selection: ClarificationSelection | None = None
+    pact_input: PactRuntimeInput | None = None
+    pact_generation_error: str = ""
     proposals: tuple[ClarificationProposal, ...] = ()
     elapsed_seconds: float = 0.0
     usage_details: tuple[dict[str, object], ...] = ()

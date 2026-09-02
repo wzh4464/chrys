@@ -8,11 +8,19 @@ from pathlib import Path
 
 import pytest
 
-from chrys.service.requirement_clarification.service import ClarificationService, render_delta
+from chrys.service.requirement_clarification.service import (
+    ClarificationService,
+    render_delta,
+    validate_pact_runtime_input,
+)
 from chrys.service.requirement_clarification.snapshot import WorkspaceSnapshot
 from chrys.service.requirement_clarification.types import (
     ClarificationProposal,
     ClarificationSelection,
+    PactAcceptanceCriterion,
+    PactGoalContract,
+    PactInitialPlan,
+    PactMission,
     RequirementRevision,
     SelectedGuidancePoint,
 )
@@ -31,6 +39,35 @@ class _FakeModel:
     async def select(self, _prompt: str):
         self.selector_calls += 1
         return self.selection, {"output_tokens": 5}
+
+    async def generate_pact_goal_contract(self, _prompt: str):
+        return (
+            PactGoalContract(
+                schema="pact-runtime/goal-contract/v1",
+                goal="Add the option end to end.",
+                acceptance_criteria=[PactAcceptanceCriterion(id="ac-option", text="The option takes effect.")],
+                non_goals=[],
+            ),
+            {"output_tokens": 6},
+        )
+
+    async def generate_pact_initial_plan(self, _prompt: str):
+        return (
+            PactInitialPlan(
+                schema="pact-runtime/initial-plan/v1",
+                constraints=[],
+                missions=[
+                    PactMission(
+                        id="wire-option",
+                        objective="Wire the option to its runtime consumer.",
+                        target_ac_ids=["ac-option"],
+                        dependencies=[],
+                        verification_intent="Exercise the public option through the runtime path.",
+                    )
+                ],
+            ),
+            {"output_tokens": 7},
+        )
 
 
 def _snapshot(tmp_path: Path) -> WorkspaceSnapshot:
@@ -62,10 +99,19 @@ async def test_service_runs_three_proposals_then_one_selector(tmp_path: Path, mo
         lambda _snapshot, _requirement: "packet",
     )
 
-    result = await ClarificationService(model).clarify(
-        revision=RequirementRevision(number=1, messages=("Add the option.",)),
+    service = ClarificationService(model)
+    revision = RequirementRevision(number=1, messages=("Add the option.",))
+    snapshot = _snapshot(tmp_path)
+    result = await service.clarify(
+        revision=revision,
         background="Earlier context",
-        snapshot=_snapshot(tmp_path),
+        snapshot=snapshot,
+    )
+    pact_input, pact_usage = await service.generate_pact_input(
+        result=result,
+        revision=revision,
+        background="Earlier context",
+        snapshot=snapshot,
     )
 
     assert sorted(model.proposal_calls) == [1, 2, 3]
@@ -73,7 +119,10 @@ async def test_service_runs_three_proposals_then_one_selector(tmp_path: Path, mo
     assert result.delta == (
         "Repository implementation guidance:\n- Wire the parsed value into the existing runtime consumer."
     )
+    assert result.raw_selection is selection
+    assert pact_input.goal_contract.acceptance_criteria[0].id == "ac-option"
     assert len(result.usage_details) == 4
+    assert len(pact_usage) == 2
 
 
 def test_render_delta_applies_confidence_and_character_budgets() -> None:
@@ -95,3 +144,35 @@ def test_render_delta_applies_confidence_and_character_budgets() -> None:
     )
 
     assert render_delta(selection) == "Repository implementation guidance:\n- keep"
+
+
+def test_pact_pair_validation_rejects_cycles() -> None:
+    goal_contract = PactGoalContract(
+        schema="pact-runtime/goal-contract/v1",
+        goal="Deliver both behaviors.",
+        acceptance_criteria=[PactAcceptanceCriterion(id="ac-both", text="Both behaviors are observable.")],
+        non_goals=[],
+    )
+    initial_plan = PactInitialPlan(
+        schema="pact-runtime/initial-plan/v1",
+        constraints=[],
+        missions=[
+            PactMission(
+                id="first",
+                objective="Deliver the first behavior.",
+                target_ac_ids=["ac-both"],
+                dependencies=["second"],
+                verification_intent="Observe the first behavior.",
+            ),
+            PactMission(
+                id="second",
+                objective="Deliver the second behavior.",
+                target_ac_ids=["ac-both"],
+                dependencies=["first"],
+                verification_intent="Observe the second behavior.",
+            ),
+        ],
+    )
+
+    with pytest.raises(ValueError, match="contains a cycle"):
+        validate_pact_runtime_input(goal_contract, initial_plan)

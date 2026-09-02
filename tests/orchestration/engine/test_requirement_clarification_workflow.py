@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
@@ -271,13 +272,26 @@ async def test_workflow_orders_p0_before_delta_and_restores_p0_on_repair_failure
     assert executor.repair_started_from == []
     assert host._reminder_middleware.values[0].startswith("[REQUIREMENT_CLARIFICATION_REPAIR]")
     assert runner.finalized == 1
+    artifact_root = host._session_dir / "requirement_clarification/turn_1"
+    assert (artifact_root / "01-input/requirement.md").is_file()
+    assert (artifact_root / "01-input/workspace-snapshot.json").is_file()
+    assert (artifact_root / "02-initial-trial/response.json").is_file()
+    assert (artifact_root / "03-clarification/deliverable/manifest.json").is_file()
+    assert (artifact_root / "06-pact-input/generation.private.json").is_file()
+    repair_response = artifact_root / "04-repair/attempts/revision-1/response.json"
+    assert repair_response.is_file()
+    assert (artifact_root / "05-outcome/summary.json").is_file()
+    assert (artifact_root / "05-outcome/clarified-requirement.md").is_file()
+    assert (artifact_root / "05-outcome/clarified-requirement-delta.md").is_file()
     if repair_fails:
         assert snapshotter.restored == 1
         expected_p0_text = "Reused the existing workspace implementation as P0." if reuse_workspace_as_p0 else "P0"
         assert executor.published_finals == [expected_p0_text]
         assert workspace_file.read_text(encoding="utf-8") == "P0\n"
         assert phases[-1] == RequirementWorkflowPhase.DEGRADED
+        assert json.loads(repair_response.read_text(encoding="utf-8"))["status"] in {"failed", "timed_out"}
     else:
         assert snapshotter.restored == 0
         assert executor.published_finals == []
         assert phases[-1] == RequirementWorkflowPhase.COMPLETED
+        assert json.loads(repair_response.read_text(encoding="utf-8"))["status"] == "succeeded"
