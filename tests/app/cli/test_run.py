@@ -346,6 +346,33 @@ def test_run_command_empty_task_file_passes_empty_prompt(
     assert FakeHost.instances[0].prompt == ""
 
 
+def test_run_command_appends_localization_report_to_prompt(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys,
+) -> None:
+    _patch_runtime(monkeypatch)
+    report = tmp_path / "code-localization.md"
+    report.write_text("# Code Localization\n\n`src/parser.py:parse_value`\n", encoding="utf-8")
+
+    rc = run_cli.main(
+        [
+            "Fix parse_value",
+            "--agent",
+            "Headless",
+            "--localization-file",
+            str(report),
+        ]
+    )
+
+    assert rc == 0
+    assert capsys.readouterr().err == ""
+    prompt = FakeHost.instances[0].prompt
+    assert prompt.startswith("Fix parse_value\n\n<semantic-code-localization>")
+    assert "src/parser.py:parse_value" in prompt
+    assert "original user requirement is authoritative" in prompt
+
+
 def test_run_command_task_file_resolves_relative_to_workdir(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

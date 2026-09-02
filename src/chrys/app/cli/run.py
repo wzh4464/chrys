@@ -47,6 +47,13 @@ from chrys.service.profiles.models.resolver import (
     loaded_with_active_model_profile,
     resolve_profile_selector,
 )
+from chrys.service.semantic_search import (
+    SemanticSearchConfig,
+    SemanticSearchError,
+    SemanticSearchMode,
+    localize_requirement,
+)
+from chrys.service.semantic_search.output import load_report
 
 _MAX_TRANSIENT_RETRIES_INVALID = msg(
     "settings.max_transient_retries_invalid",
@@ -134,6 +141,30 @@ def build_parser() -> argparse.ArgumentParser:
         help="Working directory for the run",
     )
     parser.add_argument("--json", action="store_true", help="Emit JSON output")
+    parser.add_argument(
+        "--semantic-localization",
+        choices=[mode.value for mode in SemanticSearchMode],
+        default="off",
+        help="Run semantic code localization before the agent turn",
+    )
+    parser.add_argument(
+        "--localization-output",
+        metavar="FILE",
+        help="Copy the generated Markdown localization report to this path",
+    )
+    parser.add_argument(
+        "--localization-artifact-dir",
+        metavar="DIR",
+        help="Directory inside the workspace for localization artifacts",
+    )
+    parser.add_argument(
+        "--localization-file",
+        metavar="FILE",
+        help="Use an existing Markdown localization report for this run",
+    )
+    parser.add_argument("--semantic-refresh", action="store_true", help="Ignore a matching localization cache")
+    parser.add_argument("--localization-model-profile", default="", help="Model profile for LLM localization")
+    parser.add_argument("--codegraph-command", default="", help="Optional CodeGraph command override")
     return parser
 
 
@@ -369,6 +400,30 @@ def _resolve_prompt(args: argparse.Namespace) -> str:
     return args.prompt
 
 
+def _append_localization_context(prompt: str, report_path: Path | None) -> str:
+    """Append a bounded localization report to the user prompt, when present.
+
+    Localization is a CLI preflight. Keeping its output in the prompt avoids
+    adding localization-specific state to Chrys' engine and session layers.
+    """
+    if report_path is None:
+        return prompt
+    try:
+        report = load_report(report_path)
+    except OSError as exc:
+        raise SemanticSearchError(f"failed to read localization report: {report_path}: {exc}") from exc
+    if not report.strip():
+        return prompt
+    return (
+        f"{prompt.rstrip()}\n\n"
+        "<semantic-code-localization>\n"
+        "The following report contains inspection candidates only. The original user requirement is authoritative. "
+        "Read and verify source before editing; do not edit every listed file.\n\n"
+        f"{report}\n"
+        "</semantic-code-localization>"
+    )
+
+
 def _restore_delta_warnings(loaded: LoadedSettings, pending: Iterable[Warning]) -> list[Warning]:
     """Warnings the restored session's settings load adds over the bootstrap's.
 
@@ -391,6 +446,44 @@ async def run_command(args: argparse.Namespace, holder: PreparedRuntimeHolder) -
     """Execute parsed ``chrys run`` args."""
     cwd = _apply_cwd(args.cwd)
     prompt = _resolve_prompt(args)
+    localization_report: Path | None = None
+    if args.localization_file:
+        candidate = Path(args.localization_file).expanduser().resolve()
+        if not candidate.is_file():
+            raise SemanticSearchError(f"localization report does not exist: {candidate}")
+        localization_report = candidate
+    if args.semantic_localization != SemanticSearchMode.OFF.value:
+        try:
+            localization = localize_requirement(
+                Path.cwd(),
+                prompt,
+                artifact_dir=args.localization_artifact_dir,
+                config=SemanticSearchConfig(
+                    mode=SemanticSearchMode(args.semantic_localization),
+                    model_profile=args.localization_model_profile,
+                ),
+                refresh=args.semantic_refresh,
+                codegraph_command=args.codegraph_command,
+            )
+            localization_report = localization.artifacts.report_markdown
+            if args.localization_output:
+                destination = Path(args.localization_output).expanduser().resolve()
+                try:
+                    destination.relative_to(Path.cwd().resolve())
+                except ValueError as exc:
+                    raise SemanticSearchError("--localization-output must be inside the workspace") from exc
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_text(localization_report.read_text(encoding="utf-8"), encoding="utf-8")
+                localization_report = destination
+        except SemanticSearchError as exc:
+            if args.semantic_localization == SemanticSearchMode.LLM.value:
+                raise
+            _write_warning(
+                f"Semantic localization unavailable: {exc}",
+                as_json=args.json,
+                code="semantic_localization",
+            )
+    prompt = _append_localization_context(prompt, localization_report)
     # Normalized once, to the host's own reading of the flag: the host strips
     # the id and treats a blank one as "no session", and a project-free
     # bootstrap for a run that then starts fresh would silently drop the
