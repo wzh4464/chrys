@@ -158,8 +158,12 @@ It then sends one text-only ACP prompt:
 }
 ```
 
-The integration pins upstream PACT R3 at
+The integration uses upstream PACT R3 from commit
 `aa9073bed4970481a035755990e1682e9de486d8`; it does not fork or modify `pact-core`.
+That exact build is checked in as `vendor/wheels/pact_core-0.2.0.dev0-py3-none-any.whl`,
+with commit provenance and SHA-256 in `vendor/pact-core.json`. Consequently `uv sync`
+does not need access to the PACT Git repository. A pip install from this checkout can
+resolve the same local artifact with `python -m pip install --find-links vendor/wheels .`.
 ACP cancellation is best effort because this R3 release has no canonical Campaign
 cancellation state. Cooperative role paths use bounded cleanup; if an in-process runtime stays
 unresponsive, Primary must force-close the outer child and may not receive a cancelled response.

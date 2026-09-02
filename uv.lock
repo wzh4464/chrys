@@ -433,7 +433,7 @@ requires-dist = [
     { name = "opentelemetry-exporter-otlp-proto-grpc", marker = "extra == 'observability'", specifier = ">=1.39.0,<2" },
     { name = "opentelemetry-instrumentation-logging", marker = "extra == 'observability'", specifier = ">=0.65b0,<1" },
     { name = "opentelemetry-sdk", marker = "extra == 'observability'", specifier = ">=1.39.0,<2" },
-    { name = "pact-core", git = "https://github.com/SELab-Leibniz/pact.git?rev=aa9073bed4970481a035755990e1682e9de486d8" },
+    { name = "pact-core", path = "vendor/wheels/pact_core-0.2.0.dev0-py3-none-any.whl" },
     { name = "pathspec", specifier = "==1.1.1" },
     { name = "pillow", specifier = "==12.2.0" },
     { name = "psutil", marker = "extra == 'tui'", specifier = "==7.2.2" },
@@ -1213,7 +1213,10 @@ wheels = [
 [[package]]
 name = "pact-core"
 version = "0.2.0.dev0"
-source = { git = "https://github.com/SELab-Leibniz/pact.git?rev=aa9073bed4970481a035755990e1682e9de486d8#aa9073bed4970481a035755990e1682e9de486d8" }
+source = { path = "vendor/wheels/pact_core-0.2.0.dev0-py3-none-any.whl" }
+wheels = [
+    { filename = "pact_core-0.2.0.dev0-py3-none-any.whl", hash = "sha256:4f08b2b6ae258823e0e1c824380f58579a6e4174d02b3b1338a32ee9eb76ab2a" },
+]
 
 [[package]]
 name = "pathspec"

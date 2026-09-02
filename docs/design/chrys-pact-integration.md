@@ -27,17 +27,20 @@ presentation telemetry only.
 
 ## 2. MVP decisions
 
-### 2.1 Use upstream PACT R3 without a fork
+### 2.1 Use a verified upstream PACT R3 wheel without a fork
 
-The Chrys package depends directly on the immutable PACT R3 commit:
+The Chrys project dependency is version-pinned and its uv source is the repository wheel:
 
 ```text
-pact-core @ git+https://github.com/SELab-Leibniz/pact.git@aa9073bed4970481a035755990e1682e9de486d8
+pact-core==0.2.0.dev0
+vendor/wheels/pact_core-0.2.0.dev0-py3-none-any.whl
 ```
 
-The current public R3 Runtime interfaces are sufficient for the MVP. `pact-core` is not copied, vendored, or
-modified by this integration. A local checkout of `pact-core` has no effect unless the dependency pin and lockfile
-are deliberately changed.
+The wheel was built from immutable PACT R3 commit `aa9073bed4970481a035755990e1682e9de486d8`.
+`vendor/pact-core.json` records that source and the wheel SHA-256; installation and offline packaging validate the
+artifact before use. The source is neither forked nor copied into Chrys, and installation does not require access
+to the PACT Git repository. A different local `pact-core` checkout has no effect unless the wheel, provenance,
+dependency pin, and lockfile are deliberately updated together.
 
 ### 2.2 Run Chrys roles in-process
 

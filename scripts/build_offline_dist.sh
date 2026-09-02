@@ -150,17 +150,13 @@ uv export "${EXPORT_ARGS[@]}" -o "$(native_path "$REQUIREMENTS")" --quiet
 DEP_COUNT=$(grep -c '^[A-Za-z0-9]' "$REQUIREMENTS" || true)
 echo "    $DEP_COUNT locked distributions"
 
-# Git requirements have no distribution hash, so uv correctly refuses to mix
-# them into a --require-hashes install.  Keep the registry closure hash-locked
-# above, then read the exact immutable pact-core commit from the same uv.lock.
-# The helper fails closed if the repository changes, the ref is mutable, or
-# uv.lock records different requested and resolved commits.
-PACT_REPOSITORY="https://github.com/SELab-Leibniz/pact.git"
-PACT_REQUIREMENT=$("$PY" "$(native_path "$SCRIPT_DIR/locked_git_requirement.py")" \
-    --lock "$(native_path "$PROJECT_ROOT/uv.lock")" \
-    --package pact-core \
-    --repository "$PACT_REPOSITORY")
-echo "    pact-core locked to ${PACT_REQUIREMENT##*@}"
+# pact-core is shipped as a repository wheel so cloning and offline builds do
+# not need access to its source repository.  Validate its recorded source
+# commit, package metadata, and SHA-256 before installing it separately from
+# the hash-locked registry closure above.
+PACT_WHEEL=$("$PY" "$(native_path "$SCRIPT_DIR/vendored_pact_wheel.py")" \
+    --project-root "$(native_path "$PROJECT_ROOT")")
+echo "    pact-core wheel: $(basename "$PACT_WHEEL")"
 
 # ── Install into the distribution ─────────────────────────────────────
 if [ -n "${OFFLINE_ONLY_BINARY:-}" ]; then
@@ -206,9 +202,9 @@ else
 fi
 uv pip install "${INSTALL_ARGS[@]}" -r "$(native_path "$REQUIREMENTS")" --quiet
 
-echo "==> Installing locked pact-core Git dependency..."
+echo "==> Installing validated vendored pact-core wheel..."
 uv pip install --python "$(native_path "$PY")" --no-deps --compile-bytecode \
-    "$PACT_REQUIREMENT" --quiet
+    "$(native_path "$PACT_WHEEL")" --quiet
 
 echo "==> Installing chrys..."
 CHRYS_SOURCE="${WHEEL:-$PROJECT_ROOT}"

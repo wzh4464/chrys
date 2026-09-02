@@ -7,6 +7,7 @@ __pycache__/
 /dist/
 /build/
 *.whl
+!vendor/wheels/*.whl
 
 # Defensive: Cargo output if Rust is ever built in the repository root
 /target/

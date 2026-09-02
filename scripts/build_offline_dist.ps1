@@ -110,18 +110,13 @@ try {
     $DepCount = (Select-String -Path $Requirements -Pattern '^[A-Za-z0-9]').Count
     Write-Host "    $DepCount locked distributions"
 
-    # Git requirements have no distribution hash, so uv correctly refuses to
-    # mix them into a --require-hashes install.  Keep the registry closure
-    # hash-locked above, then read the exact immutable pact-core commit from
-    # the same uv.lock.  The helper fails closed on a repository or ref drift.
-    $PactRepository = "https://github.com/SELab-Leibniz/pact.git"
-    $LockedGitHelper = Join-Path $ScriptDir "locked_git_requirement.py"
-    $PactRequirement = & $Py $LockedGitHelper `
-        --lock (Join-Path $ProjectRoot "uv.lock") `
-        --package pact-core `
-        --repository $PactRepository
-    if ($LASTEXITCODE -ne 0) { throw "failed to read locked pact-core Git requirement" }
-    Write-Host "    pact-core locked to $($PactRequirement.Split('@')[-1])"
+    # pact-core is shipped as a repository wheel so cloning and offline builds
+    # do not need access to its source repository. Validate provenance,
+    # package metadata, and SHA-256 before installing it separately.
+    $VendoredWheelHelper = Join-Path $ScriptDir "vendored_pact_wheel.py"
+    $PactWheel = & $Py $VendoredWheelHelper --project-root $ProjectRoot
+    if ($LASTEXITCODE -ne 0) { throw "failed to validate vendored pact-core wheel" }
+    Write-Host "    pact-core wheel: $(Split-Path -Leaf $PactWheel)"
 
     # ── Install into the distribution ─────────────────────────────────
     # --compile-bytecode moves the byte-compilation of all packages to build
@@ -131,8 +126,8 @@ try {
     & uv pip install --python $Py --require-hashes --compile-bytecode -r $Requirements --quiet
     if ($LASTEXITCODE -ne 0) { throw "uv pip install failed" }
 
-    Write-Host "==> Installing locked pact-core Git dependency..."
-    & uv pip install --python $Py --no-deps --compile-bytecode $PactRequirement --quiet
+    Write-Host "==> Installing validated vendored pact-core wheel..."
+    & uv pip install --python $Py --no-deps --compile-bytecode $PactWheel --quiet
     if ($LASTEXITCODE -ne 0) { throw "uv pip install (pact-core) failed" }
 
     Write-Host "==> Installing chrys..."
