@@ -56,11 +56,13 @@ class FakeHost:
         self.session_id = "session-1"
         self.model_profile_pinned = False
         self.published: list[object] = []
+        self.reminders: list[list[str]] = []
         self.event_bus = SimpleNamespace(publish=self._publish)
         self.engine = SimpleNamespace(
             pin_model_profile=lambda: setattr(self, "model_profile_pinned", True),
             loaded_settings=type(self).restored_loaded or LoadedSettings(settings=Settings(), provenance={}),
             last_route=type(self).route_decision,
+            _reminder_middleware=SimpleNamespace(queue_hook_reminders=self.reminders.append),
         )
         FakeHost.instances.append(self)
 
@@ -353,11 +355,12 @@ def test_run_command_empty_task_file_passes_empty_prompt(
     assert FakeHost.instances[0].prompt == ""
 
 
-def test_run_command_appends_localization_report_to_prompt(
+def test_run_command_delivers_localization_as_a_reminder_not_in_the_prompt(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     capsys,
 ) -> None:
+    """The prompt is persisted history; a preflight report must not live there."""
     _patch_runtime(monkeypatch)
     report = tmp_path / "code-localization.md"
     report.write_text("# Code Localization\n\n`src/parser.py:parse_value`\n", encoding="utf-8")
@@ -374,10 +377,23 @@ def test_run_command_appends_localization_report_to_prompt(
 
     assert rc == 0
     assert capsys.readouterr().err == ""
-    prompt = FakeHost.instances[0].prompt
-    assert prompt.startswith("Fix parse_value\n\n<semantic-code-localization>")
-    assert "src/parser.py:parse_value" in prompt
-    assert "original user requirement is authoritative" in prompt
+    host = FakeHost.instances[0]
+    assert host.prompt == "Fix parse_value"
+    (reminders,) = host.reminders
+    assert reminders[0].startswith("<semantic-code-localization>")
+    assert "src/parser.py:parse_value" in reminders[0]
+    assert "original user requirement is authoritative" in reminders[0]
+
+
+def test_run_command_without_localization_queues_no_reminder(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _patch_runtime(monkeypatch)
+
+    rc = run_cli.main(["Fix parse_value", "--agent", "Headless"])
+
+    assert rc == 0
+    assert FakeHost.instances[0].reminders == []
 
 
 def test_run_command_task_file_resolves_relative_to_workdir(

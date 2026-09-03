@@ -431,22 +431,23 @@ def _resolve_prompt(args: argparse.Namespace) -> str:
     return args.prompt
 
 
-def _append_localization_context(prompt: str, report_path: Path | None) -> str:
-    """Append a bounded localization report to the user prompt, when present.
+def _localization_reminder(report_path: Path | None) -> str:
+    """Render the localization report as per-turn context, or ``""``.
 
-    Localization is a CLI preflight. Keeping its output in the prompt avoids
-    adding localization-specific state to Chrys' engine and session layers.
+    A reminder rather than an addition to the prompt: the prompt is persisted
+    history and the KV-cached system prompt is not the place for per-turn data
+    either, so a preflight report appended to the user's own words would end up
+    quoted back forever.
     """
     if report_path is None:
-        return prompt
+        return ""
     try:
         report = load_report(report_path)
     except OSError as exc:
         raise SemanticSearchError(f"failed to read localization report: {report_path}: {exc}") from exc
     if not report.strip():
-        return prompt
+        return ""
     return (
-        f"{prompt.rstrip()}\n\n"
         "<semantic-code-localization>\n"
         "The following report contains inspection candidates only. The original user requirement is authoritative. "
         "Read and verify source before editing; do not edit every listed file.\n\n"
@@ -514,7 +515,7 @@ async def run_command(args: argparse.Namespace, holder: PreparedRuntimeHolder) -
                 as_json=args.json,
                 code="semantic_localization",
             )
-    prompt = _append_localization_context(prompt, localization_report)
+    localization_reminder = _localization_reminder(localization_report)
     # Normalized once, to the host's own reading of the flag: the host strips
     # the id and treats a blank one as "no session", and a project-free
     # bootstrap for a run that then starts fresh would silently drop the
@@ -551,6 +552,10 @@ async def run_command(args: argparse.Namespace, holder: PreparedRuntimeHolder) -
                 prepared.localizer,
                 as_json=args.json,
             )
+        if localization_reminder:
+            reminder_middleware = host.engine._reminder_middleware
+            if reminder_middleware is not None:
+                reminder_middleware.queue_hook_reminders([localization_reminder])
         if args.route != "auto":
             # Published before the prompt so it is waiting when the message is
             # admitted; the engine consumes it for exactly that one turn.

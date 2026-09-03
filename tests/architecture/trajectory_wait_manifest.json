@@ -1,5 +1,5 @@
 {
-  "inventory_sha256": "d493b41f750fd2be3e9928ee7328fd6f5fd822d5ec2f358ae4403dac2f29042b",
+  "inventory_sha256": "b855a118b294ebf6f8e18bac34b36d1c84738f5f22a25702663178c5baadfb8c",
   "nodes": [
     {
       "cases": [
@@ -5738,7 +5738,7 @@
       "primitive": "gather",
       "qualname": "AgentEngine._drain_usage_publishes",
       "source_column": 8,
-      "source_line": 2096,
+      "source_line": 2106,
       "wrapper_target": null
     },
     {
@@ -5798,7 +5798,7 @@
       "primitive": "wrapper",
       "qualname": "AgentEngine._flush_memory_writeback",
       "source_column": 8,
-      "source_line": 1924,
+      "source_line": 1934,
       "wrapper_target": "chrys.orchestration.engine.engine.AgentEngine._save_current_session"
     },
     {
@@ -5818,7 +5818,7 @@
       "primitive": "thread_pool",
       "qualname": "AgentEngine._flush_memory_writeback",
       "source_column": 18,
-      "source_line": 1926,
+      "source_line": 1936,
       "wrapper_target": null
     },
     {
@@ -5838,7 +5838,7 @@
       "primitive": "wrapper",
       "qualname": "AgentEngine._flush_memory_writeback",
       "source_column": 12,
-      "source_line": 1935,
+      "source_line": 1945,
       "wrapper_target": "chrys.orchestration.engine.engine.AgentEngine._save_current_session"
     },
     {
@@ -5858,7 +5858,7 @@
       "primitive": "awaitable",
       "qualname": "AgentEngine._flush_memory_writeback",
       "source_column": 8,
-      "source_line": 1936,
+      "source_line": 1946,
       "wrapper_target": null
     },
     {
@@ -5918,7 +5918,7 @@
       "primitive": "wrapper",
       "qualname": "AgentEngine._on_new_session",
       "source_column": 8,
-      "source_line": 2177,
+      "source_line": 2187,
       "wrapper_target": "chrys.service.session.lifecycle.on_new_session"
     },
     {
@@ -5938,8 +5938,28 @@
       "primitive": "wrapper",
       "qualname": "AgentEngine._on_profile_switch",
       "source_column": 8,
-      "source_line": 2142,
+      "source_line": 2152,
       "wrapper_target": "chrys.orchestration.engine.state.controls.on_profile_switch"
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await workflow.request_stop()",
+      "identity": "chrys.orchestration.engine.engine:AgentEngine._on_route_override:1",
+      "module": "chrys.orchestration.engine.engine",
+      "ordinal": 1,
+      "primitive": "awaitable",
+      "qualname": "AgentEngine._on_route_override",
+      "source_column": 12,
+      "source_line": 1904,
+      "wrapper_target": null
     },
     {
       "cases": [
@@ -5958,7 +5978,7 @@
       "primitive": "wrapper",
       "qualname": "AgentEngine._on_session_clear",
       "source_column": 8,
-      "source_line": 2189,
+      "source_line": 2199,
       "wrapper_target": "chrys.service.session.lifecycle.on_session_clear"
     },
     {
@@ -5978,7 +5998,7 @@
       "primitive": "wrapper",
       "qualname": "AgentEngine._on_session_delete",
       "source_column": 8,
-      "source_line": 2185,
+      "source_line": 2195,
       "wrapper_target": "chrys.service.session.lifecycle.on_session_delete"
     },
     {
@@ -5998,7 +6018,7 @@
       "primitive": "timeout",
       "qualname": "AgentEngine._on_session_fork",
       "source_column": 12,
-      "source_line": 2194,
+      "source_line": 2204,
       "wrapper_target": null
     },
     {
@@ -6018,7 +6038,7 @@
       "primitive": "wrapper",
       "qualname": "AgentEngine._on_session_fork",
       "source_column": 12,
-      "source_line": 2199,
+      "source_line": 2209,
       "wrapper_target": "chrys.orchestration.engine.engine.AgentEngine._publish_session_fork_error"
     },
     {
@@ -6038,7 +6058,7 @@
       "primitive": "wrapper",
       "qualname": "AgentEngine._on_session_fork",
       "source_column": 12,
-      "source_line": 2210,
+      "source_line": 2220,
       "wrapper_target": "chrys.orchestration.engine.engine.AgentEngine._publish_session_fork_error"
     },
     {
@@ -6058,7 +6078,7 @@
       "primitive": "wrapper",
       "qualname": "AgentEngine._on_session_fork",
       "source_column": 12,
-      "source_line": 2218,
+      "source_line": 2228,
       "wrapper_target": "chrys.orchestration.engine.engine.AgentEngine._publish_session_fork_error"
     },
     {
@@ -6078,7 +6098,7 @@
       "primitive": "wrapper",
       "qualname": "AgentEngine._on_session_fork",
       "source_column": 12,
-      "source_line": 2226,
+      "source_line": 2236,
       "wrapper_target": "chrys.orchestration.engine.engine.AgentEngine._publish_session_fork_error"
     },
     {
@@ -6098,7 +6118,7 @@
       "primitive": "wrapper",
       "qualname": "AgentEngine._on_session_fork",
       "source_column": 12,
-      "source_line": 2234,
+      "source_line": 2244,
       "wrapper_target": "chrys.orchestration.engine.engine.AgentEngine._publish_session_fork_error"
     },
     {
@@ -6118,7 +6138,7 @@
       "primitive": "wrapper",
       "qualname": "AgentEngine._on_session_fork",
       "source_column": 12,
-      "source_line": 2242,
+      "source_line": 2252,
       "wrapper_target": "chrys.orchestration.engine.engine.AgentEngine._publish_session_fork_error"
     },
     {
@@ -6138,7 +6158,7 @@
       "primitive": "wrapper",
       "qualname": "AgentEngine._on_session_fork",
       "source_column": 12,
-      "source_line": 2250,
+      "source_line": 2260,
       "wrapper_target": "chrys.orchestration.engine.engine.AgentEngine._publish_session_fork_error"
     },
     {
@@ -6158,7 +6178,7 @@
       "primitive": "wrapper",
       "qualname": "AgentEngine._on_session_fork",
       "source_column": 12,
-      "source_line": 2258,
+      "source_line": 2268,
       "wrapper_target": "chrys.orchestration.engine.engine.AgentEngine._publish_session_fork_error"
     },
     {
@@ -6178,7 +6198,7 @@
       "primitive": "wrapper",
       "qualname": "AgentEngine._on_session_fork",
       "source_column": 12,
-      "source_line": 2267,
+      "source_line": 2277,
       "wrapper_target": "chrys.orchestration.engine.engine.AgentEngine._save_current_session"
     },
     {
@@ -6198,7 +6218,7 @@
       "primitive": "awaitable",
       "qualname": "AgentEngine._on_session_fork",
       "source_column": 26,
-      "source_line": 2268,
+      "source_line": 2278,
       "wrapper_target": null
     },
     {
@@ -6218,7 +6238,7 @@
       "primitive": "wrapper",
       "qualname": "AgentEngine._on_session_fork",
       "source_column": 12,
-      "source_line": 2271,
+      "source_line": 2281,
       "wrapper_target": "chrys.orchestration.engine.engine.AgentEngine._publish_session_fork_error"
     },
     {
@@ -6238,7 +6258,7 @@
       "primitive": "wrapper",
       "qualname": "AgentEngine._on_session_fork",
       "source_column": 12,
-      "source_line": 2280,
+      "source_line": 2290,
       "wrapper_target": "chrys.orchestration.engine.engine.AgentEngine._publish_session_fork_error"
     },
     {
@@ -6258,7 +6278,7 @@
       "primitive": "wrapper",
       "qualname": "AgentEngine._on_session_fork",
       "source_column": 12,
-      "source_line": 2288,
+      "source_line": 2298,
       "wrapper_target": "chrys.orchestration.engine.engine.AgentEngine._publish_session_fork_error"
     },
     {
@@ -6278,7 +6298,7 @@
       "primitive": "thread_pool",
       "qualname": "AgentEngine._on_session_fork",
       "source_column": 29,
-      "source_line": 2297,
+      "source_line": 2307,
       "wrapper_target": null
     },
     {
@@ -6298,7 +6318,7 @@
       "primitive": "wrapper",
       "qualname": "AgentEngine._on_session_fork",
       "source_column": 12,
-      "source_line": 2299,
+      "source_line": 2309,
       "wrapper_target": "chrys.orchestration.engine.engine.AgentEngine._publish_session_fork_error"
     },
     {
@@ -6318,7 +6338,7 @@
       "primitive": "wrapper",
       "qualname": "AgentEngine._on_session_fork",
       "source_column": 12,
-      "source_line": 2308,
+      "source_line": 2318,
       "wrapper_target": "chrys.orchestration.engine.engine.AgentEngine._publish_session_fork_error"
     },
     {
@@ -6338,7 +6358,7 @@
       "primitive": "awaitable",
       "qualname": "AgentEngine._on_session_fork",
       "source_column": 8,
-      "source_line": 2318,
+      "source_line": 2328,
       "wrapper_target": null
     },
     {
@@ -6358,7 +6378,7 @@
       "primitive": "awaitable",
       "qualname": "AgentEngine._on_session_fork",
       "source_column": 8,
-      "source_line": 2325,
+      "source_line": 2335,
       "wrapper_target": null
     },
     {
@@ -6378,7 +6398,7 @@
       "primitive": "wrapper",
       "qualname": "AgentEngine._on_session_restore",
       "source_column": 8,
-      "source_line": 2181,
+      "source_line": 2191,
       "wrapper_target": "chrys.service.session.lifecycle.on_session_restore"
     },
     {
@@ -6398,7 +6418,7 @@
       "primitive": "wrapper",
       "qualname": "AgentEngine._on_set_approval_mode",
       "source_column": 8,
-      "source_line": 2130,
+      "source_line": 2140,
       "wrapper_target": "chrys.orchestration.engine.state.controls.on_set_approval_mode"
     },
     {
@@ -6418,7 +6438,7 @@
       "primitive": "wrapper",
       "qualname": "AgentEngine._on_set_model_profile",
       "source_column": 8,
-      "source_line": 2138,
+      "source_line": 2148,
       "wrapper_target": "chrys.orchestration.engine.state.controls.on_set_model_profile"
     },
     {
@@ -6438,7 +6458,7 @@
       "primitive": "wrapper",
       "qualname": "AgentEngine._on_settings_reload",
       "source_column": 8,
-      "source_line": 2165,
+      "source_line": 2175,
       "wrapper_target": "chrys.orchestration.engine.state.controls.on_settings_reload"
     },
     {
@@ -6458,7 +6478,7 @@
       "primitive": "awaitable",
       "qualname": "AgentEngine._on_sub_agent_abort",
       "source_column": 8,
-      "source_line": 1966,
+      "source_line": 1976,
       "wrapper_target": null
     },
     {
@@ -6478,7 +6498,7 @@
       "primitive": "wrapper",
       "qualname": "AgentEngine._on_sub_agent_paused",
       "source_column": 8,
-      "source_line": 1984,
+      "source_line": 1994,
       "wrapper_target": "chrys.orchestration.engine.run.sub_agent_coordination.on_sub_agent_paused"
     },
     {
@@ -6498,7 +6518,7 @@
       "primitive": "awaitable",
       "qualname": "AgentEngine._on_sub_agent_retry",
       "source_column": 8,
-      "source_line": 1962,
+      "source_line": 1972,
       "wrapper_target": null
     },
     {
@@ -6518,7 +6538,7 @@
       "primitive": "wrapper",
       "qualname": "AgentEngine._on_sub_agent_unpaused",
       "source_column": 8,
-      "source_line": 1995,
+      "source_line": 2005,
       "wrapper_target": "chrys.orchestration.engine.run.sub_agent_coordination.on_sub_agent_unpaused"
     },
     {
@@ -6538,7 +6558,7 @@
       "primitive": "awaitable",
       "qualname": "AgentEngine._on_user_inject",
       "source_column": 8,
-      "source_line": 2009,
+      "source_line": 2019,
       "wrapper_target": null
     },
     {
@@ -6558,7 +6578,7 @@
       "primitive": "awaitable",
       "qualname": "AgentEngine._on_user_inject_cancel",
       "source_column": 8,
-      "source_line": 2013,
+      "source_line": 2023,
       "wrapper_target": null
     },
     {
@@ -6578,7 +6598,7 @@
       "primitive": "awaitable",
       "qualname": "AgentEngine._on_user_interrupt",
       "source_column": 8,
-      "source_line": 1958,
+      "source_line": 1968,
       "wrapper_target": null
     },
     {
@@ -6618,7 +6638,7 @@
       "primitive": "awaitable",
       "qualname": "AgentEngine._on_user_retry",
       "source_column": 8,
-      "source_line": 2005,
+      "source_line": 2015,
       "wrapper_target": null
     },
     {
@@ -6658,7 +6678,7 @@
       "primitive": "wrapper",
       "qualname": "AgentEngine._on_workspace_change",
       "source_column": 8,
-      "source_line": 2169,
+      "source_line": 2179,
       "wrapper_target": "chrys.orchestration.engine.state.controls.on_workspace_change"
     },
     {
@@ -6698,7 +6718,7 @@
       "primitive": "awaitable",
       "qualname": "AgentEngine._post_run",
       "source_column": 8,
-      "source_line": 1898,
+      "source_line": 1908,
       "wrapper_target": null
     },
     {
@@ -6798,7 +6818,7 @@
       "primitive": "wrapper",
       "qualname": "AgentEngine._publish_compaction",
       "source_column": 8,
-      "source_line": 2104,
+      "source_line": 2114,
       "wrapper_target": "chrys.service.usage.publish_compaction"
     },
     {
@@ -6818,7 +6838,7 @@
       "primitive": "wrapper",
       "qualname": "AgentEngine._publish_compress",
       "source_column": 8,
-      "source_line": 2100,
+      "source_line": 2110,
       "wrapper_target": "chrys.service.usage.publish_compress"
     },
     {
@@ -6878,7 +6898,7 @@
       "primitive": "awaitable",
       "qualname": "AgentEngine._publish_pre_compact",
       "source_column": 8,
-      "source_line": 2115,
+      "source_line": 2125,
       "wrapper_target": null
     },
     {
@@ -6898,7 +6918,7 @@
       "primitive": "awaitable",
       "qualname": "AgentEngine._publish_session_fork_error",
       "source_column": 8,
-      "source_line": 2336,
+      "source_line": 2346,
       "wrapper_target": null
     },
     {

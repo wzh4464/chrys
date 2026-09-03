@@ -1890,8 +1890,18 @@ class AgentEngine:
         )
 
     async def _on_route_override(self, event: RouteOverride) -> None:
-        """Hold a frontend routing override for the next admitted message."""
+        """Hold a routing override for the next message, or downgrade this turn.
+
+        ``/quick`` during a long-horizon turn's preparation means "not this
+        one", not "not the next one": a user watching a campaign spin up has no
+        other way to stop it, and stopping it is exactly what the workflow's
+        own stop path already does — P0 is promoted and nothing is delegated.
+        """
         self._route_override = event
+        workflow = self._requirement_clarification_workflow
+        if event.track == "standard" and workflow is not None and self._last_route is not None:
+            self._route_override = None
+            await workflow.request_stop()
 
     async def _post_run(self) -> None:
         """Unified post-execution fixup for both run and retry paths."""
