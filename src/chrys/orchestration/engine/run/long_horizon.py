@@ -59,6 +59,10 @@ LOCALIZATION_TIMEOUT_SECONDS = 120.0
 # small enough that it cannot crowd out the clarification evidence beside it.
 MEMORY_PRIOR_TOP_K = 3
 MEMORY_PRIOR_MAX_CHARS = 2000
+# A graph that has not answered in fifteen seconds is not going to make this
+# plan better. The recall runs beside clarification, so this budget is spent in
+# parallel with work that would have happened anyway.
+MEMORY_PRIOR_TIMEOUT_SECONDS = 15.0
 
 
 class LongHorizonPhase:
@@ -98,6 +102,7 @@ class LongHorizonExtensions:
         self.brief_path: Path | None = None
         self.request: PactRunRequest | None = None
         self._requirement = ""
+        self._memory_prior = ""
         self._task: asyncio.Task[None] | None = None
 
     # -- RequirementWorkflowExtensions ---------------------------------
@@ -107,8 +112,15 @@ class LongHorizonExtensions:
         return self._decision.plan.pact
 
     async def on_clarification_start(self, revision: RequirementRevision, s0: WorkspaceSnapshot) -> None:
-        """Search the frozen S0 view while clarification runs against it."""
+        """Search the frozen S0 view and recall priors while clarification runs.
+
+        Both are I/O against something outside this process, and both belong
+        here rather than at the point of use: this hook is already one leg of
+        the workflow's gather, so their latency overlaps work that had to
+        happen anyway.
+        """
         self._requirement = revision.rendered
+        self._memory_prior = await self._recall_prior()
         if not self._decision.plan.localization:
             return
         await self._phase(LongHorizonPhase.LOCALIZING, "searching the frozen workspace")
@@ -133,38 +145,51 @@ class LongHorizonExtensions:
     def pact_input_hints(self) -> str:
         """Return untrusted evidence for the plan: located code, then prior experience.
 
-        Also the moment the task brief first lands: the plan may reference it,
-        and a role reading the brief needs it on disk before the campaign runs.
+        Pure: both halves were gathered during clarification. Also the moment
+        the task brief first lands, because the plan may reference it and a
+        role reading the brief needs it on disk before the campaign runs.
         """
         self.write_brief(baseline="none")
         sections: list[str] = []
         if self.localization.available:
             sections.append(localization_hints(self.localization.locations))
-        prior = self._memory_prior()
-        if prior:
-            sections.append(f"Prior experience from the team graph (untrusted):\n{prior}")
+        if self._memory_prior:
+            sections.append(f"Prior experience from the team graph (untrusted):\n{self._memory_prior}")
         return "\n\n".join(section for section in sections if section)
 
-    def _memory_prior(self) -> str:
+    async def _recall_prior(self) -> str:
         """Recall prior experience for this requirement, or nothing at all.
+
+        Off the event loop and on a timeout: the query is a synchronous Bolt
+        round trip plus an embedding call, so running it where it is consumed
+        would stall the whole session -- and ``asyncio.timeout`` cannot
+        interrupt a blocking call, only an await. A timeout abandons the thread
+        rather than killing it (nothing can kill a thread), which is safe
+        because it only holds a pool slot until the driver gives up.
 
         Silent on every failure: an unreachable graph is the normal case on a
         machine that never configured one, and a plan is perfectly valid
-        without a prior. Bounded because a plan prompt has a budget it shares
-        with the clarification evidence.
+        without a prior.
         """
         if not self._requirement.strip():
             return ""
         try:
-            from chrys.service.memory.contextgraph_mcp import _do_query
-            from chrys.service.memory.overlay import memory_mcp_server_config
-
-            if memory_mcp_server_config(self._host._settings) is None:
-                return ""
-            recalled = _do_query(self._requirement, MEMORY_PRIOR_TOP_K)
+            async with asyncio.timeout(MEMORY_PRIOR_TIMEOUT_SECONDS):
+                return await asyncio.to_thread(self._query_prior)
+        except asyncio.CancelledError:
+            raise
         except Exception:
             logger.debug("memory prior unavailable", exc_info=True)
             return ""
+
+    def _query_prior(self) -> str:
+        """Ask the graph, bounded. Runs in a worker thread."""
+        from chrys.service.memory.contextgraph_mcp import _do_query
+        from chrys.service.memory.overlay import memory_mcp_server_config
+
+        if memory_mcp_server_config(self._host._settings) is None:
+            return ""
+        recalled = _do_query(self._requirement, MEMORY_PRIOR_TOP_K)
         if not isinstance(recalled, str) or "No prior ContextGraph memory found." in recalled:
             return ""
         return recalled.strip()[:MEMORY_PRIOR_MAX_CHARS]
