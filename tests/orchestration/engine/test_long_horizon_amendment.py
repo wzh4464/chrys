@@ -121,9 +121,12 @@ async def test_an_amendment_cancels_and_clears_the_search(tmp_path) -> None:
 
     extensions = LongHorizonExtensions(_Host(), _decision())
     extensions.localization = LocalizationOutcome(locations=[{"file": "a.py"}])
+    extensions._memory_prior = "Strategy: recalled for the original requirement"
 
     await extensions.on_revision(_Revision(rendered="Add OAuth login, and also SAML"))
 
     assert extensions.localization.available is False
+    # Both hints were gathered for text that no longer stands.
+    assert extensions._memory_prior == ""
     # The next search runs against the amended requirement, not the original.
     assert extensions._requirement == "Add OAuth login, and also SAML"

@@ -372,9 +372,15 @@ class LongHorizonExtensions:
             return "(the task brief could not be read)"
 
     async def on_revision(self, revision: RequirementRevision) -> None:
-        """An amendment invalidates the search: the requirement it ran on changed."""
+        """An amendment invalidates both the search and the prior.
+
+        Each was gathered for the requirement text that just changed. The
+        re-run's ``on_clarification_start`` refills them; clearing here is what
+        makes sure a superseded hint cannot outlive that.
+        """
         await self.cancel()
         self.localization = LocalizationOutcome()
+        self._memory_prior = ""
         self._requirement = revision.rendered
 
     async def cancel(self) -> None:

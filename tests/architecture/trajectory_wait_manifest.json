@@ -13298,7 +13298,7 @@
       "primitive": "awaitable",
       "qualname": "LongHorizonExtensions._degrade",
       "source_column": 8,
-      "source_line": 455,
+      "source_line": 461,
       "wrapper_target": null
     },
     {
@@ -13358,7 +13358,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions._localize",
       "source_column": 12,
-      "source_line": 392,
+      "source_line": 398,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._degrade"
     },
     {
@@ -13378,7 +13378,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions._localize",
       "source_column": 12,
-      "source_line": 396,
+      "source_line": 402,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._degrade"
     },
     {
@@ -13398,7 +13398,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions._localize",
       "source_column": 12,
-      "source_line": 400,
+      "source_line": 406,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._degrade"
     },
     {
@@ -13418,7 +13418,7 @@
       "primitive": "thread_pool",
       "qualname": "LongHorizonExtensions._localize",
       "source_column": 21,
-      "source_line": 403,
+      "source_line": 409,
       "wrapper_target": null
     },
     {
@@ -13438,7 +13438,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions._localize",
       "source_column": 12,
-      "source_line": 416,
+      "source_line": 422,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._degrade"
     },
     {
@@ -13458,7 +13458,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions._localize",
       "source_column": 8,
-      "source_line": 421,
+      "source_line": 427,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._phase"
     },
     {
@@ -13478,7 +13478,7 @@
       "primitive": "awaitable",
       "qualname": "LongHorizonExtensions._phase",
       "source_column": 8,
-      "source_line": 464,
+      "source_line": 470,
       "wrapper_target": null
     },
     {
@@ -13818,7 +13818,7 @@
       "primitive": "awaitable",
       "qualname": "LongHorizonExtensions.on_revision",
       "source_column": 8,
-      "source_line": 376,
+      "source_line": 381,
       "wrapper_target": null
     },
     {
