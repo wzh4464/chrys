@@ -109,7 +109,7 @@ def _environment_checks() -> list[_Check]:
         _Check(
             "CONTEXTGRAPH_EMBEDDING_API_KEY",
             bool(embedding),
-            "set" if embedding else "not set; vector retrieval degrades to the lexical channel",
+            "set" if embedding else "not set; reads degrade to the lexical channel, but every deposit will fail",
         ),
     ]
 

@@ -176,7 +176,15 @@ class ChrysHarborAgent(BaseAgent):
         # process can disappear while ``environment.exec`` is awaiting Chrys;
         # the shell and Chrys may still finish, so host-side post-processing is
         # not a durable completion boundary.
-        patch_command = f"git -C /app diff --binary HEAD > {_REMOTE_MODEL_PATCH}.tmp"
+        # `git diff` alone omits untracked files, so a task solved by CREATING a
+        # source or test file publishes a patch missing it and scores unresolved.
+        # The repair arms already stage first (capture_fixed_p0_patch), and so
+        # does deepswe_runner — an arm that did not would bias the comparison it
+        # exists to make.
+        patch_command = (
+            "git -C /app add --intent-to-add --all >/dev/null 2>&1; "
+            f"git -C /app diff --binary HEAD > {_REMOTE_MODEL_PATCH}.tmp"
+        )
         if self._run_mode in {REPAIR_ARM, IMPORTED_P0_CLARIFICATION_ARM}:
             allow_empty = " --allow-empty" if self._run_mode == IMPORTED_P0_CLARIFICATION_ARM else ""
             patch_command = (

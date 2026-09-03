@@ -26,6 +26,35 @@ campaign 级的"停下并回滚"协议**。
 想要的行为是一个 campaign 级 cancel token，让 coordinator 在 mission 边界停下并汇报"已完成到哪一步"。
 现在没有，所以**中断长程轮次应当视为需要人工检查工作区**。
 
+## 1b. 停不下来的 role 运行时会留在被删掉的 worktree 里
+
+`pact/role_runner.py` 在一个 role turn 的清理超过 `cleanup_grace_seconds`（5 s）时设置
+`preserve_runtime`，**跳过** `host.shutdown()`，并由 `_runtime_unresponsive()` **保留**仍在运行的
+`turn_task`——这是刻意的：直接 cancel 会卡死在 `ChrysSessionHost` 被 shield 的异步生成器清理里。
+
+代价是：`RoleRuntimeUnresponsive` 向上抛进 pact_core，后者在 `finally` 里
+`git worktree remove --force`。于是那个**停不下来的 Chrys agent 仍在以 `ApprovalMode.BYPASS` 运行**，
+`cwd` 指向一个刚被 git 强制删除的目录，直到进程结束为止。
+
+没有在本次修复的原因：真正的修法是让 `ChrysSessionHost` 的关闭路径可被有界取消，那是 PACT 运行时的
+设计改动，而本机跑不了完整 campaign（缺 `pact.verify_command`，见 §5），改了也验证不了。盲改一个
+无法验证的取消路径比记录它更危险。
+
+**运维含义**：看到 `RoleRuntimeUnresponsive` 就应当认为该 campaign 的 worktree 状态不可信，并检查是否
+有残留的 chrys 进程。
+
+## 1c. 重试后的经验不会更新图
+
+`contextgraph_deposit` 的沉淀水位线按**全局 turn 号**推进（见 `writeback.py`）。一次 turn 被沉淀之后，
+用户重试同一 turn 并成功，turn 号不变（`runner.py` 在重试时不递增计数器），因此水位线已经越过它，
+**新的成功轨迹不会被沉淀**——图里留下的是那次失败/中断的版本。
+
+反方向同样不好：若改成按 digest 变化重新沉淀，`source_id` 随之改变，图里就会出现两条覆盖同一份工作的
+轨迹（其中一条带 `failed_attempt` 片段），两条都会被 `team_memory_query` 返回。
+
+要正确处理需要 ContextGraph 支持"按 trajectory 身份更新"，属于上游改动；本次刻意不在 chrys 侧用重复
+写入来模拟它。
+
 ## 2. 图不跨主机
 
 ContextGraph 连接来自 `~/.chrys/.env` 里的 `CONTEXTGRAPH_*`，指向**本机部署**的 Neo4j。

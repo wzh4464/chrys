@@ -47,6 +47,9 @@ def _deposit(payload: dict[str, Any]) -> dict[str, Any]:
     memory = AgentMemory(
         neo4j_uri=_required_env("NEO4J_URI"),
         neo4j_auth=(_required_env("NEO4J_USER"), os.environ.get("NEO4J_PASSWORD", "")),
+        # Required, unlike on the read path: AgentMemory.learn embeds every
+        # fragment it deposits. `chrys memory doctor` says so too, because the
+        # failure is otherwise invisible -- reads keep working.
         embedding_api_key=_required_env("OPENAI_API_KEY"),
         embedding_base_url=os.environ.get("OPENAI_API_BASE", "").strip() or None,
         embedding_model=os.environ.get("EMBEDDING_MODEL", "text-embedding-3-large"),
