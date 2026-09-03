@@ -75,6 +75,7 @@ def build_parser() -> argparse.ArgumentParser:
         epilog=(
             "Commands:\n"
             "  run         Run an agent headlessly until the final response\n"
+            "  locate      Locate requirement-relevant code and write a report\n"
             "  agents      List available agent profiles\n"
             "  models      List available model profiles\n"
             "  acp         Run an Agent Client Protocol stdio server\n"
@@ -133,6 +134,10 @@ def main() -> int:
         from chrys.app.cli.run import main as run_main
 
         return run_main(argv[1:])
+    if argv and argv[0] == "locate":
+        from chrys.app.cli.locate import main as locate_main
+
+        return locate_main(argv[1:])
     if argv and argv[0] == "agents":
         from chrys.app.cli.profiles import agents_main
 

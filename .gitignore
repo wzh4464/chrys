@@ -46,6 +46,10 @@ src/chrys/foundation/vendor/ripgrep/rg*
 # Ruff
 .ruff_cache/
 
+# Semantic localization runtime artifacts
+.semantic-search/
+.semantic-search-tools/
+
 # mypy
 .mypy_cache/
 
