@@ -79,6 +79,7 @@ from chrys.service.agent_middleware.system_reminder import CATALOG_POINTER_RECOR
 from chrys.service.approval.policy import ApprovalMode
 from chrys.service.approval.turn_context import TurnContextHolder
 from chrys.service.context.compaction.spill import SpillQuota
+from chrys.service.llm.side_call_clients import SideCallClientCache
 from chrys.service.mcp.cache import MCPConnectionCache
 from chrys.service.memory.overlay import apply_memory_overlay, memory_mcp_server_config
 from chrys.service.memory.writeback import deposit_pending_turns
@@ -317,6 +318,7 @@ class AgentEngine:
         self._last_route: RouteDecision | None = None
         self._route_fingerprint: str = ""
         self._tiebreaker_guard = TiebreakerGuard()
+        self._side_call_clients = SideCallClientCache()
         self._turn_number: int = 0
         self._active_session_guard = ActiveSessionGuard(state_store)
         self._tool_names: list[str] = []
@@ -1335,6 +1337,8 @@ class AgentEngine:
         if self._memory_watcher is not None:
             watcher, self._memory_watcher = self._memory_watcher, None
             await watcher.stop(flush=self._settings.memory_writeback_on_session_end, reason="session_end")
+        # Side-call clients outlive individual turns but not the session.
+        await self._side_call_clients.close()
         # Auto-save before shutdown
         restore_suppress_save = False
         if suppress_trailing_save and not self._suppress_save:

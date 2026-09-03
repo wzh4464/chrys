@@ -10,7 +10,6 @@ from collections.abc import Callable, Mapping
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Protocol
 
-from chrys.foundation.events.types import Warning
 from chrys.foundation.models.history_markers import HistoryMarkerKind
 from chrys.foundation.models.turns import current_turn_start, is_continuation_message
 from chrys.foundation.trajectory.ids import new_analytics_id
@@ -160,18 +159,11 @@ class TurnRunner:
         host = self._host
         profile = host._agent_profile
         decision = host._last_route
-        if decision is not None and decision.track is RouteTrack.LONG_HORIZON:
-            # The long-horizon workflow lands in a later milestone. Until then
-            # the decision is honest about being unusable rather than silently
-            # running a standard pass the user was told was long-horizon.
-            await host._bus.publish(
-                Warning(
-                    code="long_horizon_unavailable",
-                    message="The long-horizon workflow is not available in this build; running the standard pass",
-                    session_id=host._session_id,
-                )
-            )
-        clarification_enabled = bool(profile is not None and profile.requirement_clarification.enabled)
+        long_horizon = decision is not None and decision.track is RouteTrack.LONG_HORIZON and profile is not None
+        # A long-horizon turn runs the full clarification workflow whatever the
+        # profile's own switch says: the router, not the profile, decided this
+        # turn earns it.
+        clarification_enabled = long_horizon or bool(profile is not None and profile.requirement_clarification.enabled)
         if not clarification_enabled:
             await self._run_fresh_standard(
                 text,
@@ -190,15 +182,24 @@ class TurnRunner:
                 return
         from chrys.orchestration.engine.run.requirement_clarification import RequirementClarificationWorkflow
 
+        extensions = None
+        if long_horizon and decision is not None:
+            from chrys.orchestration.engine.run.long_horizon import LongHorizonExtensions
+
+            extensions = LongHorizonExtensions(host, decision)
         await RequirementClarificationWorkflow(
             self._host,
             self,
             strategy=profile.requirement_clarification.strategy,
-            reuse_workspace_as_p0=profile.requirement_clarification.reuse_workspace_as_p0,
-            clarification_only=profile.requirement_clarification.clarification_only,
+            # A routed turn always starts from a fresh baseline and always
+            # continues past clarification, whatever the profile configured for
+            # the standard track.
+            reuse_workspace_as_p0=(False if long_horizon else profile.requirement_clarification.reuse_workspace_as_p0),
+            clarification_only=(False if long_horizon else profile.requirement_clarification.clarification_only),
             clarification_timeout_seconds=profile.requirement_clarification.clarification_timeout_seconds,
             initial_timeout_seconds=profile.requirement_clarification.initial_timeout_seconds,
             repair_timeout_seconds=profile.requirement_clarification.repair_timeout_seconds,
+            extensions=extensions,
         ).run(
             text,
             created_at=created_at,

@@ -209,74 +209,74 @@ msgstr "另一个轮次已经开始，无法接纳此提示。"
 
 #. English: Cannot fork while the agent is still loading.
 #. chrys-meta={"fingerprint":"58707a7fdc91fb94c1d0a6b41ca778e9dd23734a19936db26b4b12b62962e20e","multiline":false,"placeholders":[]}
-#: src/chrys/orchestration/engine/engine.py:138
+#: src/chrys/orchestration/engine/engine.py:139
 msgid "engine.fork_agent_loading"
 msgstr "智能体仍在加载，无法派生会话。"
 
 #. English: Cannot fork an empty session.
 #. chrys-meta={"fingerprint":"9bd5865ab6a757351a5c3bd18b8839d45e85406eedc25719ef7cbb1fd7fb10dc","multiline":false,"placeholders":[]}
-#: src/chrys/orchestration/engine/engine.py:166
+#: src/chrys/orchestration/engine/engine.py:167
 msgid "engine.fork_empty_session"
 msgstr "无法派生空会话。"
 
 #. English: Failed to fork session: {detail}
 #. chrys-meta={"fingerprint":"8ff46e6c75e8c8d5b87b7bb50f4a980ec1e6f5504cdec006e4eb642b56f2702c","multiline":true,"placeholders":["detail"]}
-#: src/chrys/orchestration/engine/engine.py:184
+#: src/chrys/orchestration/engine/engine.py:185
 msgid "engine.fork_failed"
 msgstr "派生会话失败：{detail}"
 
 #. English: Cannot fork because this window does not own the active session
 #. lock.
 #. chrys-meta={"fingerprint":"159616fb644ea441f9f5c440c86afaafc6d80562e3ddbd3d71e1a2edd143a85c","multiline":false,"placeholders":[]}
-#: src/chrys/orchestration/engine/engine.py:162
+#: src/chrys/orchestration/engine/engine.py:163
 msgid "engine.fork_lock_not_owned"
 msgstr "此窗口不持有活动会话锁，无法派生会话。"
 
 #. English: Cannot fork before a session is ready.
 #. chrys-meta={"fingerprint":"8af2b80a11d4a3c2870f8d12c01c27fb587bc0c70805e333a6e559ed130fafbd","multiline":false,"placeholders":[]}
-#: src/chrys/orchestration/engine/engine.py:142
+#: src/chrys/orchestration/engine/engine.py:143
 msgid "engine.fork_not_ready"
 msgstr "会话就绪之前无法派生。"
 
 #. English: Failed to prepare session for fork: {detail}
 #. chrys-meta={"fingerprint":"03967b68dd51447ef9235cf8ac183a9de9e6ea2b8cdc937e85887a2435357512","multiline":true,"placeholders":["detail"]}
-#: src/chrys/orchestration/engine/engine.py:175
+#: src/chrys/orchestration/engine/engine.py:176
 msgid "engine.fork_prepare_failed"
 msgstr "为派生准备会话失败：{detail}"
 
 #. English: Timed out preparing session for fork: {detail}
 #. chrys-meta={"fingerprint":"794ea214352ec8572705cfcab769379c3606d79e442b68b3ff7a1663cd12a7ac","multiline":true,"placeholders":["detail"]}
-#: src/chrys/orchestration/engine/engine.py:170
+#: src/chrys/orchestration/engine/engine.py:171
 msgid "engine.fork_prepare_timeout"
 msgstr "为派生准备会话超时：{detail}"
 
 #. English: Cannot fork while session state is being restored.
 #. chrys-meta={"fingerprint":"9a84ed64a5793b10d47ca631b9dbf1a039a6ed09f0054e5e21138e4868ba3f94","multiline":false,"placeholders":[]}
-#: src/chrys/orchestration/engine/engine.py:158
+#: src/chrys/orchestration/engine/engine.py:159
 msgid "engine.fork_restoring"
 msgstr "会话状态恢复期间无法派生会话。"
 
 #. English: Cannot fork because the active session changed.
 #. chrys-meta={"fingerprint":"f31ae59f7eca825e0b87d5aaa51091a0cdac824e14185f9005c57ab139c18bd4","multiline":false,"placeholders":[]}
-#: src/chrys/orchestration/engine/engine.py:146
+#: src/chrys/orchestration/engine/engine.py:147
 msgid "engine.fork_session_changed"
 msgstr "活动会话已变更，无法派生。"
 
 #. English: Session '{session_id}' not found.
 #. chrys-meta={"fingerprint":"9cb9b7be4164fe691180b996d8014c5e698d4f480dc9b111faf0e9fd94527245","multiline":false,"placeholders":["session_id"]}
-#: src/chrys/orchestration/engine/engine.py:180
+#: src/chrys/orchestration/engine/engine.py:181
 msgid "engine.fork_session_not_found"
 msgstr "未找到会话“{session_id}”。"
 
 #. English: State store not configured.
 #. chrys-meta={"fingerprint":"23cc3ceccc652e2a17d68ad36cf8ee183b975128898ae6a85881360038939468","multiline":false,"placeholders":[]}
-#: src/chrys/orchestration/engine/engine.py:154
+#: src/chrys/orchestration/engine/engine.py:155
 msgid "engine.fork_state_store_missing"
 msgstr "未配置状态存储。"
 
 #. English: Cannot fork while a turn is running.
 #. chrys-meta={"fingerprint":"e2025e440bd5bb775616c298de01d489e01bed7694792e310f287ac5723d617a","multiline":false,"placeholders":[]}
-#: src/chrys/orchestration/engine/engine.py:150
+#: src/chrys/orchestration/engine/engine.py:151
 msgid "engine.fork_turn_active"
 msgstr "轮次进行中无法派生会话。"
 
