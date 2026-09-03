@@ -13,12 +13,13 @@ import hashlib
 import json
 import os
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from chrys.foundation.config.settings import resolve_sessions_dir
+from chrys.foundation.models.history_markers import HistoryMarkerKind
 from chrys.foundation.models.turns import turn_slices
 from chrys.kernel.exchanges import (
     DictAccessor,
@@ -54,6 +55,13 @@ _USEFUL_ARGUMENT_KEYS = (
     "url",
 )
 _MEMORY_TOOL_NAMES = frozenset({"team_memory_health", "team_memory_query", "team_memory_record"})
+_FAILED_STATUS_CODES = frozenset(
+    {
+        HistoryMarkerKind.STATUS_EXECUTION_INTERRUPTED,
+        HistoryMarkerKind.STATUS_EXECUTION_FAILED,
+        HistoryMarkerKind.STATUS_SESSION_CLOSED,
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -64,6 +72,14 @@ class TurnExperience:
     final_response: str
     steps: tuple[dict[str, str], ...]
     turn_digest: str
+    success: bool = True
+    """Whether the turn reached a normal end.
+
+    Derived from the turn's own status markers, so a caller reading a persisted
+    session needs no out-of-band hook status. Interruption and failure are what
+    the graph must learn to avoid; M5 refines this for long-horizon turns, where
+    a PACT campaign's verified ``completed`` is the stronger signal.
+    """
 
 
 _PAIRING_POLICY = PairingPolicy(
@@ -180,7 +196,21 @@ def extract_turn_experience(session_file: Path, turn: int) -> TurnExperience | N
         final_response=final_response,
         steps=steps,
         turn_digest=turn_digest,
+        success=turn_succeeded(serialized),
     )
+
+
+def turn_succeeded(serialized_messages: Sequence[Mapping[str, Any]]) -> bool:
+    """Return whether a turn's persisted messages carry no failure marker."""
+    for message in serialized_messages:
+        properties = message.get("additional_properties")
+        if not isinstance(properties, Mapping):
+            continue
+        if properties.get(HistoryMarkerKind.KEY) == HistoryMarkerKind.INTERRUPTED:
+            return False
+        if properties.get(HistoryMarkerKind.STATUS_CODE_KEY) in _FAILED_STATUS_CODES:
+            return False
+    return True
 
 
 def _session_file(session_id: str) -> Path:
@@ -206,7 +236,7 @@ def deposit_hook_payload(payload: Mapping[str, Any]) -> RepositoryDepositResult 
     source_id = f"chrys-after-turn:{session_id}:{turn}:{extracted.turn_digest}"
     return deposit_experience(
         problem_statement=extracted.problem_statement,
-        success=status == "ok",
+        success=(status == "ok") if isinstance(status, str) else extracted.success,
         steps=list(extracted.steps),
         final_response=extracted.final_response,
         repo=repo,
