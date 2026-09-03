@@ -303,11 +303,21 @@ class CampaignCoordinator:
             with contextlib.suppress(Exception):
                 await adapter.cancel_current_turn()
 
-    async def wait_closed(self) -> None:
-        """Wait for graceful completion of the owned Control Plane thread."""
+    async def wait_closed(self, timeout: float | None = None) -> bool:
+        """Wait for the owned Control Plane thread; report whether it settled.
+
+        The default is unbounded, which is what a caller waiting for a campaign
+        to deliver its result wants. A caller whose transport has already gone
+        away passes a bound instead: ``cancel()`` only sets a flag that
+        pact_core's deterministic verify subprocess never reads, so an
+        unbounded wait there holds the process open for the whole verify
+        timeout with nobody left to receive the answer.
+        """
         thread = self._thread
-        if thread is not None and thread.is_alive():
-            await asyncio.to_thread(thread.join)
+        if thread is None or not thread.is_alive():
+            return True
+        await asyncio.to_thread(thread.join, timeout)
+        return not thread.is_alive()
 
     async def _run_control_plane(self, request: CampaignRunRequest) -> CampaignRunResult:
         loop = asyncio.get_running_loop()

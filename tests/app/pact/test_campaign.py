@@ -390,3 +390,30 @@ async def test_task_cancellation_consumes_late_control_plane_failure(tmp_path: P
 
     assert loop_errors == []
     assert coordinator._thread is not None and not coordinator._thread.is_alive()
+
+
+async def test_wait_closed_can_be_bounded_when_the_client_is_already_gone() -> None:
+    """`cancel()` only sets a flag pact_core's verify subprocess never reads.
+
+    An unbounded wait there holds the process open for the whole verify
+    timeout with nobody left to receive the answer.
+    """
+    import threading
+
+    coordinator = CampaignCoordinator(
+        profile_name="Code",
+        loaded_settings=None,
+        verify_command="true",
+        allow_unverified=True,
+    )
+    release = threading.Event()
+    thread = threading.Thread(target=lambda: release.wait(30), daemon=True)
+    thread.start()
+    coordinator._thread = thread
+    try:
+        assert await coordinator.wait_closed(0.05) is False
+    finally:
+        release.set()
+        thread.join(timeout=5)
+
+    assert await coordinator.wait_closed(5) is True

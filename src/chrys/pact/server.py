@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import stat
 import uuid
 from dataclasses import dataclass
@@ -24,8 +25,14 @@ from chrys.pact.campaign import CampaignCancelled, CampaignCoordinator, Campaign
 if TYPE_CHECKING:
     from chrys.foundation.config.settings_store import LoadedSettings
 
+logger = logging.getLogger(__name__)
+
 _RUN_REQUEST_SCHEMA = "chrys-pact/run-request/v1"
 _RUN_REQUEST_KEYS = frozenset(("schema", "contract_path", "plan_path"))
+# How long a campaign gets to settle after its client has gone. Long enough for
+# an ordinary teardown, far short of the 1800 s a verify command may take -- and
+# nothing is left to receive that result anyway.
+_SHUTDOWN_GRACE_SECONDS = 30.0
 
 
 class LaunchContractError(ValueError):
@@ -54,7 +61,7 @@ class Coordinator(Protocol):
 
     async def cancel(self) -> None: ...
 
-    async def wait_closed(self) -> None: ...
+    async def wait_closed(self, timeout: float | None = None) -> bool: ...
 
 
 class CoordinatorFactory(Protocol):
@@ -220,8 +227,12 @@ class ChrysPactServer:
         if session is not None and not session.closed:
             session.closed = True
             await session.coordinator.cancel()
-        if session is not None:
-            await session.coordinator.wait_closed()
+        if session is not None and not await session.coordinator.wait_closed(_SHUTDOWN_GRACE_SECONDS):
+            # The control-plane thread is a daemon, so returning here lets the
+            # process exit rather than outliving its client by a verify timeout.
+            logger.warning(
+                "PACT control plane did not settle within %.0fs of transport shutdown", _SHUTDOWN_GRACE_SECONDS
+            )
 
     async def _send_update(self, session_id: str, update: SessionUpdate) -> None:
         client = self._client
