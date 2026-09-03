@@ -16,6 +16,7 @@
    `generation.private.json` 的 `status` 为 `generated`、内容 hash 匹配。
 6. `candidates/`、`decision/`、transcript 和根目录 `*.private.json` 是私有审计/恢复材料，不是最终需求。
 7. 不要编辑 `workflow.json`、`h0.private.json`、`s0/` 或 `p0/`；它们由恢复状态机拥有。
+8. 这条流程还有第二个入口：长程 track（`routing.mode`）会强制开启澄清并挂上扩展点，产物布局与本文完全一致，只是多出 `long_horizon/` 和 `.pact-io/`。见 §3.3。
 
 ## 2. 如何开启和运行
 
@@ -175,6 +176,38 @@ chrys run "<requirement>" --agent <profile-name>
 和直接 selector 输出，不强制工具调用、不共享 proposer session，也不附加后来的两阶段语义门。它仍使用
 当前的 S0 隔离、artifact tree、fallback 和 PACT 落盘，因此不会回滚这些产品能力。模型服务随时间变化仍
 可能造成随机差异；该选项保证的是源码协议等价，而不是保证某道题必胜。
+
+### 3.3 长程 track 如何复用这条流程
+
+长程 track 不是另一条澄清流程，而是同一条流程加上六个扩展点。`engine/run/runner.py` 判定本轮为
+`RouteTrack.LONG_HORIZON` 时，会强制 `clarification_enabled=True`、强制关闭 `reuse_workspace_as_p0` 与
+`clarification_only`，并把 `LongHorizonExtensions` 传给 workflow；未路由到长程的轮次拿到的是
+`NoopExtensions`，澄清行为与本文其余部分逐字节相同（`tests/orchestration/engine/test_workflow_extensions.py`
+钉住这一点）。
+
+扩展点定义在 `engine/run/workflow_extensions.py`，长程实现在 `engine/run/long_horizon.py`：
+
+| 扩展点 | 时机 | 长程 track 做什么 |
+| --- | --- | --- |
+| E1 | P0 落盘后、`clarify()` 期间 | 与澄清**并行**跑语义定位（一个 `asyncio.gather(..., return_exceptions=True)`），读冻结的 S0 视图而不是活动工作树；超时 120s |
+| E2 | delta 交给 repair 前 | 把候选位置作为**显式 untrusted** 表格追加在 delta 之后（delta 永远在前，且从不被改写） |
+| E3 | 生成 PACT 输入前 | 向 Initial Plan prompt 追加定位证据与团队图谱先验；**只给 Initial Plan，永不进 Goal Contract**（Goal Contract 的 authority 只能是用户需求） |
+| E4 | repair 结束、`finalize_current_run()` 之前 | 把已接受的 contract/plan 复制进 `<workspace>/.pact-io/chrys-pact/<request-id>/`，排队一条委派 reminder，再跑第三次 executor pass 把 JSON 交给 `chrys_pact` |
+| E5/E6 | 阶段推进与降级记录 | 写 `long_horizon/turn_<n>/` 下的 brief 与阶段状态 |
+
+因此一次长程轮次是 **P0 → ΔR → repair → 委派 pass** 四段，而不是把 PACT 塞在澄清之前。这样 PACT 接手时
+工作区里已经有一个 P1 baseline 和一份澄清需求单，campaign 的任务是验证并补完，而不是从零猜测。
+
+任务简报写在 `<session>/long_horizon/turn_<n>/brief.md`：原始需求（authority）、澄清需求单、当前 baseline
+是什么、untrusted 候选位置、以及哪些阶段降级了。**即使阶段降级也会写**——一份写明缺什么的简报比没有简报
+更有用。
+
+每一段都是降级而不是失败：定位超时/不可用 → 澄清照常跑，只是没有候选表；`.pact-io/` 写盘失败 → 该轮以
+repair 结果结束；委派 pass 失败 → 报告失败，不谎称 campaign 完成。campaign 的状态**只从它自己的工具结果里
+读**（经 `kernel/exchanges.py` 的规范语法解析），从不从文本推断，也从不因为"这轮没报错"就当作 `completed`。
+
+手动入口：`chrys run --route long-horizon`（或 TUI 的 `/long-horizon`）无条件走这条路；`--route standard`
+无条件跳过。`chrys debug router "<需求>"` 只做判定不跑轮次。
 
 ## 4. 产物在哪里
 
@@ -371,6 +404,9 @@ Chrys 只生成这些输入，不自动运行 PACT。
 | Snapshot | `src/chrys/service/requirement_clarification/snapshot.py` |
 | Artifact layout | `src/chrys/service/requirement_clarification/artifacts.py` |
 | Turn workflow | `src/chrys/orchestration/engine/run/requirement_clarification.py` |
+| 扩展点协议 | `src/chrys/orchestration/engine/run/workflow_extensions.py` |
+| 长程 track 实现 | `src/chrys/orchestration/engine/run/long_horizon.py` |
+| 委派证据渲染 | `src/chrys/service/routing/delegation.py` |
 
 主要测试：
 
@@ -379,5 +415,19 @@ uv run pytest \
   tests/service/requirement_clarification \
   tests/orchestration/engine/test_requirement_clarification_workflow.py \
   tests/integration/test_requirement_clarification_evaluation.py \
+  -n0
+```
+
+长程 track 的测试：
+
+```bash
+uv run pytest \
+  tests/orchestration/engine/test_workflow_extensions.py \
+  tests/orchestration/engine/test_long_horizon_localization.py \
+  tests/orchestration/engine/test_long_horizon_merge.py \
+  tests/orchestration/engine/test_long_horizon_delegation.py \
+  tests/orchestration/engine/test_long_horizon_execution.py \
+  tests/orchestration/engine/test_long_horizon_amendment.py \
+  tests/orchestration/engine/test_long_horizon_memory_prior.py \
   -n0
 ```

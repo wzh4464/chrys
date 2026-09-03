@@ -320,6 +320,8 @@ out.
 Integration design:
 
 - [Primary Chrys × chrys_pact × PACT R3 integration](docs/design/chrys-pact-integration.md) — one outer ACP agent boundary, an in-process Chrys role runtime, canonical PACT Work State, and staged lifecycle delivery.
+- [Requirement clarification guide](docs/design/requirement-clarification-guide.md) — how the clarification workflow runs, what it writes, and (§3.3) how the long-horizon track reuses it through six extension points.
+- [Long-horizon suite known gaps](docs/design/long-horizon-known-gaps.md) — the boundaries of the auto-router + clarification + localization + PACT + memory chain, deliberately left in.
 
 ## License
 

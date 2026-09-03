@@ -1,0 +1,135 @@
+# 长程套件已知缺口
+
+本文记录 long-horizon suite（auto router + 需求澄清 + 语义定位 + PACT campaign + ContextGraph 记忆）
+交付时**已知且刻意留下**的缺口。它不是 bug 列表，而是边界说明：下面每一条都是当前代码的真实行为，
+读到它的人不应该假设相反的能力存在。
+
+设计与实现见 [`requirement-clarification-guide.md`](requirement-clarification-guide.md) §3.3、
+[`chrys-pact-integration.md`](chrys-pact-integration.md)，以及 `AGENTS.md` 的 Routing / Long-horizon
+track / Memory 三条 quick-ref。
+
+## 1. PACT campaign 没有语义取消
+
+`chrys pact` 有 role 级取消（`pact/role_runner.py::cancel_current_turn`，带 cleanup grace），但**没有
+campaign 级的"停下并回滚"协议**。
+
+后果：
+
+- 在委派 pass 期间中断该轮，`LongHorizonExtensions` 会把阶段标为 `interrupted` 并终止本轮，ACP 子进程随
+  工具调用一起消失；但 campaign 已经写进工作区的改动**留在工作区里**。
+- `.pact-io/` 在 `service/mutations/scanner.py::DEFAULT_EXCLUDES` 里，因此 campaign 的输入输出目录
+  **不参与 chrys 的 mutation 跟踪与回滚**。中断后需要人工判断 `.pact-io/chrys-pact/<request-id>/` 下的
+  残留状态。
+- 已经跑完的 mission 无法被"撤销"到 mission 边界；能回到的最近干净点是 repair 结束时的 P1 baseline
+  （由 chrys 自己的 snapshot 持有），不是 campaign 的中间态。
+
+想要的行为是一个 campaign 级 cancel token，让 coordinator 在 mission 边界停下并汇报"已完成到哪一步"。
+现在没有，所以**中断长程轮次应当视为需要人工检查工作区**。
+
+## 2. 图不跨主机
+
+ContextGraph 连接来自 `~/.chrys/.env` 里的 `CONTEXTGRAPH_*`，指向**本机部署**的 Neo4j。
+
+- 同一台机器上的所有 chrys 会话（含 sub-agent、PACT role）共享同一张图。
+- 两台机器就是两张互不相干的图，没有同步、没有冲突解决、没有合并。跑在另一台主机上的 ACP sub-agent
+  写进的是那台机器的图。
+- `memory.mcp.enabled` 默认为 `true`，但没有 `CONTEXTGRAPH_NEO4J_URI` 时 overlay 是**惰性**的：不注入
+  MCP server，不报错。因此"没配过图的机器"是正常情况而不是故障，所有召回路径在失败时静默返回空。
+
+"团队图谱"目前的含义是"这台机器上这个人的图谱"。多人共享需要一个远端 Neo4j 和一套权限模型，两者都不在
+本次交付范围内。
+
+## 3. 初始图谱 dump 仍然待提供
+
+图是空的启动。在有人存入经验之前：
+
+- `chrys memory doctor` 报告连通且索引齐全，但 health 行里是
+  `canonical_rules=0, chrys_trajectories=0`；
+- Initial Plan 的记忆先验（`long_horizon.py::_memory_prior`）拿到 ContextGraph 的
+  `No prior ContextGraph memory found.` 哨兵，于是**不追加任何段落**——计划照常生成，只是没有先验。
+
+用户承诺提供的初始图谱 dump 尚未导入。导入入口是 `chrys memory init --import <dump>`；schema 创建本身
+委派给 ContextGraph 自己的 `Neo4jStore.init_schema`，chrys 侧不复制它的建索引逻辑。在 dump 到位之前，
+"记忆先验"这条能力是**通路已经打通但内容为空**的状态。
+
+## 4. `route` / `campaign_status` 不进图
+
+`contextgraph_deposit.py::TurnExperience` 携带 `route`（`standard` / `long_horizon`）和
+`campaign_status`，但 ContextGraph 的 `RawTrajectory` **没有对应字段**。
+
+后果：这两个值只用于在本地决定这条经验的 `success` 标签（跑过 campaign 时以 campaign `completed` 为准，
+否则回落到 turn marker），**存进图之后就查不到了**。无法向图提问"给我看所有失败的长程轮次"。
+
+要改这一点需要 ContextGraph 的 schema 扩展，属于上游改动。
+
+## 5. 定位召回率只是基线水平
+
+DeepSWE 前 20 题（deepseek-v4-pro via OpenRouter，reasoning effort high，`chrys locate` 30 分钟超时），
+以 gold `solution/` patch 的文件集合为分母做文件级召回：
+
+| 指标 | 值 |
+| --- | --- |
+| mean R@1 | 0.135 |
+| mean R@5 | 0.386 |
+| mean R@all | 0.477 |
+| 至少命中一个 gold 文件 | 20 / 20 |
+| 命中全部 gold 文件 | 1 / 20 |
+
+两条必须一起读的注意事项：
+
+1. **分母偏大**：gold patch 包含 benchmark 自己撰写的测试文件，定位阶段没有理由指向它们，因此真实的
+   "该改的实现文件"召回率高于上表。
+2. **这是 Task 26 之前的测量**：跑的是 subprocess 版定位路径，不是后来的 in-process
+   `ChrysLocalizationModel`。数值可作为"不比基线差"的参照，不能当作当前实现的评估结果。
+
+结论：候选位置是**提示**，不是答案。这也是它在 delta 之后、在 Initial Plan prompt 里、在 brief 里都被标为
+`untrusted; verify before editing` 的原因。任何把它当权威来源的下游改动都是错的。
+
+## 6. 路由是启发式加一次裁决，校准集是我们自己的
+
+`service/routing/classifier.py` 是双语启发式打分 + 五个置信带；只有 `uncertain` 带会花一次
+LLM 裁决（`service/routing/llm.py`，受 `guard.py` 的每会话调用上限与熔断保护）。
+
+- 校准门禁是 `tests/service/routing/fixtures/calibration.jsonl`（60 条）+ `gate.json`：当前 precision
+  1.000 / recall 1.000，强带零误报，8 条真正歧义的样本落在 `uncertain`。
+- **这 60 条是我们写的**，不是现场数据。改任何权重都必须重跑这个门禁，但门禁全绿不等于对真实用户输入
+  的分布正确。
+- `routing.mode` 是 `ProjectMerge.DENY`：仓库不能把用户机器切到 `always`（每轮强制 campaign = 成本升级）。
+  同理 `routing.tiebreaker_model_profile` 不可由项目设定——仓库不该决定用户的机器调用哪个模型。
+- 判定发生在 hooks 之前（见 `AGENTS.md` Top gotchas）：改写 prompt 的 `UserPromptSubmit` hook**不会**
+  改变已经做出的判定。
+
+不确定时用 `chrys debug router "<需求>"` 干跑，用 `chrys run --route standard` / `--route long-horizon`
+一键覆盖。
+
+## 7. CodeGraph 是可选外部二进制，默认不装
+
+语义定位的 CodeGraph 阶段依赖一个外部二进制。安装策略默认 `never`，且启用时**必须**给出固定的
+`--codegraph-install-sha256`——早期版本会 `curl | sh`，那是一个已修掉的供应链缺口，不要恢复它。
+
+没有 CodeGraph 时该阶段降级，定位继续跑，只是少一路证据。
+
+## 8. 写回只在 idle 与正常结束时发生
+
+`orchestration/engine/memory_writeback.py::MemoryWritebackWatcher` 在会话空闲
+`memory.writeback.idle_seconds`（默认 3600）后落盘，`memory.writeback.on_session_end` 默认在正常结束时
+再冲一次。
+
+- 崩溃、`kill -9`、机器断电：这些轮次**没有**被存入。watermark 在 session 文件旁边，所以下一次对同一
+  session 的 idle 窗口会补上；但如果那个 session 再也不会被打开，就永远补不上。
+- 补救手段是手动的：`chrys memory sweep` 扫描 session 并从 watermark 之后继续存入。
+- 写回**遇到第一个失败就停下**并保持 watermark 不前进，这样一轮经验宁可重复尝试也不会被跳过；代价是
+  一个持续失败的图会让积压一直增长。
+
+## 9. 交付时的环境性测试失败
+
+`tests/service/skills/test_runner.py::test_stopped_script_returns_promptly` 在本机 `os.waitpid` 上挂住。
+在 `origin/main` 的干净 worktree 上**同样复现**，因此是先于本套件存在的环境问题，不是本次改动引入的。
+全量跑的时候它被 `--deselect` 掉：
+
+```bash
+LANG=en_US.UTF-8 uv run pytest -m "not integration and not gc_calibration" -q \
+  --deselect "tests/service/skills/test_runner.py::test_stopped_script_returns_promptly"
+```
+
+`LANG` 必须显式设成 `en_US.UTF-8`：TUI 测试断言英文文案，`zh_CN.UTF-8` 环境下会产生上百条假失败。
