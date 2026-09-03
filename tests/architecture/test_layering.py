@@ -32,6 +32,7 @@ KERNEL = "kernel"
 SERVICE = "service"
 ORCHESTRATION = "orchestration"
 APP = "app"
+PACT = "pact"
 ROOT_INIT = "__root__"
 
 TIER_ORDER = {
@@ -40,6 +41,7 @@ TIER_ORDER = {
     SERVICE: 2,
     ORCHESTRATION: 3,
     APP: 4,
+    PACT: 4,
 }
 
 ROOT_METADATA_EXPORTS = {"__version__"}

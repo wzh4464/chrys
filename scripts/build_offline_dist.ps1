@@ -98,6 +98,7 @@ try {
     # bundling a resolution nobody reviewed.
     $Requirements = Join-Path $WorkDir "requirements.txt"
     $ExportArgs = @("export", "--locked", "--no-dev", "--no-emit-project",
+                    "--no-emit-package", "pact-core",
                     "--format", "requirements-txt", "-o", $Requirements, "--quiet")
     foreach ($extra in $Extras.Split(",")) {
         if ($extra) { $ExportArgs += @("--extra", $extra) }
@@ -109,6 +110,14 @@ try {
     $DepCount = (Select-String -Path $Requirements -Pattern '^[A-Za-z0-9]').Count
     Write-Host "    $DepCount locked distributions"
 
+    # pact-core is shipped as a repository wheel so cloning and offline builds
+    # do not need access to its source repository. Validate provenance,
+    # package metadata, and SHA-256 before installing it separately.
+    $VendoredWheelHelper = Join-Path $ScriptDir "vendored_pact_wheel.py"
+    $PactWheel = & $Py $VendoredWheelHelper --project-root $ProjectRoot
+    if ($LASTEXITCODE -ne 0) { throw "failed to validate vendored pact-core wheel" }
+    Write-Host "    pact-core wheel: $(Split-Path -Leaf $PactWheel)"
+
     # ── Install into the distribution ─────────────────────────────────
     # --compile-bytecode moves the byte-compilation of all packages to build
     # time: complete, deterministic pyc coverage instead of whatever the first
@@ -116,6 +125,10 @@ try {
     Write-Host "==> Installing dependencies..."
     & uv pip install --python $Py --require-hashes --compile-bytecode -r $Requirements --quiet
     if ($LASTEXITCODE -ne 0) { throw "uv pip install failed" }
+
+    Write-Host "==> Installing validated vendored pact-core wheel..."
+    & uv pip install --python $Py --no-deps --compile-bytecode $PactWheel --quiet
+    if ($LASTEXITCODE -ne 0) { throw "uv pip install (pact-core) failed" }
 
     Write-Host "==> Installing chrys..."
     $ChrysSource = if ($Wheel) { $Wheel } else { $ProjectRoot }

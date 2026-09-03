@@ -137,7 +137,7 @@ echo "==> Base distribution: CPython $PY_VERSION"
 # --locked fails the build on a stale lock instead of silently bundling a
 # resolution nobody reviewed.
 REQUIREMENTS="$WORK_DIR/requirements.txt"
-EXPORT_ARGS=(--locked --no-dev --no-emit-project --format requirements-txt)
+EXPORT_ARGS=(--locked --no-dev --no-emit-project --no-emit-package pact-core --format requirements-txt)
 IFS=',' read -ra EXTRA_LIST <<< "$EXTRAS"
 for extra in "${EXTRA_LIST[@]}"; do
     if [ -n "$extra" ]; then
@@ -149,6 +149,14 @@ echo "==> Exporting locked dependencies (extras: $EXTRAS)..."
 uv export "${EXPORT_ARGS[@]}" -o "$(native_path "$REQUIREMENTS")" --quiet
 DEP_COUNT=$(grep -c '^[A-Za-z0-9]' "$REQUIREMENTS" || true)
 echo "    $DEP_COUNT locked distributions"
+
+# pact-core is shipped as a repository wheel so cloning and offline builds do
+# not need access to its source repository.  Validate its recorded source
+# commit, package metadata, and SHA-256 before installing it separately from
+# the hash-locked registry closure above.
+PACT_WHEEL=$("$PY" "$(native_path "$SCRIPT_DIR/vendored_pact_wheel.py")" \
+    --project-root "$(native_path "$PROJECT_ROOT")")
+echo "    pact-core wheel: $(basename "$PACT_WHEEL")"
 
 # ── Install into the distribution ─────────────────────────────────────
 if [ -n "${OFFLINE_ONLY_BINARY:-}" ]; then
@@ -193,6 +201,10 @@ else
     echo "==> Installing dependencies (source builds permitted)..."
 fi
 uv pip install "${INSTALL_ARGS[@]}" -r "$(native_path "$REQUIREMENTS")" --quiet
+
+echo "==> Installing validated vendored pact-core wheel..."
+uv pip install --python "$(native_path "$PY")" --no-deps --compile-bytecode \
+    "$(native_path "$PACT_WHEEL")" --quiet
 
 echo "==> Installing chrys..."
 CHRYS_SOURCE="${WHEEL:-$PROJECT_ROOT}"

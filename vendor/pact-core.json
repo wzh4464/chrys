@@ -1,0 +1,9 @@
+{
+  "schema": "chrys/vendored-wheel/v1",
+  "package": "pact-core",
+  "version": "0.2.0.dev0",
+  "source_repository": "https://github.com/SELab-Leibniz/pact.git",
+  "source_commit": "aa9073bed4970481a035755990e1682e9de486d8",
+  "wheel": "vendor/wheels/pact_core-0.2.0.dev0-py3-none-any.whl",
+  "sha256": "4f08b2b6ae258823e0e1c824380f58579a6e4174d02b3b1338a32ee9eb76ab2a"
+}

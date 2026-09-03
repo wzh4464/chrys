@@ -9,6 +9,7 @@ uv sync --extra all          # setup. NOT --all-extras; bare `uv sync` strips ex
 uv run chrys                 # launch TUI (flags: -s/--session -a/--agent -m/--model -C/--workdir)
 uv run chrys run "<prompt>" --agent Code [--model M]   # headless
 uv run chrys acp --agent Code --approval manual        # ACP stdio (--workdir --ask-user-timeout)
+uv run chrys pact-agent --agent Code --verify "uv run pytest"  # external PACT Campaign ACP agent
 uv run chrys serve           # browser-host TUI (needs tui extra)
 uv run chrys agents | models | install                 # list profiles / installer
 uv run pytest                # addopts=-n 8 (xdist); asyncio_mode=auto; timeout=60s (thread method)
@@ -29,7 +30,7 @@ uv run python scripts/i18n.py pseudo --output ../chrys-pseudo   # en-XA pressure
 
 ## Architecture & control flow
 - **Bootstrap**: `orchestration/startup.py::bootstrap_runtime(...)` — loads .env, sanitizes proxy, applies foundation/patches, settings via `load_settings()`→`settle_session_root()`→`install_process_settings()` (`Settings.from_env()` is a compat shim production must not use), otel. Every entrypoint calls this; never duplicate.
-- **CLI dispatch**: `app/cli/app.py::main()` is hand-rolled (NOT argparse subparsers). Order: `__tui_subprocess__`, version, help, then run/agents/models/install/serve/acp/trajectory; anything else → TUI. Bare `chrys` = TUI. Subcommand modules under `app/cli/`; TUI entry `app/tui/app.py::main`.
+- **CLI dispatch**: `app/cli/app.py::main()` is hand-rolled (NOT argparse subparsers). Order: `__tui_subprocess__`, version, help, then run/agents/models/install/serve/acp/pact-agent/trajectory; anything else → TUI. Bare `chrys` = TUI. Subcommand modules under `app/cli/`; TUI entry `app/tui/app.py::main`.
 - **EventBus** (`foundation/events/bus.py`): in-process async pub/sub, the SOLE frontend↔backend channel. `subscribe()` callbacks per Event type (awaited inline → backpressured, never lossy) + `stream(*types)` async-iterator (unbounded per-consumer queue — LOSSLESS by design: a slow consumer grows memory, never drops; dropping would truncate streamed LLM output on the headless/ACP path. One-shot high-water log at `_STREAM_QUEUE_HIGH_WATER` for observability only). `publish(raise_handler_errors=False)` swallows+logs handler errors. Event types in `foundation/events/types.py`.
 - **AgentEngine** (`orchestration/engine/engine.py`): long-lived backend owner — session lifecycle, event subscriptions, profile/workspace switch, rollback, mutations, rebuilds, MCP cache. Holds ≤1 `Executor`. Delegates: turns→`run/coordinator.py TurnCoordinator`, build/start→`build/construction.py`+`build/builder.py`, FSM→`state/machine.py EngineStateMachine`, permits→`state/controls.py`. Lifecycle: `start()`/`prepare()`/`shutdown()`; subscribes handlers BEFORE first build.
 - **TurnCoordinator** (`engine/run/coordinator.py`): user-message/interrupt/retry/inject, run_fresh/run_retry, finalize, submit-gating. The engine passes ITSELF as host (same convention as rollback/session_lifecycle/sub_agent_coordination); the contract is the per-module `*Host` Protocols (`TurnCoordinatorHost` = union of downstream via Protocol inheritance), enforced by `tests/orchestration/engine/test_protocol_compliance.py` (member-existence + access-set + forwarding-edge guards). Rebuilds swap `_executor`/middleware in place — phase services re-read host attrs per use, never cache across an await. Also in run/: retry.py, finalizer.py, runner.py, active_injection.py, turn_state.py.
@@ -41,6 +42,7 @@ uv run python scripts/i18n.py pseudo --output ../chrys-pseudo   # en-XA pressure
 ## Layering DAG (enforced: `tests/architecture/test_layering.py`)
 ```
 app → {orchestration, service, kernel, foundation}
+pact → {app, orchestration, service, kernel, foundation}
 orchestration → {service, kernel, foundation}
 service → {kernel, foundation}
 kernel → {foundation}        # intra-kernel imports MUST be relative (from .x); absolute chrys.kernel.* = violation
@@ -55,6 +57,7 @@ foundation → {}              # leaf
 - **service/** (tier2): acp_client, agent_middleware, analytics, approval, context/(compaction,providers,manager), hooks, llm/(anthropic_chat,openai_responses,openai_chat_completion,clients,mock…), mcp, mutations, profiles, session, skills, state, todos, tools/(builtins,kinds.py,registry.py), trajectory.
 - **orchestration/** (tier3): engine/(build,run,state + engine.py,executor.py,rollback.py,trajectory.py), sub_agents/, session_host.py, startup.py.
 - **app/** (tier4): cli/, tui/(screens/{main,agents,dialogs,diff,logs,menus,models,sessions,settings}, widgets/{chat,sidebar,diff_view,markdown,chrome,editor,trajectory}, behaviors/, terminal/, notifications/), acp/, features/{buddy,session_title}, installer.py, parsing.py.
+- **pact/** (tier4): external one-session ACP shell, PACT Campaign coordinator, and fresh in-process Chrys role adapter.
 - **tests/** mirrors tiers + integration/, architecture/, support/. kernel tests flat. `tests/orchestration/engine/build/` is committed (build-artifact ignores are root-anchored `/build/`).
 
 ## Conventions & lint footguns
