@@ -116,7 +116,13 @@ class ClarificationArtifactStore:
             json.dumps(private, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
         )
         proposals_dir = Path(CLARIFICATION_PHASE_DIR) / "candidates"
-        for index, proposal in enumerate(result.proposals, start=1):
+        # File each candidate under the proposer that produced it. Numbering by
+        # position would put proposer 2's proposal in `proposal-1.json` beside
+        # proposer 1's failed investigation, which is exactly the pairing the
+        # audit trail exists to make.
+        indices = result.proposal_sample_indices
+        for position, proposal in enumerate(result.proposals):
+            index = indices[position] if position < len(indices) else position + 1
             self._save_json(
                 proposals_dir / f"proposal-{index}.private.json",
                 {

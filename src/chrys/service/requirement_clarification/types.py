@@ -337,6 +337,14 @@ class ClarificationResult:
     pact_input: PactRuntimeInput | None = None
     pact_generation_error: str = ""
     proposals: tuple[ClarificationProposal | LegacyV1ClarificationProposal, ...] = ()
+    proposal_sample_indices: tuple[int, ...] = ()
+    """Which proposer produced each entry of :attr:`proposals`.
+
+    ``proposals`` holds only the proposers that succeeded, so its position is
+    not the proposer's number. The audit artifacts cross-reference candidates
+    against investigations by that number, and renumbering them would file one
+    proposer's proposal beside another proposer's investigation.
+    """
     investigations: tuple[ProposalInvestigation, ...] = ()
     elapsed_seconds: float = 0.0
     usage_details: tuple[dict[str, object], ...] = ()

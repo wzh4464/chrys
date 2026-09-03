@@ -104,6 +104,7 @@ class ClarificationService:
         ]
         raw_proposal_results = await asyncio.gather(*proposal_calls, return_exceptions=True)
         proposal_results: list[ClarificationProposal] = []
+        proposal_indices: list[int] = []
         investigations: list[ProposalInvestigation] = []
         usage: list[dict[str, object]] = []
         warnings: list[str] = []
@@ -141,6 +142,7 @@ class ClarificationService:
                 warnings.append(f"clarification proposer {sample_index} failed: {detail}"[:700])
                 continue
             proposal_results.append(item.proposal)
+            proposal_indices.append(sample_index)
         proposals = proposal_results
         if len(proposals) < MIN_VALID_PROPOSALS:
             return ClarificationResult(
@@ -151,6 +153,7 @@ class ClarificationService:
                 status="degraded",
                 empty_reason="insufficient_valid_proposals",
                 proposals=tuple(proposals),
+                proposal_sample_indices=tuple(proposal_indices),
                 investigations=tuple(investigations),
                 elapsed_seconds=time.monotonic() - started,
                 usage_details=tuple(usage),
@@ -166,6 +169,7 @@ class ClarificationService:
                 status="completed",
                 empty_reason="requirement_complete",
                 proposals=tuple(proposals),
+                proposal_sample_indices=tuple(proposal_indices),
                 investigations=tuple(investigations),
                 elapsed_seconds=time.monotonic() - started,
                 usage_details=tuple(usage),
@@ -212,6 +216,7 @@ class ClarificationService:
                 status="degraded",
                 empty_reason="selector_failed",
                 proposals=tuple(proposals),
+                proposal_sample_indices=tuple(proposal_indices),
                 investigations=tuple(investigations),
                 elapsed_seconds=time.monotonic() - started,
                 usage_details=tuple(usage),
@@ -229,6 +234,7 @@ class ClarificationService:
             status="completed",
             empty_reason=None if delta else "selector_rejected",
             proposals=tuple(proposals),
+            proposal_sample_indices=tuple(proposal_indices),
             investigations=tuple(investigations),
             elapsed_seconds=time.monotonic() - started,
             usage_details=tuple(usage),
@@ -279,6 +285,9 @@ class ClarificationService:
             status="completed",
             empty_reason=None if delta else ("selector_rejected" if candidate_count else "requirement_complete"),
             proposals=tuple(proposals),
+            # This strategy fails outright unless every proposer succeeded, so
+            # position and proposer number are the same thing here.
+            proposal_sample_indices=tuple(range(1, len(proposals) + 1)),
             elapsed_seconds=time.monotonic() - started,
             usage_details=usage,
         )
