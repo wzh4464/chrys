@@ -90,7 +90,7 @@ msgstr[1] ""
 #. English: Auto-loaded memory truncated at the token cap. Loaded
 #. {loaded_count} file(s); skipped {skipped_count}.
 #. chrys-meta={"fingerprint":"ec2d730500cf2fc87e92ffad944ded8f9647bd91be86615f27a5fd2db9f5492e","multiline":false,"placeholders":["loaded_count","skipped_count"]}
-#: src/chrys/orchestration/engine/build/builder.py:114
+#: src/chrys/orchestration/engine/build/builder.py:115
 msgid "builder.memory_truncated"
 msgstr ""
 
@@ -100,7 +100,7 @@ msgstr ""
 #. unavailable there; store: true only enables Chrys-managed Responses
 #. continuation.
 #. chrys-meta={"fingerprint":"4ea33fd018d45286f5da113e1539af514be41a74147fbb52fb9ddbfc0467c61d","multiline":false,"placeholders":["keys"]}
-#: src/chrys/orchestration/engine/build/builder.py:118
+#: src/chrys/orchestration/engine/build/builder.py:119
 msgid "builder.protected_chat_options_stripped"
 msgstr ""
 
@@ -183,74 +183,74 @@ msgstr ""
 
 #. English: Cannot fork while the agent is still loading.
 #. chrys-meta={"fingerprint":"58707a7fdc91fb94c1d0a6b41ca778e9dd23734a19936db26b4b12b62962e20e","multiline":false,"placeholders":[]}
-#: src/chrys/orchestration/engine/engine.py:130
+#: src/chrys/orchestration/engine/engine.py:131
 msgid "engine.fork_agent_loading"
 msgstr ""
 
 #. English: Cannot fork an empty session.
 #. chrys-meta={"fingerprint":"9bd5865ab6a757351a5c3bd18b8839d45e85406eedc25719ef7cbb1fd7fb10dc","multiline":false,"placeholders":[]}
-#: src/chrys/orchestration/engine/engine.py:158
+#: src/chrys/orchestration/engine/engine.py:159
 msgid "engine.fork_empty_session"
 msgstr ""
 
 #. English: Failed to fork session: {detail}
 #. chrys-meta={"fingerprint":"8ff46e6c75e8c8d5b87b7bb50f4a980ec1e6f5504cdec006e4eb642b56f2702c","multiline":true,"placeholders":["detail"]}
-#: src/chrys/orchestration/engine/engine.py:176
+#: src/chrys/orchestration/engine/engine.py:177
 msgid "engine.fork_failed"
 msgstr ""
 
 #. English: Cannot fork because this window does not own the active session
 #. lock.
 #. chrys-meta={"fingerprint":"159616fb644ea441f9f5c440c86afaafc6d80562e3ddbd3d71e1a2edd143a85c","multiline":false,"placeholders":[]}
-#: src/chrys/orchestration/engine/engine.py:154
+#: src/chrys/orchestration/engine/engine.py:155
 msgid "engine.fork_lock_not_owned"
 msgstr ""
 
 #. English: Cannot fork before a session is ready.
 #. chrys-meta={"fingerprint":"8af2b80a11d4a3c2870f8d12c01c27fb587bc0c70805e333a6e559ed130fafbd","multiline":false,"placeholders":[]}
-#: src/chrys/orchestration/engine/engine.py:134
+#: src/chrys/orchestration/engine/engine.py:135
 msgid "engine.fork_not_ready"
 msgstr ""
 
 #. English: Failed to prepare session for fork: {detail}
 #. chrys-meta={"fingerprint":"03967b68dd51447ef9235cf8ac183a9de9e6ea2b8cdc937e85887a2435357512","multiline":true,"placeholders":["detail"]}
-#: src/chrys/orchestration/engine/engine.py:167
+#: src/chrys/orchestration/engine/engine.py:168
 msgid "engine.fork_prepare_failed"
 msgstr ""
 
 #. English: Timed out preparing session for fork: {detail}
 #. chrys-meta={"fingerprint":"794ea214352ec8572705cfcab769379c3606d79e442b68b3ff7a1663cd12a7ac","multiline":true,"placeholders":["detail"]}
-#: src/chrys/orchestration/engine/engine.py:162
+#: src/chrys/orchestration/engine/engine.py:163
 msgid "engine.fork_prepare_timeout"
 msgstr ""
 
 #. English: Cannot fork while session state is being restored.
 #. chrys-meta={"fingerprint":"9a84ed64a5793b10d47ca631b9dbf1a039a6ed09f0054e5e21138e4868ba3f94","multiline":false,"placeholders":[]}
-#: src/chrys/orchestration/engine/engine.py:150
+#: src/chrys/orchestration/engine/engine.py:151
 msgid "engine.fork_restoring"
 msgstr ""
 
 #. English: Cannot fork because the active session changed.
 #. chrys-meta={"fingerprint":"f31ae59f7eca825e0b87d5aaa51091a0cdac824e14185f9005c57ab139c18bd4","multiline":false,"placeholders":[]}
-#: src/chrys/orchestration/engine/engine.py:138
+#: src/chrys/orchestration/engine/engine.py:139
 msgid "engine.fork_session_changed"
 msgstr ""
 
 #. English: Session '{session_id}' not found.
 #. chrys-meta={"fingerprint":"9cb9b7be4164fe691180b996d8014c5e698d4f480dc9b111faf0e9fd94527245","multiline":false,"placeholders":["session_id"]}
-#: src/chrys/orchestration/engine/engine.py:172
+#: src/chrys/orchestration/engine/engine.py:173
 msgid "engine.fork_session_not_found"
 msgstr ""
 
 #. English: State store not configured.
 #. chrys-meta={"fingerprint":"23cc3ceccc652e2a17d68ad36cf8ee183b975128898ae6a85881360038939468","multiline":false,"placeholders":[]}
-#: src/chrys/orchestration/engine/engine.py:146
+#: src/chrys/orchestration/engine/engine.py:147
 msgid "engine.fork_state_store_missing"
 msgstr ""
 
 #. English: Cannot fork while a turn is running.
 #. chrys-meta={"fingerprint":"e2025e440bd5bb775616c298de01d489e01bed7694792e310f287ac5723d617a","multiline":false,"placeholders":[]}
-#: src/chrys/orchestration/engine/engine.py:142
+#: src/chrys/orchestration/engine/engine.py:143
 msgid "engine.fork_turn_active"
 msgstr ""
 
@@ -398,13 +398,13 @@ msgstr ""
 
 #. English: Invalid response: {reason}
 #. chrys-meta={"fingerprint":"1015c4dc6fb6325fb498abc40fc15262f621140c328d1290f38881be09991edb","multiline":true,"placeholders":["reason"]}
-#: src/chrys/orchestration/engine/build/builder.py:109
+#: src/chrys/orchestration/engine/build/builder.py:110
 msgid "retry.invalid_response"
 msgstr ""
 
 #. English: LAST_WORDS compaction: {reason}
 #. chrys-meta={"fingerprint":"edd8f91abe1d8bdd98870cf90e30612cfbf104102a4347ea1317617c72248b74","multiline":true,"placeholders":["reason"]}
-#: src/chrys/orchestration/engine/build/builder.py:104
+#: src/chrys/orchestration/engine/build/builder.py:105
 msgid "retry.last_words_compaction"
 msgstr ""
 

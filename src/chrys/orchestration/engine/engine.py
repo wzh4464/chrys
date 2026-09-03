@@ -77,6 +77,7 @@ from chrys.service.approval.policy import ApprovalMode
 from chrys.service.approval.turn_context import TurnContextHolder
 from chrys.service.context.compaction.spill import SpillQuota
 from chrys.service.mcp.cache import MCPConnectionCache
+from chrys.service.memory.overlay import apply_memory_overlay
 from chrys.service.mutations.coordination import MutationCoordinator
 from chrys.service.mutations.tracker import MutationTracker
 from chrys.service.mutations.workspace_changes import WorkspaceChangeTracker
@@ -1137,10 +1138,12 @@ class AgentEngine:
         )
 
     def _profile_with_mcp_overlay(self, profile: AgentProfile) -> AgentProfile:
-        """Return a per-session profile copy with ephemeral MCP servers appended."""
+        """Return a per-session profile copy with memory and ephemeral MCP servers appended."""
+        effective = apply_memory_overlay(profile, self._settings)
         if not self._mcp_overlay:
-            return profile
-        effective = copy.deepcopy(profile)
+            return effective
+        if effective is profile:
+            effective = copy.deepcopy(profile)
         effective.tools.mcp.extend(copy.deepcopy(self._mcp_overlay))
         return effective
 

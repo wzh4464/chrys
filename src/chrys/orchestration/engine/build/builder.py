@@ -64,6 +64,7 @@ from chrys.service.context.manager import ContextManager
 from chrys.service.context.memory_loader import load_memory_content
 from chrys.service.llm.clients import create_client, effective_model_base_url
 from chrys.service.llm.route_sessions import derive_llm_route_session_id
+from chrys.service.memory.overlay import apply_memory_overlay
 from chrys.service.profiles.models.options import (
     effective_chat_options,
     protected_chat_option_keys_warning_structured,
@@ -371,7 +372,8 @@ async def build_agent(
         acp_depth = 0
     effective_sub_agents: list[dict[str, Any]] = []
     for ref in profile.sub_agents.agents:
-        resolved = agent_registry.get(ref.profile) if agent_registry is not None else None
+        registered = agent_registry.get(ref.profile) if agent_registry is not None else None
+        resolved = apply_memory_overlay(registered, settings) if registered is not None else None
         if resolved is None:
             state = "missing"
         elif resolved.acp is not None and not resolved.acp.command:
@@ -595,7 +597,10 @@ async def build_agent(
                     status=AGENT_LOAD_STATUS_RUNNING,
                     subject=ref.profile,
                 )
-                sub_profile = agent_registry.get(ref.profile)
+                registered_profile = agent_registry.get(ref.profile)
+                sub_profile = (
+                    apply_memory_overlay(registered_profile, settings) if registered_profile is not None else None
+                )
                 if sub_profile is None:
                     logger.warning("Sub-agent profile not found: %s", ref.profile)
                     await _progress(
