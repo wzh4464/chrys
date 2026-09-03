@@ -5,7 +5,6 @@
 from __future__ import annotations
 
 import base64
-import contextlib
 import hashlib
 import json
 import os
@@ -416,20 +415,6 @@ class WorkspaceSnapshotter:
             if not source_root.is_dir():
                 raise WorkspaceSnapshotError(f"workspace root disappeared before restore: {source_root}")
             expected = {entry.relative_path: entry for entry in root.entries}
-            current = {
-                relative
-                for relative, _path, _info in self._iter_entries(
-                    source_root,
-                    excluded_roots=(Path(snapshot.artifact_root),),
-                )
-            }
-            for relative in sorted(current - expected.keys(), key=lambda item: item.count(os.sep), reverse=True):
-                path = source_root / relative
-                try:
-                    if path.is_symlink() or path.is_file():
-                        path.unlink()
-                except OSError as exc:
-                    raise WorkspaceSnapshotError(f"failed to remove repair-created path {path}: {exc}") from exc
             for relative, entry in expected.items():
                 destination = _safe_view_destination(source_root, relative)
                 _ensure_restore_parent(destination.parent)
@@ -454,7 +439,30 @@ class WorkspaceSnapshotter:
                 atomic_write_owner_only_bytes(destination, data)
                 if not get_platform().is_windows:
                     destination.chmod(entry.mode)
-            self._prune_empty_in_scope_dirs(source_root)
+            # Only now: what counts as in scope is decided by the repository's
+            # own ignore rules, and the repair may have changed them. Scanning
+            # before the snapshot's `.gitignore` was written back asked the
+            # repair which of its files should be rolled back -- a repair that
+            # created `build/output.log` and added `build/` to `.gitignore`
+            # kept the file, and the later `matches()` then failed as a
+            # conflict over the workspace it had just "restored".
+            current = {
+                relative
+                for relative, _path, _info in self._iter_entries(
+                    source_root,
+                    excluded_roots=(Path(snapshot.artifact_root),),
+                )
+            }
+            emptied: list[Path] = []
+            for relative in sorted(current - expected.keys(), key=lambda item: item.count(os.sep), reverse=True):
+                path = source_root / relative
+                try:
+                    if path.is_symlink() or path.is_file():
+                        path.unlink()
+                        emptied.append(path.parent)
+                except OSError as exc:
+                    raise WorkspaceSnapshotError(f"failed to remove repair-created path {path}: {exc}") from exc
+            self._prune_dirs_emptied_by_restore(source_root, emptied)
         for reference in snapshot.references:
             if reference.managed_by_root:
                 continue
@@ -801,10 +809,24 @@ class WorkspaceSnapshotter:
         if total_bytes > self._max_total_bytes:
             raise WorkspaceSnapshotError(f"workspace snapshot exceeds {self._max_total_bytes} bytes")
 
-    def _prune_empty_in_scope_dirs(self, source_root: Path) -> None:
-        for current, dirs, files in os.walk(source_root, topdown=False, followlinks=False):
-            path = Path(current)
-            if path == source_root or files or dirs or _is_excluded_name(path.name):
-                continue
-            with contextlib.suppress(OSError):
-                path.rmdir()
+    def _prune_dirs_emptied_by_restore(self, source_root: Path, emptied: list[Path]) -> None:
+        """Remove the directories this restore emptied, and only those.
+
+        Walking the tree for empty directories cannot tell a repair-created one
+        from a pre-existing one -- ``_iter_entries`` captures files and
+        symlinks, so an empty directory is never in the snapshot to compare
+        against -- and the walk also descended into excluded trees, rmdir-ing
+        leaves like ``.git/refs/tags``. The parents of the files just deleted
+        are the only directories this restore can be responsible for.
+        """
+        candidates = sorted(set(emptied), key=lambda item: len(item.parts), reverse=True)
+        for candidate in candidates:
+            path = candidate
+            while path != source_root and self._is_within(source_root, path):
+                try:
+                    if any(path.iterdir()):
+                        break
+                    path.rmdir()
+                except OSError:
+                    break
+                path = path.parent
