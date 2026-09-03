@@ -1,5 +1,5 @@
 {
-  "inventory_sha256": "472fef7feeb73eb5ad60276b347fb679566ac81dbd55cbe178144db6b0a9e777",
+  "inventory_sha256": "17cdc32a44014ec585f4c73f1fda8c3ad1c156cccadcbc264b6d8b489bb63b28",
   "nodes": [
     {
       "cases": [
@@ -17798,7 +17798,7 @@
       "primitive": "awaitable",
       "qualname": "TrajectoryRecorder.ensure_active",
       "source_column": 8,
-      "source_line": 599,
+      "source_line": 639,
       "wrapper_target": null
     },
     {
@@ -17818,7 +17818,7 @@
       "primitive": "wrapper",
       "qualname": "TrajectoryRecorder.fork",
       "source_column": 12,
-      "source_line": 673,
+      "source_line": 713,
       "wrapper_target": "chrys.service.trajectory.fork.record_fork"
     },
     {
@@ -17858,7 +17858,7 @@
       "primitive": "wrapper",
       "qualname": "TrajectoryRecorder.profile_switched",
       "source_column": 8,
-      "source_line": 577,
+      "source_line": 617,
       "wrapper_target": "chrys.orchestration.engine.trajectory._emit"
     },
     {
@@ -17878,7 +17878,7 @@
       "primitive": "awaitable",
       "qualname": "TrajectoryRecorder.rollback",
       "source_column": 8,
-      "source_line": 617,
+      "source_line": 657,
       "wrapper_target": null
     },
     {
@@ -17898,7 +17898,7 @@
       "primitive": "wrapper",
       "qualname": "TrajectoryRecorder.rollback",
       "source_column": 8,
-      "source_line": 639,
+      "source_line": 679,
       "wrapper_target": "chrys.orchestration.engine.trajectory._emit"
     },
     {
@@ -17918,7 +17918,7 @@
       "primitive": "wrapper",
       "qualname": "TrajectoryRecorder.rollback",
       "source_column": 12,
-      "source_line": 645,
+      "source_line": 685,
       "wrapper_target": "chrys.orchestration.engine.trajectory._emit"
     },
     {
@@ -18031,6 +18031,26 @@
           "when": "all_paths"
         }
       ],
+      "expression": "await _emit(trajectory, EventDraft(event_type=EventType.TURN_ROUTED, actor=trajectory.main_actor, turn_id=self.current_turn_id, payload={'track': track, 'band': band, 'source': source, 'confidence': confidence, 'prompt_score': prompt_score, 'plan_pact': plan_pact, 'switched_to': switched_to, 'tiebreaker_failure': tiebreaker_failure}))",
+      "identity": "chrys.orchestration.engine.trajectory:TrajectoryRecorder.turn_routed:1",
+      "module": "chrys.orchestration.engine.trajectory",
+      "ordinal": 1,
+      "primitive": "wrapper",
+      "qualname": "TrajectoryRecorder.turn_routed",
+      "source_column": 8,
+      "source_line": 590,
+      "wrapper_target": "chrys.orchestration.engine.trajectory._emit"
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
       "expression": "await asyncio.shield(settlement)",
       "identity": "chrys.orchestration.engine.trajectory:TrajectoryRecorder.turn_started:1",
       "module": "chrys.orchestration.engine.trajectory",
@@ -18078,7 +18098,7 @@
       "primitive": "awaitable",
       "qualname": "_emit",
       "source_column": 8,
-      "source_line": 704,
+      "source_line": 744,
       "wrapper_target": null
     },
     {

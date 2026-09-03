@@ -566,6 +566,46 @@ class TrajectoryRecorder:
             ),
         )
 
+    async def turn_routed(
+        self,
+        *,
+        track: str,
+        band: str,
+        source: str,
+        confidence: float,
+        prompt_score: float,
+        plan_pact: bool,
+        switched_to: str,
+        tiebreaker_failure: str,
+    ) -> None:
+        """Record one routing decision.
+
+        The prompt itself is deliberately absent: routing telemetry lives under
+        the session directory, and the decision's shape is what a calibration
+        review needs, not the user's text.
+        """
+        trajectory = self._open()
+        if trajectory is None:
+            return
+        await _emit(
+            trajectory,
+            EventDraft(
+                event_type=EventType.TURN_ROUTED,
+                actor=trajectory.main_actor,
+                turn_id=self.current_turn_id,
+                payload={
+                    "track": track,
+                    "band": band,
+                    "source": source,
+                    "confidence": confidence,
+                    "prompt_score": prompt_score,
+                    "plan_pact": plan_pact,
+                    "switched_to": switched_to,
+                    "tiebreaker_failure": tiebreaker_failure,
+                },
+            ),
+        )
+
     # ----------------------------------------------- profile / branch / fork
 
     async def profile_switched(self, *, kind: str, from_fingerprint: str, to_fingerprint: str) -> None:

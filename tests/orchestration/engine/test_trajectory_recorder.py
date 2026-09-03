@@ -1513,3 +1513,52 @@ class TestExchangeFacts:
         assert "model_profile_id" not in facts
         assert facts["request_model"] == "<Model Not Configured>"
         assert malformed_id_pointers({"payload": facts}) == []
+
+
+class TestTurnRouted:
+    @pytest.mark.asyncio
+    async def test_routing_decisions_are_recorded_without_the_prompt(self, bound: BoundRecorder) -> None:
+        turn_id = await bound.start_turn(1)
+
+        await bound.recorder.turn_routed(
+            track="long_horizon",
+            band="strong_long_horizon",
+            source="heuristic",
+            confidence=0.9,
+            prompt_score=0.9,
+            plan_pact=True,
+            switched_to="LongHorizon",
+            tiebreaker_failure="",
+        )
+
+        event = bound.last(EventType.TURN_ROUTED)
+        assert event.turn_id == turn_id
+        assert event.payload == {
+            "track": "long_horizon",
+            "band": "strong_long_horizon",
+            "source": "heuristic",
+            "confidence": 0.9,
+            "prompt_score": 0.9,
+            "plan_pact": True,
+            "switched_to": "LongHorizon",
+            "tiebreaker_failure": "",
+        }
+        # The user's text never reaches the log.
+        assert "prompt" not in event.payload
+
+    @pytest.mark.asyncio
+    async def test_a_tiebreaker_failure_is_recorded_for_calibration(self, bound: BoundRecorder) -> None:
+        await bound.start_turn(1)
+
+        await bound.recorder.turn_routed(
+            track="standard",
+            band="lean_standard",
+            source="llm",
+            confidence=0.5,
+            prompt_score=0.5,
+            plan_pact=False,
+            switched_to="",
+            tiebreaker_failure="timeout",
+        )
+
+        assert bound.last(EventType.TURN_ROUTED).payload["tiebreaker_failure"] == "timeout"

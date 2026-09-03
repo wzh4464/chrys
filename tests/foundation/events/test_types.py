@@ -2,6 +2,7 @@
 
 """Event contract tests."""
 
+from chrys.foundation.events import types
 from chrys.foundation.events.types import AgentLoadFailed, AgentLoadProgress, Error, RetryAttempt, Warning
 from chrys.foundation.i18n import MessageRef, msg
 
@@ -52,3 +53,60 @@ def test_warning_and_error_keep_legacy_fields_with_keyword_construction() -> Non
 def test_warning_and_error_remain_constructible_without_arguments() -> None:
     assert isinstance(Warning(), Warning)
     assert isinstance(Error(), Error)
+
+
+def test_routing_events_default_to_a_standard_no_op() -> None:
+    """A default-constructed override clears rather than routes."""
+    override = types.RouteOverride()
+
+    assert override.track == ""
+    assert override.one_shot is True
+    assert override.reroute is False
+    assert override.plan_localization is None
+
+
+def test_turn_routed_carries_the_whole_decision() -> None:
+    routed = types.TurnRouted(
+        turn=3,
+        track="long_horizon",
+        band="strong_long_horizon",
+        reason="scope=entire",
+        confidence=0.9,
+        source="heuristic",
+        inherited=False,
+        prompt_score=0.9,
+        plan_localization=True,
+        plan_clarification=True,
+        plan_pact=True,
+        pact_ready=True,
+        tiebreaker_failure="",
+        switched_to="LongHorizon",
+        can_downgrade=True,
+    )
+
+    assert routed.track == "long_horizon"
+    assert routed.switched_to == "LongHorizon"
+    assert routed.can_downgrade is True
+
+
+def test_turn_routed_defaults_are_a_standard_turn() -> None:
+    routed = types.TurnRouted()
+
+    assert routed.track == ""
+    assert routed.plan_pact is False
+    assert routed.can_downgrade is False
+    assert routed.switched_to == ""
+
+
+def test_long_horizon_phase_defaults_are_non_terminal() -> None:
+    phase = types.LongHorizonPhaseChanged(phase="localizing")
+
+    assert phase.terminal is False
+    assert phase.detail == ""
+
+
+def test_memory_writeback_completed_reports_a_held_watermark() -> None:
+    completed = types.MemoryWritebackCompleted(reason="idle", deposited=1, failed_turn=2, watermark=1)
+
+    assert completed.failed_turn == 2
+    assert completed.watermark == 1

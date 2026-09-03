@@ -40,6 +40,7 @@ class EventType:
     TURN_RESUMED = "turn.resumed"
     TURN_FINISHED = "turn.finished"
     TURN_RESPONSE_SETTLED = "turn.response_settled"
+    TURN_ROUTED = "turn.routed"
 
     # Admission / dispatch preparation. ``preparation.state`` is a marker,
     # not a lifecycle terminal.

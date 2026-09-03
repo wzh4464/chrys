@@ -1397,3 +1397,56 @@ class MemoryWritebackCompleted(Event):
     failed_turn: int | None = None
     """First turn whose deposit failed; the watermark stops just before it."""
     watermark: int = 0
+
+
+@dataclass
+class RouteOverride(Event):
+    """Force this turn's track, or clear an inherited decision (frontend → engine).
+
+    Consumed once: an override is about the turn the user is submitting, not a
+    mode they are switching into. ``/route auto|off|always`` changes the
+    setting instead.
+    """
+
+    track: str = ""
+    """``standard``, ``long_horizon``, or ``""`` to leave classification alone."""
+    one_shot: bool = True
+    reroute: bool = False
+    """Abandon multi-turn inheritance and classify this turn from scratch."""
+    plan_localization: bool | None = None
+    """Run localization on a standard turn (``chrys run --semantic-localization``)."""
+
+
+@dataclass
+class TurnRouted(Event):
+    """How one turn was classified, and what that bought (backend → frontend)."""
+
+    turn: int = 0
+    track: str = ""
+    band: str = ""
+    reason: str = ""
+    confidence: float = 0.0
+    source: str = ""
+    """``override``, ``profile``, ``heuristic``, ``llm``, ``inherited`` or ``guard``."""
+    inherited: bool = False
+    prompt_score: float = 0.0
+    plan_localization: bool = False
+    plan_clarification: bool = False
+    plan_pact: bool = False
+    pact_ready: bool = False
+    tiebreaker_failure: str = ""
+    """Why the LLM tiebreaker produced nothing, when one was attempted."""
+    switched_to: str = ""
+    """Profile the routing decision switched into; empty when it stayed put."""
+    can_downgrade: bool = False
+    """Whether ``/quick`` can still pull this turn back to the standard pass."""
+
+
+@dataclass
+class LongHorizonPhaseChanged(Event):
+    """Progress through the long-horizon track (backend → frontend)."""
+
+    workflow_id: str = ""
+    phase: str = ""
+    detail: str = ""
+    terminal: bool = False
