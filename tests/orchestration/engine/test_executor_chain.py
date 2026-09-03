@@ -277,3 +277,44 @@ async def test_sub_agent_cancel_callback_fills_parent_slot_with_replay_reference
     assert metadata[TOOL_INTERRUPTED_METADATA_KEY] is True
     assert metadata["sub_agent_invocation_id"] == "child-1"
     assert metadata["sub_agent_log_file"] == "child-1.json"
+
+
+async def test_an_enclosing_deadline_actually_times_out() -> None:
+    """A swallowed cancel makes `asyncio.timeout` report no timeout at all.
+
+    The clarification workflow wraps `executor.run` in `asyncio.timeout` for
+    both the baseline and the repair. `Timeout.__aexit__` converts to
+    `TimeoutError` only when an exception escapes the body, so swallowing the
+    deadline's cancellation left both of its `except TimeoutError:` branches
+    and its `repair_timed_out` flag unreachable — a hung repair was recorded
+    as an ordinary interrupt.
+    """
+
+    class _HangingAgent:
+        async def run(self, *args: Any, **kwargs: Any) -> Any:
+            await asyncio.sleep(30)
+            raise AssertionError("the deadline never fired")
+
+    executor, _, _ = _make_executor(agent=_HangingAgent())
+
+    with pytest.raises(TimeoutError):
+        async with asyncio.timeout(0.05):
+            await executor.run(["do it"])
+
+
+async def test_our_own_interrupt_is_still_not_an_error() -> None:
+    """Stop must keep returning normally so post-processing runs."""
+
+    class _HangingAgent:
+        async def run(self, *args: Any, **kwargs: Any) -> Any:
+            await asyncio.sleep(30)
+            raise AssertionError("the interrupt never arrived")
+
+    executor, _, _ = _make_executor(agent=_HangingAgent())
+    run_task = asyncio.create_task(executor.run(["do it"]))
+    await asyncio.sleep(0.05)
+
+    await executor.interrupt()
+    await run_task
+
+    assert executor.was_interrupted is True

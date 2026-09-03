@@ -1139,9 +1139,17 @@ class Executor:
                 await self._run_blocking(input)
 
         except asyncio.CancelledError:
-            # Child agent task was cancelled by interrupt() — treat as a
-            # normal interrupt so post-processing (session save, etc.) runs.
+            # Our own interrupt() — treat as a normal interrupt so
+            # post-processing (session save, etc.) runs.
             self._was_interrupted = True
+            if not self._interrupt.is_interrupted:
+                # Not ours: an enclosing deadline (the clarification
+                # workflow's) or a shutdown cancelled this task. Swallowing it
+                # makes `asyncio.timeout.__aexit__` see no exception escape the
+                # body, so it reports no timeout at all — which left both of
+                # that workflow's `except TimeoutError:` branches and its
+                # `repair_timed_out` flag unreachable.
+                raise
             return
 
         except Exception as e:

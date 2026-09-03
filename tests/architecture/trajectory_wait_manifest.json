@@ -8558,7 +8558,7 @@
       "primitive": "awaitable",
       "qualname": "Executor._execute",
       "source_column": 16,
-      "source_line": 1162,
+      "source_line": 1170,
       "wrapper_target": null
     },
     {
@@ -8578,7 +8578,7 @@
       "primitive": "awaitable",
       "qualname": "Executor._execute",
       "source_column": 16,
-      "source_line": 1164,
+      "source_line": 1172,
       "wrapper_target": null
     },
     {
@@ -8598,7 +8598,7 @@
       "primitive": "awaitable",
       "qualname": "Executor._execute",
       "source_column": 20,
-      "source_line": 1180,
+      "source_line": 1188,
       "wrapper_target": null
     },
     {
@@ -8618,7 +8618,7 @@
       "primitive": "awaitable",
       "qualname": "Executor._flush_carried_compressions",
       "source_column": 15,
-      "source_line": 1215,
+      "source_line": 1223,
       "wrapper_target": null
     },
     {
@@ -8638,7 +8638,7 @@
       "primitive": "awaitable",
       "qualname": "Executor._interrupt_active_sleep",
       "source_column": 8,
-      "source_line": 1831,
+      "source_line": 1839,
       "wrapper_target": null
     },
     {
@@ -8658,7 +8658,7 @@
       "primitive": "timeout",
       "qualname": "Executor._interrupt_active_sleep",
       "source_column": 12,
-      "source_line": 1839,
+      "source_line": 1847,
       "wrapper_target": null
     },
     {
@@ -8678,7 +8678,7 @@
       "primitive": "awaitable",
       "qualname": "Executor._interrupt_active_sleep",
       "source_column": 12,
-      "source_line": 1843,
+      "source_line": 1851,
       "wrapper_target": null
     },
     {
@@ -8698,7 +8698,7 @@
       "primitive": "sleep",
       "qualname": "Executor._interruptible_sleep",
       "source_column": 12,
-      "source_line": 1854,
+      "source_line": 1862,
       "wrapper_target": null
     },
     {
@@ -8958,7 +8958,7 @@
       "primitive": "awaitable",
       "qualname": "Executor._publish_response_text",
       "source_column": 12,
-      "source_line": 1776,
+      "source_line": 1784,
       "wrapper_target": null
     },
     {
@@ -8978,7 +8978,7 @@
       "primitive": "awaitable",
       "qualname": "Executor._publish_response_text",
       "source_column": 8,
-      "source_line": 1782,
+      "source_line": 1790,
       "wrapper_target": null
     },
     {
@@ -8998,7 +8998,7 @@
       "primitive": "wrapper",
       "qualname": "Executor._publish_retry_attempt",
       "source_column": 8,
-      "source_line": 1507,
+      "source_line": 1515,
       "wrapper_target": "chrys.orchestration.engine.executor.Executor._trajectory_run_retry_scheduled"
     },
     {
@@ -9018,7 +9018,7 @@
       "primitive": "wrapper",
       "qualname": "Executor._publish_retry_attempt",
       "source_column": 8,
-      "source_line": 1508,
+      "source_line": 1516,
       "wrapper_target": "chrys.orchestration.engine.executor.Executor._publish_retry_notice"
     },
     {
@@ -9038,7 +9038,7 @@
       "primitive": "awaitable",
       "qualname": "Executor._publish_retry_notice",
       "source_column": 12,
-      "source_line": 1536,
+      "source_line": 1544,
       "wrapper_target": null
     },
     {
@@ -9058,7 +9058,7 @@
       "primitive": "awaitable",
       "qualname": "Executor._publish_retry_notice",
       "source_column": 8,
-      "source_line": 1537,
+      "source_line": 1545,
       "wrapper_target": null
     },
     {
@@ -9078,7 +9078,7 @@
       "primitive": "wrapper",
       "qualname": "Executor._publish_wire_retry_attempt",
       "source_column": 8,
-      "source_line": 1525,
+      "source_line": 1533,
       "wrapper_target": "chrys.orchestration.engine.executor.Executor._publish_retry_notice"
     },
     {
@@ -9098,7 +9098,7 @@
       "primitive": "wrapper",
       "qualname": "Executor._run_agent",
       "source_column": 19,
-      "source_line": 1392,
+      "source_line": 1400,
       "wrapper_target": "chrys.orchestration.engine.executor.Executor._trajectory_run"
     },
     {
@@ -9118,7 +9118,7 @@
       "primitive": "future",
       "qualname": "Executor._run_agent",
       "source_column": 23,
-      "source_line": 1395,
+      "source_line": 1403,
       "wrapper_target": null
     },
     {
@@ -9138,7 +9138,7 @@
       "primitive": "awaitable",
       "qualname": "Executor._run_agent._call",
       "source_column": 19,
-      "source_line": 1390,
+      "source_line": 1398,
       "wrapper_target": null
     },
     {
@@ -9158,7 +9158,7 @@
       "primitive": "awaitable",
       "qualname": "Executor._run_blocking",
       "source_column": 25,
-      "source_line": 1420,
+      "source_line": 1428,
       "wrapper_target": null
     },
     {
@@ -9178,7 +9178,7 @@
       "primitive": "wrapper",
       "qualname": "Executor._run_blocking",
       "source_column": 25,
-      "source_line": 1422,
+      "source_line": 1430,
       "wrapper_target": "chrys.orchestration.engine.executor.Executor._run_agent"
     },
     {
@@ -9198,7 +9198,7 @@
       "primitive": "wrapper",
       "qualname": "Executor._run_blocking",
       "source_column": 12,
-      "source_line": 1428,
+      "source_line": 1436,
       "wrapper_target": "chrys.orchestration.engine.executor.Executor._publish_response_text"
     },
     {
@@ -9218,7 +9218,7 @@
       "primitive": "wrapper",
       "qualname": "Executor._run_streaming",
       "source_column": 21,
-      "source_line": 1437,
+      "source_line": 1445,
       "wrapper_target": "chrys.orchestration.engine.executor.Executor._stream_with_retry"
     },
     {
@@ -9238,7 +9238,7 @@
       "primitive": "wrapper",
       "qualname": "Executor._run_streaming",
       "source_column": 25,
-      "source_line": 1441,
+      "source_line": 1449,
       "wrapper_target": "chrys.orchestration.engine.executor.Executor._stream_single_attempt"
     },
     {
@@ -9258,7 +9258,7 @@
       "primitive": "wrapper",
       "qualname": "Executor._run_streaming",
       "source_column": 12,
-      "source_line": 1446,
+      "source_line": 1454,
       "wrapper_target": "chrys.orchestration.engine.executor.Executor._publish_response_text"
     },
     {
@@ -9278,7 +9278,7 @@
       "primitive": "wrapper",
       "qualname": "Executor._stream_single_attempt",
       "source_column": 19,
-      "source_line": 1757,
+      "source_line": 1765,
       "wrapper_target": "chrys.orchestration.engine.executor.Executor._trajectory_run"
     },
     {
@@ -9298,7 +9298,7 @@
       "primitive": "future",
       "qualname": "Executor._stream_single_attempt",
       "source_column": 23,
-      "source_line": 1760,
+      "source_line": 1768,
       "wrapper_target": null
     },
     {
@@ -9318,7 +9318,7 @@
       "primitive": "awaitable",
       "qualname": "Executor._stream_single_attempt._iterate_and_finalize",
       "source_column": 37,
-      "source_line": 1630,
+      "source_line": 1638,
       "wrapper_target": null
     },
     {
@@ -9338,7 +9338,7 @@
       "primitive": "timeout",
       "qualname": "Executor._stream_single_attempt._iterate_and_finalize",
       "source_column": 37,
-      "source_line": 1632,
+      "source_line": 1640,
       "wrapper_target": null
     },
     {
@@ -9358,7 +9358,7 @@
       "primitive": "awaitable",
       "qualname": "Executor._stream_single_attempt._iterate_and_finalize",
       "source_column": 28,
-      "source_line": 1643,
+      "source_line": 1651,
       "wrapper_target": null
     },
     {
@@ -9378,7 +9378,7 @@
       "primitive": "sleep",
       "qualname": "Executor._stream_single_attempt._iterate_and_finalize",
       "source_column": 20,
-      "source_line": 1688,
+      "source_line": 1696,
       "wrapper_target": null
     },
     {
@@ -9398,7 +9398,7 @@
       "primitive": "awaitable",
       "qualname": "Executor._stream_single_attempt._iterate_and_finalize",
       "source_column": 28,
-      "source_line": 1711,
+      "source_line": 1719,
       "wrapper_target": null
     },
     {
@@ -9418,7 +9418,7 @@
       "primitive": "awaitable",
       "qualname": "Executor._stream_single_attempt._iterate_and_finalize",
       "source_column": 27,
-      "source_line": 1725,
+      "source_line": 1733,
       "wrapper_target": null
     },
     {
@@ -9438,7 +9438,7 @@
       "primitive": "timeout",
       "qualname": "Executor._stream_single_attempt._iterate_and_finalize",
       "source_column": 23,
-      "source_line": 1726,
+      "source_line": 1734,
       "wrapper_target": null
     },
     {
@@ -9458,7 +9458,7 @@
       "primitive": "awaitable",
       "qualname": "Executor._stream_single_attempt._iterate_and_finalize",
       "source_column": 20,
-      "source_line": 1747,
+      "source_line": 1755,
       "wrapper_target": null
     },
     {
@@ -9478,7 +9478,7 @@
       "primitive": "awaitable",
       "qualname": "Executor._stream_with_retry",
       "source_column": 23,
-      "source_line": 1483,
+      "source_line": 1491,
       "wrapper_target": null
     },
     {
@@ -9498,7 +9498,7 @@
       "primitive": "awaitable",
       "qualname": "Executor._stream_with_retry",
       "source_column": 20,
-      "source_line": 1488,
+      "source_line": 1496,
       "wrapper_target": null
     },
     {
@@ -9518,7 +9518,7 @@
       "primitive": "wrapper",
       "qualname": "Executor._stream_with_retry",
       "source_column": 16,
-      "source_line": 1489,
+      "source_line": 1497,
       "wrapper_target": "chrys.orchestration.engine.executor.Executor._trajectory_run_retry_scheduled"
     },
     {
@@ -9538,7 +9538,7 @@
       "primitive": "wrapper",
       "qualname": "Executor._stream_with_retry",
       "source_column": 23,
-      "source_line": 1490,
+      "source_line": 1498,
       "wrapper_target": "chrys.orchestration.engine.executor.Executor._run_agent"
     },
     {
@@ -9558,7 +9558,7 @@
       "primitive": "wrapper",
       "qualname": "Executor._stream_with_retry._attempt",
       "source_column": 19,
-      "source_line": 1478,
+      "source_line": 1486,
       "wrapper_target": "chrys.orchestration.engine.executor.Executor._stream_single_attempt"
     },
     {
@@ -9578,7 +9578,7 @@
       "primitive": "awaitable",
       "qualname": "Executor._trajectory_run",
       "source_column": 16,
-      "source_line": 1262,
+      "source_line": 1270,
       "wrapper_target": null
     },
     {
@@ -9598,7 +9598,7 @@
       "primitive": "awaitable",
       "qualname": "Executor._trajectory_run",
       "source_column": 12,
-      "source_line": 1294,
+      "source_line": 1302,
       "wrapper_target": null
     },
     {
@@ -9618,7 +9618,7 @@
       "primitive": "awaitable",
       "qualname": "Executor._trajectory_run_retry_scheduled",
       "source_column": 12,
-      "source_line": 1356,
+      "source_line": 1364,
       "wrapper_target": null
     },
     {
@@ -9638,7 +9638,7 @@
       "primitive": "awaitable",
       "qualname": "Executor.close",
       "source_column": 8,
-      "source_line": 1847,
+      "source_line": 1855,
       "wrapper_target": null
     },
     {
@@ -9658,7 +9658,7 @@
       "primitive": "awaitable",
       "qualname": "Executor.interrupt",
       "source_column": 12,
-      "source_line": 1806,
+      "source_line": 1814,
       "wrapper_target": null
     },
     {
@@ -9678,7 +9678,7 @@
       "primitive": "wrapper",
       "qualname": "Executor.interrupt",
       "source_column": 16,
-      "source_line": 1814,
+      "source_line": 1822,
       "wrapper_target": "chrys.orchestration.engine.executor.Executor._interrupt_active_sleep"
     },
     {
