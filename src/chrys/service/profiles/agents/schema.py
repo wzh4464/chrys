@@ -333,6 +333,25 @@ class MemoryConfig:
 
 
 @dataclass
+class RequirementClarificationConfig:
+    """Repository-grounded baseline/clarification/repair workflow.
+
+    Proposal count, selector count, prompt contract, and rendering bounds are
+    code-owned and versioned together.  The two coding passes have separate
+    wall-clock budgets so clarification work cannot consume either pass's
+    allowance.
+    """
+
+    enabled: bool = False
+    strategy: Literal["legacy-v1-exact", "legacy-v1-stabilized"] = "legacy-v1-stabilized"
+    reuse_workspace_as_p0: bool = False
+    clarification_only: bool = False
+    clarification_timeout_seconds: float = 1800.0
+    initial_timeout_seconds: float = 5400.0
+    repair_timeout_seconds: float = 5400.0
+
+
+@dataclass
 class AgentProfile:
     """Complete agent profile definition.
 
@@ -365,4 +384,5 @@ class AgentProfile:
     model: ModelConfig = field(default_factory=ModelConfig)
     compaction: CompactionConfig = field(default_factory=CompactionConfig)
     memory: MemoryConfig = field(default_factory=MemoryConfig)
+    requirement_clarification: RequirementClarificationConfig = field(default_factory=RequirementClarificationConfig)
     metadata: dict[str, Any] = field(default_factory=dict)

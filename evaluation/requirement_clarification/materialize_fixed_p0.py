@@ -1,0 +1,318 @@
+# Copyright (c) 2026 Chrys. All rights reserved.
+
+"""Materialize a repair-only DeepSWE dataset with the control P0 held fixed."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import re
+import shutil
+import subprocess
+import sys
+import tomllib
+from pathlib import Path
+from typing import Any
+
+from evaluation.requirement_clarification.protocol import (
+    IMPORTED_P0_AGENT_TIMEOUT_SECONDS,
+    fingerprint_dataset,
+    fingerprints_as_dict,
+    sha256_file,
+    write_json,
+)
+from evaluation.requirement_clarification.summarize import load_selected_attempts
+
+_DOCKERFILE = """ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+COPY model.patch /tmp/chrys-p0.patch
+RUN cd /app \\
+ && git config --global --add safe.directory /app \\
+ && if [ -s /tmp/chrys-p0.patch ]; then git apply --binary --whitespace=nowarn /tmp/chrys-p0.patch; fi \\
+ && rm -f /tmp/chrys-p0.patch
+"""
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--source-dataset", type=Path, required=True)
+    parser.add_argument("--control-job", type=Path, required=True)
+    delta_source = parser.add_mutually_exclusive_group(required=True)
+    delta_source.add_argument("--candidate-job", type=Path)
+    delta_source.add_argument(
+        "--clarification-root",
+        type=Path,
+        help="Directory containing TASK/clarified_requirement.md files",
+    )
+    delta_source.add_argument(
+        "--native-clarification",
+        action="store_true",
+        help="Keep the original requirement so Chrys generates a fresh delta from committed S0",
+    )
+    parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--image-repository", default="chrys/deepswe-fixed-p0")
+    parser.add_argument("--expected-tasks", type=int, default=113)
+    parser.add_argument("--expected-eligible", type=int)
+    parser.add_argument("--task", action="append", dest="selected_tasks", help="Materialize only this task")
+    parser.add_argument("--build-images", action="store_true", help="Actually invoke docker build")
+    return parser
+
+
+def _load_mapping(path: Path) -> dict[str, Any]:
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(value, dict):
+        raise ValueError(f"expected JSON object: {path}")
+    return value
+
+
+def _clarification_delta(trial_dir: Path) -> str | None:
+    paths = sorted(
+        trial_dir.glob("agent/chrys-sessions/**/requirement_clarification/turn_*/clarification.private.json")
+    )
+    if not paths:
+        return None
+    delta = _load_mapping(paths[-1]).get("delta")
+    return delta.strip() if isinstance(delta, str) and delta.strip() else None
+
+
+def _clarification_delta_from_root(root: Path, task: str, original: str) -> str | None:
+    path = root / task / "clarified_requirement.md"
+    if not path.is_file():
+        return None
+    clarified = path.read_text(encoding="utf-8")
+    if not clarified.startswith(original):
+        raise ValueError(f"clarification does not preserve the original requirement for {task}")
+    delta = clarified[len(original) :].strip()
+    return delta or None
+
+
+def _control_patch(trial_dir: Path) -> Path | None:
+    """Locate Harbor's patch across direct and recursively collected layouts."""
+    candidates = [
+        trial_dir / "artifacts/model.patch",
+        trial_dir / "artifacts/logs/artifacts/model.patch",
+    ]
+    candidates.extend(sorted((trial_dir / "artifacts").glob("**/model.patch")))
+    unique = list(dict.fromkeys(path for path in candidates if path.is_file()))
+    if not unique:
+        return None
+    if len(unique) > 1:
+        hashes = {sha256_file(path) for path in unique}
+        if len(hashes) != 1:
+            raise ValueError(f"conflicting control model.patch artifacts in {trial_dir}")
+    return unique[0]
+
+
+def _image_tag(repository: str, task: str) -> str:
+    safe = re.sub(r"[^a-z0-9_.-]+", "-", task.casefold()).strip("-.")
+    if not safe:
+        raise ValueError(f"task name cannot form a Docker tag: {task!r}")
+    return f"{repository}:{safe}"
+
+
+def _repair_instruction(original: str, delta: str) -> str:
+    return (
+        f"{original.rstrip()}\n\n"
+        "---\n\n"
+        "The workspace already contains a provisional implementation (P0) of the requirement above. "
+        "Keep correct parts of P0 and repair it using the additional repository-grounded clarification below. "
+        "Treat the original requirement as authoritative if there is any conflict.\n\n"
+        "Additional requirement clarification (ΔR):\n\n"
+        f"{delta.rstrip()}\n"
+    )
+
+
+def _base_image(task_toml: dict[str, Any], task: str) -> str:
+    environment = task_toml.get("environment")
+    if not isinstance(environment, dict):
+        raise ValueError(f"task {task} has no [environment] mapping")
+    image = environment.get("docker_image")
+    if not isinstance(image, str) or not image:
+        raise ValueError(f"task {task} has no environment.docker_image")
+    return image
+
+
+def _prepare_fixed_p0_task_toml(
+    source: str,
+    image: str,
+    *,
+    agent_timeout_seconds: float | None = None,
+) -> str:
+    """Pin P0 and remove legacy patch publication that conflicts with the adapter."""
+    lines = source.splitlines(keepends=True)
+    blocks: list[list[str]] = []
+    for line in lines:
+        if line.lstrip().startswith("["):
+            blocks.append([line])
+        elif blocks:
+            blocks[-1].append(line)
+        else:
+            blocks.append([line])
+    lines = [
+        line
+        for block in blocks
+        if not (block[0].strip() == "[[verifier.collect]]" and "/logs/artifacts/model.patch" in "".join(block))
+        for line in block
+    ]
+    in_environment = False
+    before_first_table = True
+    replacements = 0
+    rendered: list[str] = []
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("[") and stripped.endswith("]"):
+            before_first_table = False
+            in_environment = stripped == "[environment]"
+        if before_first_table and re.match(r"^artifacts\s*=", stripped):
+            continue
+        if in_environment and re.match(r"^docker_image\s*=", stripped):
+            newline = "\n" if line.endswith("\n") else ""
+            line = f"docker_image = {json.dumps(image)}{newline}"
+            replacements += 1
+        rendered.append(line)
+    if replacements != 1:
+        raise ValueError(f"expected one environment.docker_image assignment, found {replacements}")
+    result = "".join(rendered)
+    if agent_timeout_seconds is None:
+        return result
+    marker = "[agent]"
+    start = result.find(marker)
+    if start < 0:
+        raise ValueError("imported-P0 task has no [agent] section")
+    end = result.find("\n[", start + len(marker))
+    end = len(result) if end < 0 else end
+    section = result[start:end]
+    updated, count = re.subn(
+        r"(?m)^(timeout_sec\s*=\s*)[0-9]+(?:\.[0-9]+)?\s*$",
+        rf"\g<1>{agent_timeout_seconds:g}",
+        section,
+        count=1,
+    )
+    if count != 1:
+        raise ValueError("imported-P0 task [agent] section must contain one timeout_sec")
+    return f"{result[:start]}{updated}{result[end:]}"
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Create build contexts and a repair dataset; image building is opt-in."""
+    args = _parser().parse_args(argv)
+    source_dataset = args.source_dataset.resolve(strict=True)
+    clarification_root = args.clarification_root.resolve(strict=True) if args.clarification_root else None
+    output_dir = args.output_dir.resolve()
+    if output_dir.exists():
+        raise FileExistsError(f"refusing to overwrite output directory: {output_dir}")
+
+    source_tasks = fingerprint_dataset(source_dataset, expected_tasks=args.expected_tasks)
+    control = load_selected_attempts(args.control_job)
+    candidate = load_selected_attempts(args.candidate_job) if args.candidate_job else None
+    source_names = {item.name for item in source_tasks}
+    selected_names = set(args.selected_tasks or source_names)
+    unknown = selected_names - source_names
+    if unknown:
+        raise ValueError(f"selected tasks are absent from source dataset: {sorted(unknown)}")
+    if not selected_names <= control.keys():
+        raise ValueError(f"control job is missing selected tasks: {sorted(selected_names - control.keys())}")
+    if candidate is not None and not selected_names <= candidate.keys():
+        raise ValueError(f"candidate job is missing selected tasks: {sorted(selected_names - candidate.keys())}")
+
+    dataset_dir = output_dir / "dataset"
+    contexts_dir = output_dir / "image-contexts"
+    commands: dict[str, list[str]] = {}
+    tasks: dict[str, dict[str, object]] = {}
+    excluded: dict[str, str] = {}
+    docker = shutil.which("docker")
+    if args.build_images and docker is None:
+        raise FileNotFoundError("docker executable not found")
+
+    for task in sorted(selected_names):
+        control_trial, _, _ = control[task]
+        patch = _control_patch(control_trial)
+        source_task = source_dataset / task
+        original_instruction = (source_task / "instruction.md").read_text(encoding="utf-8")
+        if args.native_clarification:
+            delta = None
+        elif candidate is not None:
+            candidate_trial, _, _ = candidate[task]
+            delta = _clarification_delta(candidate_trial)
+        else:
+            assert clarification_root is not None
+            delta = _clarification_delta_from_root(clarification_root, task, original_instruction)
+        if patch is None:
+            excluded[task] = "control model.patch missing"
+            continue
+        if delta is None and not args.native_clarification:
+            excluded[task] = "candidate produced no persisted clarification delta"
+            continue
+
+        task_toml_path = source_task / "task.toml"
+        task_toml_text = task_toml_path.read_text(encoding="utf-8")
+        task_toml = tomllib.loads(task_toml_text)
+        base_image = _base_image(task_toml, task)
+        image = _image_tag(args.image_repository, task)
+        context = contexts_dir / task
+        context.mkdir(parents=True)
+        shutil.copy2(patch, context / "model.patch")
+        (context / "Dockerfile").write_text(_DOCKERFILE, encoding="utf-8")
+
+        destination = dataset_dir / task
+        shutil.copytree(source_task, destination)
+        (destination / "task.toml").write_text(
+            _prepare_fixed_p0_task_toml(
+                task_toml_text,
+                image,
+                agent_timeout_seconds=(IMPORTED_P0_AGENT_TIMEOUT_SECONDS if args.native_clarification else None),
+            ),
+            encoding="utf-8",
+        )
+        instruction = (
+            original_instruction if args.native_clarification else _repair_instruction(original_instruction, delta)
+        )
+        (destination / "instruction.md").write_text(instruction, encoding="utf-8")
+
+        command = [docker or "docker", "build", "--build-arg", f"BASE_IMAGE={base_image}", "-t", image, str(context)]
+        commands[task] = command
+        tasks[task] = {
+            "base_image": base_image,
+            "fixed_p0_image": image,
+            "control_patch_sha256": sha256_file(patch),
+            "delta_sha256": hashlib.sha256(delta.encode()).hexdigest() if delta is not None else None,
+            "source_task_sha256": next(item.sha256 for item in source_tasks if item.name == task),
+        }
+
+    if args.expected_eligible is not None and len(tasks) != args.expected_eligible:
+        raise ValueError(f"expected {args.expected_eligible} eligible tasks, found {len(tasks)}")
+    manifest = {
+        "schema_version": 1,
+        "protocol": (
+            "chrys-deepswe-imported-p0-clarification-v1"
+            if args.native_clarification
+            else "chrys-deepswe-fixed-p0-repair-v1"
+        ),
+        "source_dataset": str(source_dataset),
+        "control_job": str(args.control_job.resolve(strict=True)),
+        "candidate_job": str(args.candidate_job.resolve(strict=True)) if args.candidate_job else None,
+        "clarification_root": str(clarification_root) if clarification_root else None,
+        "native_clarification": args.native_clarification,
+        "agent_timeout_seconds": IMPORTED_P0_AGENT_TIMEOUT_SECONDS if args.native_clarification else None,
+        "source_tasks": fingerprints_as_dict(source_tasks),
+        "eligible_count": len(tasks),
+        "excluded": excluded,
+        "tasks": tasks,
+        "docker_commands": commands,
+    }
+    write_json(output_dir / "manifest.json", manifest)
+
+    if args.build_images:
+        for task, command in commands.items():
+            sys.stdout.write(f"Building fixed P0 image for {task}\n")
+            subprocess.run(command, check=True)  # noqa: S603
+    else:
+        sys.stdout.write(
+            f"Materialized {len(tasks)} eligible tasks in {dataset_dir}; pass --build-images to build P0 images.\n"
+        )
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

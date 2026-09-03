@@ -137,6 +137,7 @@ class ToolEventMiddleware(FunctionMiddleware):
         mutation_coordinator: MutationCoordinator | None = None,
         on_start_published: Callable[[str], Awaitable[None]] | None = None,
         tool_result_ceiling_tokens: int | None = None,
+        workflow_phase_provider: Callable[[], str] | None = None,
     ) -> None:
         self._bus = event_bus
         self._session_id = session_id
@@ -149,6 +150,7 @@ class ToolEventMiddleware(FunctionMiddleware):
         self._serialize_implicit_windows = serialize_implicit_windows
         self._on_start_published = on_start_published
         self._tool_result_ceiling_tokens = tool_result_ceiling_tokens
+        self._workflow_phase_provider = workflow_phase_provider
         self._tool_batch_records: list[ToolBatchRecord] = []
         self._tool_invocation_order = 0
         self._intermediate_flush_lock = asyncio.Lock()
@@ -250,6 +252,7 @@ class ToolEventMiddleware(FunctionMiddleware):
                             is_final=False,
                             is_intermediate=True,
                             session_id=self._session_id,
+                            workflow_phase=self._workflow_phase(),
                         )
                     )
 
@@ -365,6 +368,7 @@ class ToolEventMiddleware(FunctionMiddleware):
                 args=args,
                 call_id=call_id,
                 session_id=self._session_id,
+                workflow_phase=self._workflow_phase(),
             )
         )
         if self._on_start_published is not None:
@@ -416,6 +420,7 @@ class ToolEventMiddleware(FunctionMiddleware):
                         call_id=call_id,
                         lines=lines,
                         session_id=sid,
+                        workflow_phase=self._workflow_phase(),
                     )
                 )
 
@@ -642,6 +647,7 @@ class ToolEventMiddleware(FunctionMiddleware):
                             image_contents=result_images,
                             duration_ms=duration_ms,
                             session_id=self._session_id,
+                            workflow_phase=self._workflow_phase(),
                             metadata=metadata,
                         )
                     )
@@ -677,6 +683,10 @@ class ToolEventMiddleware(FunctionMiddleware):
                     if trajectory is not None:
                         trajectory.finished_soon(outcome=ToolOutcome.INTERRUPTED, duration_ms=elapsed_ms)
                     raise
+
+    def _workflow_phase(self) -> str:
+        provider = self._workflow_phase_provider
+        return provider() if provider is not None else ""
 
     def drain_batch_records(self) -> list[ToolBatchRecord]:
         """Return and clear batch records (one per tool invocation, in dispatch order)."""

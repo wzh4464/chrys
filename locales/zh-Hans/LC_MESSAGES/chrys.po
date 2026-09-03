@@ -391,21 +391,21 @@ msgstr ""
 #. English: The saved agent profile {saved} could not be uniquely resolved.
 #. Session restore was stopped.
 #. chrys-meta={"fingerprint":"bc26b6c1af9d3e996b6d073ba6a7e56d95ae9150b612257777ae0aef48a4a75f","multiline":false,"placeholders":["saved"]}
-#: src/chrys/service/session/lifecycle.py:102
+#: src/chrys/service/session/lifecycle.py:109
 msgid "restore.agent_profile_unresolved"
 msgstr "无法唯一解析已保存的 Agent 配置 {saved}。会话恢复已停止。"
 
 #. English: The saved agent profile {saved} could not be uniquely resolved.
 #. Continuing with the current agent {current}.
 #. chrys-meta={"fingerprint":"2ef44fa274a4b8d2929c4d6cb3dd30536a6a34b712aef1329b2845525af21ef3","multiline":false,"placeholders":["current","saved"]}
-#: src/chrys/service/session/lifecycle.py:96
+#: src/chrys/service/session/lifecycle.py:103
 msgid "restore.agent_profile_unresolved_using_current"
 msgstr "无法唯一解析已保存的 Agent 配置 {saved}。将继续使用当前 Agent {current}。"
 
 #. English: The requested agent profile {profile} could not be found. Session
 #. restore was stopped.
 #. chrys-meta={"fingerprint":"c7a2db17096ca8688da2dc421c8db221e6e34d4f6d3de0f392bacc43fdab1ef6","multiline":false,"placeholders":["profile"]}
-#: src/chrys/service/session/lifecycle.py:106
+#: src/chrys/service/session/lifecycle.py:113
 msgid "restore.requested_agent_profile_unresolved"
 msgstr "找不到请求的 Agent 配置 {profile}。会话恢复已停止。"
 
@@ -413,14 +413,14 @@ msgstr "找不到请求的 Agent 配置 {profile}。会话恢复已停止。"
 #. The active agent/model profile, workspace, service endpoint, or storage mode
 #. is not compatible, so {app} will continue from local history only.
 #. chrys-meta={"fingerprint":"c5afc8ff22088b264a82ab6ac25f6925c07fd105afd1934f53b5059bac0498c0","multiline":false,"placeholders":["app"]}
-#: src/chrys/service/session/lifecycle.py:84
+#: src/chrys/service/session/lifecycle.py:91
 msgid "restore.service_session_incompatible"
 msgstr "此会话保存时使用了 OpenAI Responses 服务会话。当前智能体/模型配置、工作区、服务地址或存储模式与其不兼容，{app} 将仅从本地历史继续。"
 
 #. English: {discarded} paused sub-agent(s) from a previous session were
 #. discarded: {names}
 #. chrys-meta={"fingerprint":"5be1263df8739ec915d380c3d1e24cf7bbb0b24a3cf6791e8829b90f1f90c471","multiline":false,"placeholders":["discarded","names"]}
-#: src/chrys/service/session/lifecycle.py:92
+#: src/chrys/service/session/lifecycle.py:99
 msgid "restore.sub_agents_discarded"
 msgstr "已丢弃上一会话遗留的 {discarded} 个暂停子智能体：{names}"
 
@@ -458,90 +458,90 @@ msgstr "请先处理已暂停的子智能体（在卡片上选择 Retry/Abort）
 #. English: Rollback cancelled because the conversation advanced from turn
 #. {expected_turn} to turn {current_turn}.
 #. chrys-meta={"fingerprint":"519fb4eccdce76ffea9a206ca05f865e6a06ef1ecd028f3883444735fd3613c4","multiline":false,"placeholders":["current_turn","expected_turn"]}
-#: src/chrys/orchestration/engine/rollback.py:61
+#: src/chrys/orchestration/engine/rollback.py:62
 msgid "rollback.conversation_advanced"
 msgstr "对话已从第 {expected_turn} 轮推进到第 {current_turn} 轮，回滚已取消。"
 
 #. English: Rollback cancelled because the conversation changed after the
 #. picker was loaded.
 #. chrys-meta={"fingerprint":"da2f593b6de3d8b5c9f7b22a5096432913cbedd0a0862dc24bbe763e48d1d132","multiline":false,"placeholders":[]}
-#: src/chrys/orchestration/engine/rollback.py:57
+#: src/chrys/orchestration/engine/rollback.py:58
 msgid "rollback.conversation_changed"
 msgstr "选择器加载后对话已更改，回滚已取消。"
 
 #. English: No active session to roll back.
 #. chrys-meta={"fingerprint":"db217cdabdd45fc9b941251f024bf816fdbfd4d0f1e9801cc37f62056270c0ec","multiline":false,"placeholders":[]}
-#: src/chrys/orchestration/engine/rollback.py:53
+#: src/chrys/orchestration/engine/rollback.py:54
 msgid "rollback.no_session"
 msgstr "没有可回滚的活动会话。"
 
 #. English: Rollback is not allowed in state {state}.
 #. chrys-meta={"fingerprint":"35b3d0667e6a311335aa4fcbf9b291a720d87578c93afbf24372b569fb3c1cf3","multiline":false,"placeholders":["state"]}
-#: src/chrys/orchestration/engine/rollback.py:107
+#: src/chrys/orchestration/engine/rollback.py:108
 msgid "rollback.refused"
 msgstr "状态为 {state} 时不允许回滚。"
 
 #. English: relative_turns must be positive.
 #. chrys-meta={"fingerprint":"022d55efe24877b1c366ab078d4d2dbd41f148cb944e816e4f08ff1dbe111124","multiline":false,"placeholders":[]}
-#: src/chrys/orchestration/engine/rollback.py:69
+#: src/chrys/orchestration/engine/rollback.py:70
 msgid "rollback.relative_turns_invalid"
 msgstr "relative_turns 必须为正数。"
 
 #. English: Rollback to welcome could not reset the session because the session
 #. state is busy.
 #. chrys-meta={"fingerprint":"0b57a6e450cdef36048c85f90c738999661035069452b0bf5ffab52b3f742c7c","multiline":false,"placeholders":[]}
-#: src/chrys/orchestration/engine/rollback.py:85
+#: src/chrys/orchestration/engine/rollback.py:86
 msgid "rollback.reset_failed"
 msgstr "回滚到欢迎页时无法重置会话，因为会话状态忙碌。"
 
 #. English: Rollback cancelled because the workspace or runtime changed after
 #. the picker was loaded.
 #. chrys-meta={"fingerprint":"7be49511c61e57661b9ca46c60497ed9ddc8f6f06444bd63d9fc0dd2c39887d2","multiline":false,"placeholders":[]}
-#: src/chrys/orchestration/engine/rollback.py:65
+#: src/chrys/orchestration/engine/rollback.py:66
 msgid "rollback.runtime_changed"
 msgstr "选择器加载后工作区或运行时已更改，回滚已取消。"
 
 #. English: Rollback cancelled because the active session changed.
 #. chrys-meta={"fingerprint":"7ec29e015ec11115fb6dee0ad34efeccdbcb7d0dfe67bf57e39b4dbc2d081c42","multiline":false,"placeholders":[]}
-#: src/chrys/orchestration/engine/rollback.py:103
+#: src/chrys/orchestration/engine/rollback.py:104
 msgid "rollback.session_changed"
 msgstr "活动会话已更改，回滚已取消。"
 
 #. English: Snapshot for turn {target_turn} is missing.
 #. chrys-meta={"fingerprint":"a71c645f47fa18f4da338ac9f56a82e3997d0b24f7d47538a43e5adbdd861fa5","multiline":false,"placeholders":["target_turn"]}
-#: src/chrys/orchestration/engine/rollback.py:89
+#: src/chrys/orchestration/engine/rollback.py:90
 msgid "rollback.snapshot_missing"
 msgstr "缺少第 {target_turn} 轮的快照。"
 
 #. English: Failed to restore snapshot: {detail}
 #. chrys-meta={"fingerprint":"5c421764fce0143901b56114607b0796a894ba3719bc90f12d5517cd5b38a1e3","multiline":true,"placeholders":["detail"]}
-#: src/chrys/orchestration/engine/rollback.py:98
+#: src/chrys/orchestration/engine/rollback.py:99
 msgid "rollback.swap_failed"
 msgstr "恢复快照失败：{detail}"
 
 #. English: Timed out waiting for session lock: {detail}
 #. chrys-meta={"fingerprint":"c4ceb3022ef4af879535b063a7779fa1c07c1b6f47d8a4f0f5f187ce7ff5d480","multiline":true,"placeholders":["detail"]}
-#: src/chrys/orchestration/engine/rollback.py:93
+#: src/chrys/orchestration/engine/rollback.py:94
 msgid "rollback.swap_locked"
 msgstr "等待会话锁超时：{detail}"
 
 #. English: target_turn must be >= 0.
 #. chrys-meta={"fingerprint":"fb0396255386278b008fc63fc01fb9fd5e585524ec5ac2bfdcccd11bdc523eee","multiline":false,"placeholders":[]}
-#: src/chrys/orchestration/engine/rollback.py:77
+#: src/chrys/orchestration/engine/rollback.py:78
 msgid "rollback.target_turn_invalid"
 msgstr "target_turn 必须大于等于 0。"
 
 #. English: Cannot roll back to turn {target_turn}; available turns:
 #. {available}
 #. chrys-meta={"fingerprint":"d4e1c6f393a4cf0c40880e90736d587941efa19bd472aa18f2350715323d1d03","multiline":false,"placeholders":["available","target_turn"]}
-#: src/chrys/orchestration/engine/rollback.py:81
+#: src/chrys/orchestration/engine/rollback.py:82
 msgid "rollback.turn_unavailable"
 msgstr "无法回滚到第 {target_turn} 轮；可用轮次：{available}"
 
 #. English: Cannot roll back {requested_turns} turns; the session currently has
 #. {current_turns}.
 #. chrys-meta={"fingerprint":"b50ffe94964127935b5a16ad2aef137bea2c4eaa7b5d8f653ac37553ffadc23f","multiline":false,"placeholders":["current_turns","requested_turns"]}
-#: src/chrys/orchestration/engine/rollback.py:73
+#: src/chrys/orchestration/engine/rollback.py:74
 msgid "rollback.turns_unavailable"
 msgstr "无法回滚 {requested_turns} 轮；会话当前有 {current_turns} 轮。"
 
@@ -572,43 +572,43 @@ msgstr "未找到模型配置：{model}。可用模型配置：{available}"
 
 #. English: Agent profile not found: {name}
 #. chrys-meta={"fingerprint":"ec893f5d09a72a0bc5334e2a6bbd62d2fa0fcd1a41f9aa7b97e2bbafc304ab63","multiline":false,"placeholders":["name"]}
-#: src/chrys/orchestration/session_host.py:80
+#: src/chrys/orchestration/session_host.py:81
 msgid "session_host.agent_profile_not_found"
 msgstr "未找到智能体配置：{name}"
 
 #. English: Agent profile not found: {name}. Available profiles: {available}
 #. chrys-meta={"fingerprint":"e764c18ab99cf9f25dd0f63bd5760b0117b82136b71b952c9ea9ca8a56e12368","multiline":false,"placeholders":["available","name"]}
-#: src/chrys/orchestration/session_host.py:84
+#: src/chrys/orchestration/session_host.py:85
 msgid "session_host.agent_profile_not_found_with_available"
 msgstr "未找到智能体配置：{name}。可用智能体配置：{available}"
 
 #. English: Agent requested user input in headless mode: {detail}
 #. chrys-meta={"fingerprint":"dc6ab80f7040708ecb8cdea4985cc926f3695b4b65fa3ef01ce0ceaf962ecd60","multiline":true,"placeholders":["detail"]}
-#: src/chrys/orchestration/session_host.py:104
+#: src/chrys/orchestration/session_host.py:105
 msgid "session_host.headless_interaction_required"
 msgstr "智能体在无界面模式下请求用户输入：{detail}"
 
 #. English: Agent run ended without a final response.
 #. chrys-meta={"fingerprint":"5ebeb2248b225f57851eb6d7be0459e013046a04926bcd78d3e078e9639aea91","multiline":false,"placeholders":[]}
-#: src/chrys/orchestration/session_host.py:100
+#: src/chrys/orchestration/session_host.py:101
 msgid "session_host.no_final_response"
 msgstr "智能体运行结束，但未产生最终响应。"
 
 #. English: Session id '{session_id}' is ambiguous.
 #. chrys-meta={"fingerprint":"7a4b38c8e36f7b43409958f620a82031a04f677667fcbd35dbc80e38f1a414cd","multiline":false,"placeholders":["session_id"]}
-#: src/chrys/orchestration/session_host.py:96
+#: src/chrys/orchestration/session_host.py:97
 msgid "session_host.session_id_ambiguous"
 msgstr "会话 ID“{session_id}”存在歧义。"
 
 #. English: Session not found: {session_id}
 #. chrys-meta={"fingerprint":"c3a7566b3d85bc5ed180316d6403fed8891dfed28367b1af3225547506c72fc2","multiline":false,"placeholders":["session_id"]}
-#: src/chrys/orchestration/session_host.py:88
+#: src/chrys/orchestration/session_host.py:89
 msgid "session_host.session_not_found"
 msgstr "未找到会话：{session_id}"
 
 #. English: Session not found: {session_id}. Recent sessions: {recent}
 #. chrys-meta={"fingerprint":"c6f535c1d40398747bd66b1b7e6837d061de9f2ad4d5e2a7dbb71f6971b11582","multiline":false,"placeholders":["recent","session_id"]}
-#: src/chrys/orchestration/session_host.py:92
+#: src/chrys/orchestration/session_host.py:93
 msgid "session_host.session_not_found_with_recent"
 msgstr "未找到会话：{session_id}。最近的会话：{recent}"
 
@@ -2974,7 +2974,7 @@ msgstr "正在加载智能体"
 
 #. English: Agent failed to load.
 #. chrys-meta={"fingerprint":"d6044ba84ca996419379aa4ef4c638dabfb2acd6ec84eaef7070ec0b6d24a4f8","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:134
+#: src/chrys/app/tui/screens/main/event_handlers.py:135
 msgid "tui.agent_load.failed"
 msgstr "智能体加载失败。"
 
@@ -2992,7 +2992,7 @@ msgstr "智能体配置已切换：{from_label} -> {to_label}"
 
 #. English: Session ready: {profile}
 #. chrys-meta={"fingerprint":"737ac1453d6624ce3d4764a49c9771301762908822b7fb2b18201dad92ec9036","multiline":false,"placeholders":["profile"]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:269
+#: src/chrys/app/tui/screens/main/event_handlers.py:288
 msgid "tui.agent_load.finish.session_ready"
 msgstr "会话已就绪：{profile}"
 
@@ -3372,7 +3372,7 @@ msgstr "已标记：{reason}"
 
 #. English: Approval mode: {mode}
 #. chrys-meta={"fingerprint":"54de92c0fa693f1dd1411a606471b7857c877d561be1fd640e1d1f3ef9d6870c","multiline":false,"placeholders":["mode"]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:131
+#: src/chrys/app/tui/screens/main/event_handlers.py:132
 msgid "tui.approval.mode_changed"
 msgstr "审批模式：{mode}"
 
@@ -3439,7 +3439,7 @@ msgstr "请在消息发送给子智能体前审查或编辑。编辑仅对本次
 
 #. English: Approval
 #. chrys-meta={"fingerprint":"e034cf95ac923be84e0a11a87d7245a74c5640c7e92cd1ef91bd1086193ecde0","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:130
+#: src/chrys/app/tui/screens/main/event_handlers.py:131
 msgid "tui.approval.title"
 msgstr "审批"
 
@@ -4319,28 +4319,28 @@ msgstr "正在测试 {subject} 连接"
 #. English: Conversation context compaction stopped because the compaction
 #. breaker was already disabled. The active task may exceed its model window.
 #. chrys-meta={"fingerprint":"cd310bc821e11e07a98d3c8c22f3d819c7f042b7135cb2a371f4216b72a437c5","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:157
+#: src/chrys/app/tui/screens/main/event_handlers.py:176
 msgid "tui.context_pressure.conversation.disabled"
 msgstr "对话上下文压缩已停止，因为压缩断路器已被禁用。当前任务可能会超出模型上下文窗口。"
 
 #. English: Conversation context compaction stopped because progress-note
 #. generation failed repeatedly. The active task may exceed its model window.
 #. chrys-meta={"fingerprint":"f2643472f3c48b7e4b793aa17314a560ae26cf11c9b37af5d59044609668788a","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:171
+#: src/chrys/app/tui/screens/main/event_handlers.py:190
 msgid "tui.context_pressure.conversation.generation_failure"
 msgstr "对话上下文压缩已停止，因为进度说明生成反复失败。当前任务可能会超出模型上下文窗口。"
 
 #. English: Conversation context compaction stopped because {reason}. The
 #. active task may exceed its model window.
 #. chrys-meta={"fingerprint":"8461af729d02ff32bb4f357e26c009b955e41fee3278851ede92693ff62a1300","multiline":false,"placeholders":["reason"]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:135
+#: src/chrys/app/tui/screens/main/event_handlers.py:154
 msgid "tui.context_pressure.conversation.generic"
 msgstr "对话上下文压缩已停止，原因是 {reason}。当前任务可能会超出模型上下文窗口。"
 
 #. English: Conversation context compaction stopped because an internal safety
 #. limit was reached. The active task may exceed its model window.
 #. chrys-meta={"fingerprint":"1e943011436da38bbe2f205d8e2cef0a1b4b8d981c9961ac381fdda4d3298e11","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:143
+#: src/chrys/app/tui/screens/main/event_handlers.py:162
 msgid "tui.context_pressure.conversation.internal_limit"
 msgstr "对话上下文压缩已停止，因为已达到内部安全限制。当前任务可能会超出模型上下文窗口。"
 
@@ -4348,21 +4348,21 @@ msgstr "对话上下文压缩已停止，因为已达到内部安全限制。当
 #. attempts made insufficient progress. The active task may exceed its model
 #. window.
 #. chrys-meta={"fingerprint":"d25307af5211b47e7101b043820c8fa0bd985b92a3847090fa7d5bc148a916f2","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:185
+#: src/chrys/app/tui/screens/main/event_handlers.py:204
 msgid "tui.context_pressure.conversation.no_progress"
 msgstr "对话上下文压缩已停止，因为反复尝试压缩仍未取得足够进展。当前任务可能会超出模型上下文窗口。"
 
 #. English: Conversation context compaction stopped because the compaction
 #. attempt limit was reached. The active task may exceed its model window.
 #. chrys-meta={"fingerprint":"d481d26e326a97f4599fe0373fd6031d74be49b425d1204c7a37b956170ff079","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:199
+#: src/chrys/app/tui/screens/main/event_handlers.py:218
 msgid "tui.context_pressure.conversation.round_limit"
 msgstr "对话上下文压缩已停止，因为已达到压缩尝试次数上限。当前任务可能会超出模型上下文窗口。"
 
 #. English: Conversation context compaction stopped because the progress-note
 #. token budget was exhausted. The active task may exceed its model window.
 #. chrys-meta={"fingerprint":"fb4f69769976c0f89612e956501d359af7b794f662c309bb77dbce7642f61a3c","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:213
+#: src/chrys/app/tui/screens/main/event_handlers.py:232
 msgid "tui.context_pressure.conversation.side_call_budget"
 msgstr "对话上下文压缩已停止，因为进度说明的词元预算已耗尽。当前任务可能会超出模型上下文窗口。"
 
@@ -4370,35 +4370,35 @@ msgstr "对话上下文压缩已停止，因为进度说明的词元预算已耗
 #. storage could not be durably checkpointed. The active task may exceed its
 #. model window.
 #. chrys-meta={"fingerprint":"eadf98a6ad6e54061da4b9e908a0a71d414e7ff7544414263574e429dc75766d","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:227
+#: src/chrys/app/tui/screens/main/event_handlers.py:246
 msgid "tui.context_pressure.conversation.spill_abort"
 msgstr "对话上下文压缩已停止，因为无法持久保存丢弃调用的检查点。当前任务可能会超出模型上下文窗口。"
 
 #. English: Sub-agent context compaction stopped because the compaction breaker
 #. was already disabled. The active task may exceed its model window.
 #. chrys-meta={"fingerprint":"8d657ea3a97cce1edf61ceb4d8ad038a3c119f53caeb39cc22d877075f17ce13","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:164
+#: src/chrys/app/tui/screens/main/event_handlers.py:183
 msgid "tui.context_pressure.sub_agent.disabled"
 msgstr "子智能体上下文压缩已停止，因为压缩断路器已被禁用。当前任务可能会超出模型上下文窗口。"
 
 #. English: Sub-agent context compaction stopped because progress-note
 #. generation failed repeatedly. The active task may exceed its model window.
 #. chrys-meta={"fingerprint":"ed2b2c1a09600fc1fdec60dd985eccde8c80402e5d6b57a831b5ec1814d3c69a","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:178
+#: src/chrys/app/tui/screens/main/event_handlers.py:197
 msgid "tui.context_pressure.sub_agent.generation_failure"
 msgstr "子智能体上下文压缩已停止，因为进度说明生成反复失败。当前任务可能会超出模型上下文窗口。"
 
 #. English: Sub-agent context compaction stopped because {reason}. The active
 #. task may exceed its model window.
 #. chrys-meta={"fingerprint":"8029e980e4168a2ca95ede30131d7c7c2f6434f1d6b85d5b898593ec00f7824a","multiline":false,"placeholders":["reason"]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:139
+#: src/chrys/app/tui/screens/main/event_handlers.py:158
 msgid "tui.context_pressure.sub_agent.generic"
 msgstr "子智能体上下文压缩已停止，原因是 {reason}。当前任务可能会超出模型上下文窗口。"
 
 #. English: Sub-agent context compaction stopped because an internal safety
 #. limit was reached. The active task may exceed its model window.
 #. chrys-meta={"fingerprint":"f1688bb0ed53a248d65bb77075ff2c3698c79a4bed0190ca02db6a0265234855","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:150
+#: src/chrys/app/tui/screens/main/event_handlers.py:169
 msgid "tui.context_pressure.sub_agent.internal_limit"
 msgstr "子智能体上下文压缩已停止，因为已达到内部安全限制。当前任务可能会超出模型上下文窗口。"
 
@@ -4406,21 +4406,21 @@ msgstr "子智能体上下文压缩已停止，因为已达到内部安全限制
 #. attempts made insufficient progress. The active task may exceed its model
 #. window.
 #. chrys-meta={"fingerprint":"081b51cc34235a8c94d94a0e3e906e5a64a2ed695451442bcda0f7cac0cd2b65","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:192
+#: src/chrys/app/tui/screens/main/event_handlers.py:211
 msgid "tui.context_pressure.sub_agent.no_progress"
 msgstr "子智能体上下文压缩已停止，因为反复尝试压缩仍未取得足够进展。当前任务可能会超出模型上下文窗口。"
 
 #. English: Sub-agent context compaction stopped because the compaction attempt
 #. limit was reached. The active task may exceed its model window.
 #. chrys-meta={"fingerprint":"7b89416410b3889770a51b249e4a191ed343205e029a731c1ffebad61bb1d49f","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:206
+#: src/chrys/app/tui/screens/main/event_handlers.py:225
 msgid "tui.context_pressure.sub_agent.round_limit"
 msgstr "子智能体上下文压缩已停止，因为已达到压缩尝试次数上限。当前任务可能会超出模型上下文窗口。"
 
 #. English: Sub-agent context compaction stopped because the progress-note
 #. token budget was exhausted. The active task may exceed its model window.
 #. chrys-meta={"fingerprint":"c82c6de732ebf6aaef38913979c705aeac5c6b0b1a459eabbaf7242d43e4fd07","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:220
+#: src/chrys/app/tui/screens/main/event_handlers.py:239
 msgid "tui.context_pressure.sub_agent.side_call_budget"
 msgstr "子智能体上下文压缩已停止，因为进度说明的词元预算已耗尽。当前任务可能会超出模型上下文窗口。"
 
@@ -4428,7 +4428,7 @@ msgstr "子智能体上下文压缩已停止，因为进度说明的词元预算
 #. could not be durably checkpointed. The active task may exceed its model
 #. window.
 #. chrys-meta={"fingerprint":"c7432d92d880d6329bb3b978b71cdf4e1f2f85ca08f2bdbad508d06f77372e2a","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:234
+#: src/chrys/app/tui/screens/main/event_handlers.py:253
 msgid "tui.context_pressure.sub_agent.spill_abort"
 msgstr "子智能体上下文压缩已停止，因为无法持久保存丢弃调用的检查点。当前任务可能会超出模型上下文窗口。"
 
@@ -4850,7 +4850,7 @@ msgstr "不是编辑器命令：{command}"
 
 #. English: Unknown error
 #. chrys-meta={"fingerprint":"0645cfe9c2132a7e6925bc416ff64c54e2df0a570c228ee55369d9cadded6c33","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:133
+#: src/chrys/app/tui/screens/main/event_handlers.py:134
 msgid "tui.error.unknown"
 msgstr "未知错误"
 
@@ -5449,7 +5449,7 @@ msgstr "是否中断当前运行？"
 
 #. English: Session Already Open  {message}
 #. chrys-meta={"fingerprint":"8b64c99d3ba428d8d95c7eeff76c35f72de09486eb098459f54d184e9ab9da12","multiline":true,"placeholders":["message"]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:271
+#: src/chrys/app/tui/screens/main/event_handlers.py:290
 msgid "tui.main.session_in_use.message"
 msgstr ""
 "会话已在其他窗口打开\n"
@@ -5458,13 +5458,13 @@ msgstr ""
 
 #. English: OK
 #. chrys-meta={"fingerprint":"6df638960a5ede1f4a19b118e821e01478abe5fc851a4370ac9574784032e9f0","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:276
+#: src/chrys/app/tui/screens/main/event_handlers.py:295
 msgid "tui.main.session_in_use.ok"
 msgstr "确定"
 
 #. English: Session In Use
 #. chrys-meta={"fingerprint":"237cc6d792bf33e263a0532716afba37c9c73f30f36cc6936a08e358195d896e","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:270
+#: src/chrys/app/tui/screens/main/event_handlers.py:289
 msgid "tui.main.session_in_use.title"
 msgstr "会话正在使用中"
 
@@ -7329,6 +7329,42 @@ msgstr "测试通知已发送"
 #: src/chrys/app/tui/notifications/settings.py:22
 msgid "tui.notifications.title"
 msgstr "通知"
+
+#. English: Baseline candidate (provisional)
+#. chrys-meta={"fingerprint":"8e55bedf01747bea641cb2469c256f2c82d1857b0e63e6baf3664b566f5adf88","multiline":false,"placeholders":[]}
+#: src/chrys/app/tui/screens/main/event_handlers.py:136
+msgid "tui.requirement_clarification.baseline_provisional"
+msgstr "基线候选（暂定）"
+
+#. English: Clarifying repository requirements…
+#. chrys-meta={"fingerprint":"0aeba4da89a57d5983bab4b601653416d64f7b0cdfd3d97f46d44b9ee79740e9","multiline":false,"placeholders":[]}
+#: src/chrys/app/tui/screens/main/event_handlers.py:142
+msgid "tui.requirement_clarification.clarification"
+msgstr "正在澄清仓库需求…"
+
+#. English: Finalizing the implementation…
+#. chrys-meta={"fingerprint":"3b9dfc9fedaeea7446cc90c0ab20ef7262483b0ba75f2b2d3cc2182fe28a9543","multiline":false,"placeholders":[]}
+#: src/chrys/app/tui/screens/main/event_handlers.py:146
+msgid "tui.requirement_clarification.finalizing"
+msgstr "正在完成实现…"
+
+#. English: Building an initial implementation…
+#. chrys-meta={"fingerprint":"dc930c14da12376ae2ff5e390825e5f479ffadad860660180b7c60de9b5673ff","multiline":false,"placeholders":[]}
+#: src/chrys/app/tui/screens/main/event_handlers.py:141
+msgid "tui.requirement_clarification.initial"
+msgstr "正在构建初始实现…"
+
+#. English: Repairing the initial implementation…
+#. chrys-meta={"fingerprint":"b90348b759a3a0cf547f0c272781db9de3ffdad516ed3d61bcd14b2d37b7743b","multiline":false,"placeholders":[]}
+#: src/chrys/app/tui/screens/main/event_handlers.py:145
+msgid "tui.requirement_clarification.repair"
+msgstr "正在修复初始实现…"
+
+#. English: Freezing the turn workspace…
+#. chrys-meta={"fingerprint":"6b7e77ec5925d84b41755c7ba3ad72d3583b2f88f930db9805583a69dc1b607b","multiline":false,"placeholders":[]}
+#: src/chrys/app/tui/screens/main/event_handlers.py:140
+msgid "tui.requirement_clarification.snapshot"
+msgstr "正在冻结本轮工作区…"
 
 #. English: Rollback cancelled because the active session changed.
 #. chrys-meta={"fingerprint":"7ec29e015ec11115fb6dee0ad34efeccdbcb7d0dfe67bf57e39b4dbc2d081c42","multiline":false,"placeholders":[]}
@@ -11445,13 +11481,13 @@ msgstr "图像输入不可用"
 
 #. English: Image Not Attached
 #. chrys-meta={"fingerprint":"ef95faf3f92a8e25a04f799c4eb59a191611e52c36d518a409ad798f6232d340","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:277
+#: src/chrys/app/tui/screens/main/event_handlers.py:296
 msgid "tui.vision_unsupported.title.not_attached"
 msgstr "图像未附加"
 
 #. English: Warning
 #. chrys-meta={"fingerprint":"d921f3bd2bb07927d457aae3c3560e726748eed4cd9009826372a2d82f02b65c","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:132
+#: src/chrys/app/tui/screens/main/event_handlers.py:133
 msgid "tui.warning.title"
 msgstr "警告"
 
@@ -11607,3 +11643,4 @@ msgstr "提示已被钩子阻止。"
 
 #~ msgid "tui.welcome.profile"
 #~ msgstr "智能体配置：{name}"
+

@@ -164,6 +164,7 @@ class TestStreamStallPerChunk:
         executor.trajectory_context = None
         executor._agent = _Agent()
         executor._intermediate_buffer = None
+        executor._requirement_phase = ""
         executor._stream_attempt_timeout = 1.0
         executor._interrupt = SimpleNamespace(is_interrupted=False)
         executor._current_agent_task = None
@@ -232,6 +233,7 @@ class TestStreamStallPerChunk:
         executor.trajectory_context = None
         executor._agent = _Agent()
         executor._intermediate_buffer = None
+        executor._requirement_phase = ""
         executor._stream_attempt_timeout = 0.01
         executor._interrupt = SimpleNamespace(is_interrupted=False)
         executor._current_agent_task = None
@@ -273,6 +275,7 @@ class TestStreamStallPerChunk:
         executor.trajectory_context = None
         executor._agent = _Agent()
         executor._intermediate_buffer = None
+        executor._requirement_phase = ""
         executor._stream_attempt_timeout = 0.01
         executor._interrupt = SimpleNamespace(is_interrupted=False)
         executor._current_agent_task = None
@@ -319,6 +322,7 @@ class TestStreamStallPerChunk:
         executor.trajectory_context = None
         executor._agent = _Agent()
         executor._intermediate_buffer = None
+        executor._requirement_phase = ""
         executor._stream_attempt_timeout = 0.05
         executor._interrupt = SimpleNamespace(is_interrupted=False)
         executor._current_agent_task = None
@@ -384,6 +388,7 @@ class TestStreamStallPerChunk:
         executor.trajectory_context = None
         executor._agent = _Agent()
         executor._intermediate_buffer = None
+        executor._requirement_phase = ""
         executor._stream_attempt_timeout = 1.5
         executor._interrupt = SimpleNamespace(is_interrupted=False)
         executor._current_agent_task = None
@@ -444,6 +449,7 @@ class TestStreamStallPerChunk:
         executor.trajectory_context = None
         executor._agent = _Agent()
         executor._intermediate_buffer = None
+        executor._requirement_phase = ""
         executor._stream_attempt_timeout = 1.5
         executor._interrupt = SimpleNamespace(is_interrupted=False)
         executor._current_agent_task = None

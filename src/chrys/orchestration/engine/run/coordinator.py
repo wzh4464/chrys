@@ -324,6 +324,13 @@ class TurnCoordinator:
             # also inject only has to be added to
             # :meth:`EngineStateMachine.is_running` to be covered here.
             if host._fsm.is_running():
+                workflow = getattr(host, "_requirement_clarification_workflow", None)
+                if workflow is not None and workflow.accepts_amendments:
+                    return await self._admit_requirement_amendment(
+                        workflow,
+                        event,
+                        preparation=preparation,
+                    )
                 return await ActiveTurnInjector(host).inject(
                     event.text,
                     created_at=event.timestamp,
@@ -515,6 +522,47 @@ class TurnCoordinator:
             if admission is not None and not admission_released:
                 host._turn_state.release_prompt_admission(admission)
 
+    async def _admit_requirement_amendment(
+        self,
+        workflow: Any,
+        event: UserMessage,
+        *,
+        preparation: PreparationTrace | None,
+    ) -> bool:
+        """Route late user authority into the live clarification revision."""
+        if await self._abandon_cancelled_injection_submit(event):
+            if preparation is not None:
+                await preparation.finished(outcome=PreparationOutcome.CANCELLED)
+            return False
+        if await PromptContentPreparer(self._host).reject_injected_images(
+            event.text,
+            session_id=self._host._session_id,
+        ):
+            if preparation is not None:
+                await preparation.finished(outcome=PreparationOutcome.IMAGE_REJECTED)
+            return False
+        decision = await self._evaluate_user_prompt_submit(
+            event.text,
+            injected=True,
+            target_operation_id=preparation.committed_operation_id if preparation is not None else None,
+        )
+        if await self._handle_user_prompt_submit_decision(decision, injected=True):
+            if preparation is not None:
+                await preparation.finished(outcome=PreparationOutcome.REJECTED)
+            return False
+        accepted = await workflow.accept_amendment(
+            event.text,
+            created_at=event.timestamp,
+            injection_id=event.injection_id,
+        )
+        if accepted:
+            self._queue_prompt_hook_reminders(decision, injected=True)
+        if preparation is not None:
+            await preparation.finished(
+                outcome=PreparationOutcome.INJECTED if accepted else PreparationOutcome.TARGET_STALE
+            )
+        return accepted
+
     async def on_user_interrupt(self, _event: UserInterrupt) -> None:
         """Handle user interrupt.
 
@@ -541,6 +589,9 @@ class TurnCoordinator:
         executor = host._executor
         interrupt_task = host._turn_state.run_task
         host._trajectory_recorder.interrupt_requested_soon()
+        workflow = getattr(host, "_requirement_clarification_workflow", None)
+        if workflow is not None:
+            await workflow.request_stop()
         if executor is not None and not executor.is_running:
             host._turn_state.request_pre_executor_interrupt(interrupt_task)
         if host._sub_agent_tools is not None:

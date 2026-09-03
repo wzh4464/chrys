@@ -46,8 +46,15 @@ from chrys.service.mutations.tracker import MutationTracker
 from chrys.service.mutations.workspace_changes import WorkspaceChangeTracker
 from chrys.service.profiles.models.resolver import loaded_with_active_model_profile
 from chrys.service.profiles.models.schema import API_STYLE_RESPONSES, is_model_profile_selectable
+from chrys.service.requirement_clarification.artifacts import (
+    latest_incomplete_workflow,
+    load_private_json,
+    mark_workflow_recovered,
+)
+from chrys.service.requirement_clarification.snapshot import WorkspaceSnapshotter
 from chrys.service.session.runtime_metadata import SessionRuntimeMetadata
 from chrys.service.session.sub_agent_logs import SubAgentSessionArtifactService
+from chrys.service.state.serializers import deserialize_state
 from chrys.service.state.store import (
     SESSION_BACKUP_FILE_NAME,
     SESSION_FILE_NAME,
@@ -1193,7 +1200,8 @@ async def _hydrate_restored_session(
                 agent_profile_fingerprint=engine._agent_profile_fingerprint,
             )
 
-    restored_history_changed = profile_switch is not None
+    requirement_workflow_recovered = await _recover_incomplete_requirement_workflow(engine)
+    restored_history_changed = profile_switch is not None or requirement_workflow_recovered
     paused_records: list[dict[str, Any]] = []
     injected_paused_results = 0
     artifact_service = (
@@ -1310,6 +1318,95 @@ async def _hydrate_restored_session(
     # overtake this restored snapshot.
     usage.enqueue_usage_event(engine, engine._make_usage_event(session_id=event.session_id))
     await _fire_session_restored_hook(engine, restored_session_id=event.session_id, profile_name=profile_name)
+
+
+async def _recover_incomplete_requirement_workflow(engine: SessionLifecycleHost) -> bool:
+    """Promote a crash-surviving P0 only when the live workspace is byte-identical."""
+    session_dir = engine._session_dir
+    executor = engine._executor
+    if session_dir is None or executor is None:
+        return False
+    artifacts = latest_incomplete_workflow(session_dir)
+    if artifacts is None:
+        return False
+    turn_counter = executor.history_state.get("turn_counter", 0)
+    if isinstance(turn_counter, int) and turn_counter >= artifacts.turn_number:
+        detail = "The requirement-clarification turn was already committed before shutdown."
+        mark_workflow_recovered(artifacts, detail=detail, conflicted=False)
+        for name in ("s0", "p0"):
+            path = artifacts.root / name
+            if path.is_dir() and not path.is_symlink():
+                shutil.rmtree(path, ignore_errors=True)
+        return False
+    p0_root = artifacts.root / "p0"
+    transcript_path = artifacts.root / "initial_implementation.private.json"
+    try:
+        snapshot = WorkspaceSnapshotter.load(p0_root)
+        matches = await asyncio.to_thread(WorkspaceSnapshotter().matches, snapshot)
+    except Exception as exc:
+        detail = f"An interrupted requirement-clarification workflow could not recover P0: {exc}"
+        logger.warning(detail, exc_info=True)
+        mark_workflow_recovered(artifacts, detail=detail, conflicted=True)
+        await engine.event_bus.publish(
+            Warning(
+                code="requirement_clarification_recovery_conflict",
+                message=detail,
+                session_id=engine._session_id,
+            )
+        )
+        return False
+    if not matches:
+        detail = (
+            "An interrupted requirement-clarification workflow found workspace changes after P0; "
+            "the workspace was left untouched. Start a new turn to reconcile it."
+        )
+        mark_workflow_recovered(artifacts, detail=detail, conflicted=True)
+        await engine.event_bus.publish(
+            Warning(
+                code="requirement_clarification_recovery_conflict",
+                message=detail,
+                session_id=engine._session_id,
+            )
+        )
+        return False
+    try:
+        transcript = load_private_json(transcript_path)
+        raw_history = transcript.get("history")
+        if not isinstance(raw_history, dict):
+            raise ValueError("P0 transcript does not contain history")
+        executor.history_state = deserialize_state(raw_history)
+        # Never continue a provider response announced by the abandoned
+        # workflow. P0 is promoted from local history only.
+        executor.service_session_id = ""
+        engine._history.bind(executor.history_state)
+        engine._history.insert_turn_marker()
+        engine._turn_number = executor.history_state.get("turn_counter", artifacts.turn_number)
+        detail = "Recovered the last complete P0 from an interrupted requirement-clarification workflow."
+        mark_workflow_recovered(artifacts, detail=detail, conflicted=False)
+    except Exception as exc:
+        detail = f"An interrupted requirement-clarification workflow had an invalid P0 transcript: {exc}"
+        logger.warning(detail, exc_info=True)
+        mark_workflow_recovered(artifacts, detail=detail, conflicted=True)
+        await engine.event_bus.publish(
+            Warning(
+                code="requirement_clarification_recovery_conflict",
+                message=detail,
+                session_id=engine._session_id,
+            )
+        )
+        return False
+    WorkspaceSnapshotter.discard(snapshot)
+    s0_root = artifacts.root / "s0"
+    if s0_root.is_dir() and not s0_root.is_symlink():
+        shutil.rmtree(s0_root, ignore_errors=True)
+    await engine.event_bus.publish(
+        Warning(
+            code="requirement_clarification_recovered_p0",
+            message=detail,
+            session_id=engine._session_id,
+        )
+    )
+    return True
 
 
 async def _fire_session_restored_hook(

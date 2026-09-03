@@ -1969,6 +1969,12 @@ def test_live_catalog_artifacts_contain_effective_translations_and_are_loadable(
         "tui.notifications.test_failed",
         "tui.notifications.test_sent",
         "tui.notifications.title",
+        "tui.requirement_clarification.baseline_provisional",
+        "tui.requirement_clarification.clarification",
+        "tui.requirement_clarification.finalizing",
+        "tui.requirement_clarification.initial",
+        "tui.requirement_clarification.repair",
+        "tui.requirement_clarification.snapshot",
         "tui.rollback.active_session_changed",
         "tui.rollback.agent_running",
         "tui.rollback.button.close",
@@ -3296,7 +3302,7 @@ def test_live_catalog_artifacts_contain_effective_translations_and_are_loadable(
             "tui.trajectory.tool_usage.unattributed",
         }
     )
-    assert len(expected_ids) == 1812
+    assert len(expected_ids) == 1818
     assert {_entry_id(message) for message in pot if message.id} == expected_ids
     assert {_entry_id(message) for message in po if message.id} == expected_ids
     assert set(_effective_catalog_entries(po)) == expected_ids

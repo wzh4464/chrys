@@ -1,0 +1,15 @@
+id: deepseek-v4-pro-0813-openrouter
+name: DeepSeek V4 Pro 0813 (OpenRouter)
+provider: openai
+api_style: chat_completions
+model_id: deepseek/deepseek-v4-pro-0813
+max_context_tokens: 1048576
+max_output_tokens: 64000
+base_url: https://openrouter.ai/api/v1
+api_key: "{{OPENROUTER_API_KEY}}"
+http_connect_timeout: 10
+http_read_timeout: 600
+http_max_retries: 2
+chat_options: '{"extra_body":{"reasoning":{"effort":"high"}}}'
+stream: true
+vision: false
