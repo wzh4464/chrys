@@ -403,3 +403,82 @@ async def test_a_failed_rollback_ends_the_turn_instead_of_leaving_it_open(
     assert executor.published_finals == []
     assert [error.code for error in errors] == ["requirement_clarification_conflicted"]
     assert "rollback failed" in errors[0].message
+
+
+async def test_stop_during_clarification_does_not_wait_out_the_timeout(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The executor is idle here, so interrupting it reaches nothing.
+
+    Without cancelling the side calls themselves, Stop was not honoured until
+    they finished or timed out — half an hour with the shipped default.
+    """
+
+    async def _direct(function, /, *args, **kwargs):
+        return function(*args, **kwargs)
+
+    started = asyncio.Event()
+
+    class _SlowService:
+        def __init__(self, _model, **_kwargs) -> None:
+            return
+
+        async def clarify(self, **_kwargs):
+            started.set()
+            await asyncio.sleep(3600)
+            raise AssertionError("the stop never arrived")
+
+        async def generate_pact_input(self, **_kwargs):
+            raise AssertionError("PACT generation must not start after a stop")
+
+    monkeypatch.setattr(workflow_module.asyncio, "to_thread", _direct)
+    monkeypatch.setattr(workflow_module, "ClarificationService", _SlowService)
+    monkeypatch.setattr(workflow_module, "ChrysClarificationModel", lambda **_kwargs: object())
+
+    workspace_root = tmp_path / "workspace"
+    workspace_root.mkdir()
+    workspace_file = workspace_root / "value.txt"
+    workspace_file.write_text("S0\n", encoding="utf-8")
+    executor = _Executor(workspace_file)
+    history = SessionHistoryManager()
+    history.bind(executor.history_state)
+    host = SimpleNamespace(
+        _active_profile=object(),
+        _agent_profile_fingerprint="agent-fp",
+        _model_profile_fingerprint="model-fp",
+        _bus=EventBus(),
+        _consumed_injections=[],
+        _executor=executor,
+        _history=history,
+        _intermediate_texts={},
+        _reminder_middleware=_Reminder(),
+        _session_id="session",
+        _turn_number=0,
+        _turn_state=SimpleNamespace(close_injection_admission=lambda _scope: None),
+        _workspace=Workspace.from_cwd(str(workspace_root)),
+        _session_dir=tmp_path / "session",
+        _requirement_clarification_workflow=None,
+        _accumulate_side_call_usage=lambda _usage: None,
+    )
+    runner = _Runner(host, workspace_file)
+    workflow = RequirementClarificationWorkflow(host, runner, reuse_workspace_as_p0=False, clarification_only=False)
+    workflow._snapshotter = _Snapshotter(workspace_file)
+
+    async def _stop_once_clarifying() -> None:
+        await started.wait()
+        await workflow.request_stop()
+
+    stopper = asyncio.create_task(_stop_once_clarifying())
+    async with asyncio.timeout(10):
+        await workflow.run(
+            "implement it",
+            created_at=None,
+            contents=["implement it"],
+            run_scope=None,
+            injection_window=None,
+            admission_preparation=None,
+        )
+    await stopper
+
+    assert executor.published_finals == ["P0"]
+    assert executor.run_calls == 0

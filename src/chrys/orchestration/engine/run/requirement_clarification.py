@@ -108,6 +108,7 @@ class RequirementClarificationWorkflow:
         self._latest_clarification_status = "completed"
         self._latest_empty_reason: str | None = None
         self._stop_requested = False
+        self._side_calls: asyncio.Future[Any] | None = None
         self._artifacts: ClarificationArtifactStore | None = None
         self._s0: WorkspaceSnapshot | None = None
         self._p0: WorkspaceSnapshot | None = None
@@ -173,9 +174,18 @@ class RequirementClarificationWorkflow:
         return True
 
     async def request_stop(self) -> None:
-        """Stop the active phase and retain P0 whenever it already exists."""
+        """Stop the active phase and retain P0 whenever it already exists.
+
+        The clarification phase runs read-only side agents while the executor
+        sits idle, so interrupting the executor reaches nothing: without
+        cancelling the side calls themselves a Stop was not honoured until they
+        finished or timed out, which is half an hour with the shipped default.
+        """
         self._stop_requested = True
         await self._extensions.cancel()
+        side_calls = self._side_calls
+        if side_calls is not None and not side_calls.done():
+            side_calls.cancel()
         if self._host._executor.is_running:
             await self._host._executor.interrupt()
 
@@ -394,16 +404,17 @@ class RequirementClarificationWorkflow:
                     strategy=self._strategy,
                 )
                 try:
+                    self._side_calls = asyncio.gather(
+                        clarification_service.clarify(
+                            revision=revision,
+                            background=history_background,
+                            snapshot=s0,
+                        ),
+                        self._extensions.on_clarification_start(revision, s0),
+                        return_exceptions=True,
+                    )
                     async with asyncio.timeout(self._clarification_timeout_seconds):
-                        clarified, extension_outcome = await asyncio.gather(
-                            clarification_service.clarify(
-                                revision=revision,
-                                background=history_background,
-                                snapshot=s0,
-                            ),
-                            self._extensions.on_clarification_start(revision, s0),
-                            return_exceptions=True,
-                        )
+                        clarified, extension_outcome = await self._side_calls
                     if isinstance(extension_outcome, BaseException):
                         # Parallel work is additive: losing it costs evidence,
                         # never the clarification the turn actually needs.
@@ -418,6 +429,14 @@ class RequirementClarificationWorkflow:
                     if isinstance(clarified, BaseException):
                         raise clarified
                     result = clarified
+                except asyncio.CancelledError:
+                    # Only a Stop turns a cancellation into a graceful P0. Any
+                    # other cancellation is the turn itself going away and has
+                    # to keep propagating.
+                    if not self._stop_requested:
+                        raise
+                    await self._deliver_p0(p0_text, revision, detail="workflow stopped during clarification")
+                    return
                 except Exception as exc:
                     logger.warning("Requirement clarification side calls failed", exc_info=True)
                     detail = f"{type(exc).__name__}: {exc}"[:1000]
@@ -432,6 +451,8 @@ class RequirementClarificationWorkflow:
                         empty_reason="clarification_failed",
                         warnings=(f"clarification failed: {detail}",),
                     )
+                finally:
+                    self._side_calls = None
                 if revision.number != self._revision.number:
                     continue
                 self._latest_delta = result.delta
@@ -449,7 +470,7 @@ class RequirementClarificationWorkflow:
                         detail=f"clarification result persistence failed: {exc}",
                     )
                     return
-                if result.status == "completed":
+                if result.status == "completed" and not self._stop_requested:
                     pact_service = ClarificationService(
                         ChrysClarificationModel(
                             profile=model_profile,
