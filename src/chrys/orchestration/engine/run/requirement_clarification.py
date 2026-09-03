@@ -715,7 +715,9 @@ class RequirementClarificationWorkflow:
                     session_id=self._host._session_id,
                 )
             )
-        await executor.publish_last_response_as_final()
+        # A reused workspace synthesises its baseline text without running a
+        # P0 pass, so nothing showed it yet; every other path already did.
+        await executor.publish_last_response_as_final(repeats_provisional=not self._reuse_workspace_as_p0)
         await self._phase(RequirementWorkflowPhase.FINALIZING, revision.number, detail=detail)
         await self._extensions.after_repair(
             RepairOutcome(

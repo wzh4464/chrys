@@ -300,6 +300,10 @@ class AgentMessage(Event):
             should render the text but keep the running state active.
         is_provisional: ``True`` for a complete baseline candidate that is
             visible but must not terminate the logical turn.
+        repeats_provisional: ``True`` when this terminal message carries text
+            already shown as a provisional. The event still has to be
+            published -- it is the turn-complete signal -- but a frontend that
+            already rendered that text must not render it a second time.
         requirement_phase: Internal workflow phase associated with this text.
     """
 
@@ -307,6 +311,7 @@ class AgentMessage(Event):
     is_final: bool = True
     is_intermediate: bool = False
     is_provisional: bool = False
+    repeats_provisional: bool = False
     requirement_phase: str = ""
     structured_output_completed: bool = False
     presentation: ProvisionalPresentation | None = None

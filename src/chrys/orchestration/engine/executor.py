@@ -506,12 +506,21 @@ class Executor:
         self._last_response_text = text
         self._pending_continuation_token = None
 
-    async def publish_last_response_as_final(self) -> None:
-        """Promote the retained response to the terminal answer."""
+    async def publish_last_response_as_final(self, *, repeats_provisional: bool = False) -> None:
+        """Promote the retained response to the terminal answer.
+
+        Promotion is how a degraded clarification delivers P0, and when a P0
+        pass ran, that text is already on screen as a provisional. The event is
+        still required -- it is the frontend's turn-complete signal -- so the
+        caller flags it instead, and a frontend that already rendered that text
+        renders nothing new. Only the caller knows whether a P0 pass ran at
+        all: a reused workspace synthesises its baseline without one.
+        """
         await self._bus.publish(
             AgentMessage(
                 text=self._last_response_text,
                 is_final=True,
+                repeats_provisional=repeats_provisional,
                 requirement_phase=self._requirement_phase,
                 workflow_phase=self._requirement_phase,
                 **self._assistant_message_event_kwargs(),

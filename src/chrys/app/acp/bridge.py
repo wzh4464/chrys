@@ -579,6 +579,12 @@ class AcpEventBridge:
         text = event.text
         if not text:
             return ""
+        if event.repeats_provisional:
+            # The promotion of a baseline already sent as a provisional. It
+            # still has to reach the turn's terminal handling, but resending
+            # the text would make the client show the same answer twice.
+            self._last_streaming_agent_text = ""
+            return ""
         if event.is_provisional:
             # ACP has no provisional/retractable assistant block. Present P0
             # as an explicitly labelled snapshot and reset cumulative-delta

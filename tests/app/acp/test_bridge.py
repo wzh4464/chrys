@@ -114,6 +114,20 @@ def test_bridge_labels_requirement_baseline_and_emits_repair_in_full() -> None:
     assert repaired[0].content.text == "final repair"
 
 
+def test_bridge_does_not_resend_a_promoted_baseline() -> None:
+    """A degraded clarification promotes the P0 the client already received.
+
+    The terminal event still has to arrive — it closes the turn — but resending
+    its text would make the client show the same answer twice.
+    """
+    bridge = AcpEventBridge()
+
+    bridge.updates_for_event(AgentMessage(text="baseline", is_final=False, is_provisional=True))
+    promoted = bridge.updates_for_event(AgentMessage(text="baseline", is_final=True, repeats_provisional=True))
+
+    assert [update.content.text for update in promoted if hasattr(update, "content")] == []
+
+
 def test_bridge_keeps_rejected_provisional_text_and_resets_the_stream_baseline() -> None:
     bridge = AcpEventBridge()
 

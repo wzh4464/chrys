@@ -1128,12 +1128,17 @@ class BackendEventHandler:
             terminal_owned = False
             try:
                 ui.flash_turn_complete()
-                await ui.add_agent_message(
-                    event.text,
-                    is_final=True,
-                    structured_output_completed=event.structured_output_completed,
-                    created_at=event.timestamp,
-                )
+                if not event.repeats_provisional:
+                    # A promoted baseline is already on screen under its
+                    # provisional heading. The event still closes the turn --
+                    # that is what the rest of this block does -- but mounting
+                    # it again would make the user read the answer twice.
+                    await ui.add_agent_message(
+                        event.text,
+                        is_final=True,
+                        structured_output_completed=event.structured_output_completed,
+                        created_at=event.timestamp,
+                    )
             finally:
                 if self._state.run.generation == terminal_generation and s.agent_running:
                     ui.mark_terminal_title_completed()

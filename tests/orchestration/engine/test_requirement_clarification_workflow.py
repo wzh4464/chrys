@@ -48,6 +48,7 @@ class _Executor:
         self.run_failed = False
         self.was_interrupted = False
         self.last_response_text = ""
+        self.promotions_repeating_provisional: list[bool] = []
         self.is_running = False
         self.phase = ""
         self.workspace_file = workspace_file
@@ -88,7 +89,8 @@ class _Executor:
         self.was_interrupted = False
         self.last_response_text = text
 
-    async def publish_last_response_as_final(self) -> None:
+    async def publish_last_response_as_final(self, *, repeats_provisional: bool = False) -> None:
+        self.promotions_repeating_provisional.append(repeats_provisional)
         self.published_finals.append(self.last_response_text)
 
     async def interrupt(self) -> None:
@@ -297,6 +299,9 @@ async def test_workflow_orders_p0_before_delta_and_restores_p0_on_repair_failure
         assert not repair_response.exists()
         expected_p0_text = "Reused the existing workspace implementation as P0." if reuse_workspace_as_p0 else "P0"
         assert executor.published_finals == [expected_p0_text]
+        # A promoted baseline is already on screen as a provisional — unless a
+        # reused workspace synthesised it without ever running a P0 pass.
+        assert executor.promotions_repeating_provisional == [not reuse_workspace_as_p0]
         assert phases[-1] == RequirementWorkflowPhase.COMPLETED
         return
     assert executor.run_calls == 1
@@ -306,6 +311,7 @@ async def test_workflow_orders_p0_before_delta_and_restores_p0_on_repair_failure
         assert snapshotter.restored == 1
         expected_p0_text = "Reused the existing workspace implementation as P0." if reuse_workspace_as_p0 else "P0"
         assert executor.published_finals == [expected_p0_text]
+        assert executor.promotions_repeating_provisional == [not reuse_workspace_as_p0]
         assert workspace_file.read_text(encoding="utf-8") == "P0\n"
         assert phases[-1] == RequirementWorkflowPhase.DEGRADED
         assert json.loads(repair_response.read_text(encoding="utf-8"))["status"] in {"failed", "timed_out"}
