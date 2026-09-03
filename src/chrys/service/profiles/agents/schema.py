@@ -352,6 +352,41 @@ class RequirementClarificationConfig:
 
 
 @dataclass
+class LongHorizonConfig:
+    """What the long-horizon track does once a turn routes into it."""
+
+    localization: bool = True
+    clarification: bool = True
+    pact_tool: str = "chrys_pact"
+    """Sub-agent tool the model calls to delegate a PACT campaign.
+
+    Also the readiness probe's subject: the strong band degrades to lean when
+    this tool is not registered, so a renamed tool must be renamed here too.
+    """
+    require_pact: bool = False
+    """Warn when a delegation pass ended without calling ``pact_tool``."""
+
+
+@dataclass
+class RoutingConfig:
+    """Per-profile policy for classifying a turn as standard or long-horizon."""
+
+    mode: Literal["off", "auto", "always"] = "off"
+    target_profile: str = ""
+    """Profile to switch into on a long-horizon decision; empty stays put.
+
+    Built-in ``Code`` points at ``LongHorizon`` so the enhanced tools live on
+    one profile instead of every coding profile carrying them.
+    """
+    classifier: Literal["heuristic", "llm", "both"] = "both"
+    min_confidence: float = 0.7
+    """Lowest LLM-tiebreaker confidence that still reaches the lean band."""
+    inherit: bool = True
+    stale_after_seconds: float = 1800.0
+    long_horizon: LongHorizonConfig = field(default_factory=LongHorizonConfig)
+
+
+@dataclass
 class AgentProfile:
     """Complete agent profile definition.
 
@@ -385,4 +420,5 @@ class AgentProfile:
     compaction: CompactionConfig = field(default_factory=CompactionConfig)
     memory: MemoryConfig = field(default_factory=MemoryConfig)
     requirement_clarification: RequirementClarificationConfig = field(default_factory=RequirementClarificationConfig)
+    routing: RoutingConfig = field(default_factory=RoutingConfig)
     metadata: dict[str, Any] = field(default_factory=dict)

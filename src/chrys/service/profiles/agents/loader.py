@@ -26,10 +26,12 @@ from chrys.service.profiles.agents.schema import (
     AgentProfile,
     ApprovalConfig,
     CompactionConfig,
+    LongHorizonConfig,
     MCPServerConfig,
     MemoryConfig,
     ModelConfig,
     RequirementClarificationConfig,
+    RoutingConfig,
     ShellFilterConfig,
     SkillConfig,
     SkillResourceConfig,
@@ -41,6 +43,7 @@ from chrys.service.profiles.agents.schema import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -594,6 +597,96 @@ def _parse_requirement_clarification(raw: object) -> RequirementClarificationCon
     )
 
 
+_ROUTING_MODES = frozenset({"off", "auto", "always"})
+_ROUTING_CLASSIFIERS = frozenset({"heuristic", "llm", "both"})
+
+
+def _bool_field(raw_map: Mapping[str, Any], name: str, default: bool, *, section: str) -> bool:
+    value = raw_map.get(name, default)
+    if not isinstance(value, bool):
+        raise AgentProfileLoadError(f"Agent profile field '{section}.{name}' must be a boolean")
+    return value
+
+
+def _parse_long_horizon(raw: object) -> LongHorizonConfig:
+    if raw is None:
+        return LongHorizonConfig()
+    raw_map = _mapping_section(raw, "routing.long_horizon")
+    pact_tool = raw_map.get("pact_tool", "chrys_pact")
+    if not isinstance(pact_tool, str) or not pact_tool.strip():
+        msg = "Agent profile field 'routing.long_horizon.pact_tool' must be a non-empty string"
+        raise AgentProfileLoadError(msg)
+    unknown = set(raw_map) - {"localization", "clarification", "pact_tool", "require_pact"}
+    if unknown:
+        msg = "Unknown agent profile routing.long_horizon field(s): " + ", ".join(sorted(unknown))
+        raise AgentProfileLoadError(msg)
+    return LongHorizonConfig(
+        localization=_bool_field(raw_map, "localization", True, section="routing.long_horizon"),
+        clarification=_bool_field(raw_map, "clarification", True, section="routing.long_horizon"),
+        pact_tool=pact_tool.strip(),
+        require_pact=_bool_field(raw_map, "require_pact", False, section="routing.long_horizon"),
+    )
+
+
+def _parse_routing(raw: object) -> RoutingConfig:
+    if raw is None:
+        return RoutingConfig()
+    raw_map = _mapping_section(raw, "routing")
+    mode = raw_map.get("mode", "off")
+    # YAML 1.1 resolves a bare ``off`` to the boolean False, so the spelling the
+    # documentation uses would otherwise be rejected as "not a string".
+    if mode is False:
+        mode = "off"
+    if not isinstance(mode, str) or mode not in _ROUTING_MODES:
+        allowed = ", ".join(sorted(_ROUTING_MODES))
+        raise AgentProfileLoadError(f"Agent profile field 'routing.mode' must be one of: {allowed}")
+    target_profile = raw_map.get("target_profile", "")
+    if not isinstance(target_profile, str):
+        raise AgentProfileLoadError("Agent profile field 'routing.target_profile' must be a string")
+    classifier = raw_map.get("classifier", "both")
+    if not isinstance(classifier, str) or classifier not in _ROUTING_CLASSIFIERS:
+        allowed = ", ".join(sorted(_ROUTING_CLASSIFIERS))
+        raise AgentProfileLoadError(f"Agent profile field 'routing.classifier' must be one of: {allowed}")
+    min_confidence = raw_map.get("min_confidence", 0.7)
+    if (
+        isinstance(min_confidence, bool)
+        or not isinstance(min_confidence, (int, float))
+        or not math.isfinite(min_confidence)
+        or not 0.0 <= min_confidence <= 1.0
+    ):
+        msg = "Agent profile field 'routing.min_confidence' must be a number between 0 and 1"
+        raise AgentProfileLoadError(msg)
+    stale_after_seconds = raw_map.get("stale_after_seconds", 1800.0)
+    if (
+        isinstance(stale_after_seconds, bool)
+        or not isinstance(stale_after_seconds, (int, float))
+        or not math.isfinite(stale_after_seconds)
+        or stale_after_seconds <= 0
+    ):
+        msg = "Agent profile field 'routing.stale_after_seconds' must be a positive number"
+        raise AgentProfileLoadError(msg)
+    unknown = set(raw_map) - {
+        "mode",
+        "target_profile",
+        "classifier",
+        "min_confidence",
+        "inherit",
+        "stale_after_seconds",
+        "long_horizon",
+    }
+    if unknown:
+        raise AgentProfileLoadError("Unknown agent profile routing field(s): " + ", ".join(sorted(unknown)))
+    return RoutingConfig(
+        mode=cast("Literal['off', 'auto', 'always']", mode),
+        target_profile=target_profile.strip(),
+        classifier=cast("Literal['heuristic', 'llm', 'both']", classifier),
+        min_confidence=float(min_confidence),
+        inherit=_bool_field(raw_map, "inherit", True, section="routing"),
+        stale_after_seconds=float(stale_after_seconds),
+        long_horizon=_parse_long_horizon(raw_map.get("long_horizon")),
+    )
+
+
 def _parse_sub_agents(raw: object) -> SubAgentsConfig:
     if raw is None:
         return SubAgentsConfig()
@@ -702,12 +795,18 @@ def load_profile_from_yaml(path: Path) -> AgentProfile:
             compaction=_parse_compaction(data.get("compaction")),
             memory=_parse_memory(data.get("memory")),
             requirement_clarification=_parse_requirement_clarification(data.get("requirement_clarification")),
+            routing=_parse_routing(data.get("routing")),
             metadata=data.get("metadata", {}),
         )
         if not acp_present:
             return profile
         if profile.requirement_clarification.enabled:
             raise AgentProfileLoadError(f"ACP profile {profile.name!r} cannot enable requirement_clarification")
+        if profile.routing.mode != "off":
+            # An external ACP sub-agent never opens a turn of its own, so it
+            # has nothing to route; a non-off mode here would silently do
+            # nothing and read as a working configuration.
+            raise AgentProfileLoadError(f"ACP profile {profile.name!r} cannot enable routing")
         if not profile.sub_agent_only:
             logger.warning("ACP profile %s must be sub-agent-only; forcing sub_agent_only=true", profile.name)
         profile.sub_agent_only = True
