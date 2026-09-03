@@ -1,5 +1,5 @@
 {
-  "inventory_sha256": "541c66955246a869010ce2b9b7d8748748bc9e1e0158869f25da9963dae6ef23",
+  "inventory_sha256": "6dab9d562fbb44d61508d89728a63bb447267eb44ed89b7f50e121ad27a665d5",
   "nodes": [
     {
       "cases": [
@@ -9660,6 +9660,126 @@
       "source_column": 15,
       "source_line": 275,
       "wrapper_target": null
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await asyncio.sleep(self._poll)",
+      "identity": "chrys.orchestration.engine.memory_writeback:MemoryWritebackWatcher._run:1",
+      "module": "chrys.orchestration.engine.memory_writeback",
+      "ordinal": 1,
+      "primitive": "sleep",
+      "qualname": "MemoryWritebackWatcher._run",
+      "source_column": 12,
+      "source_line": 88,
+      "wrapper_target": null
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await self.flush('idle')",
+      "identity": "chrys.orchestration.engine.memory_writeback:MemoryWritebackWatcher._run:2",
+      "module": "chrys.orchestration.engine.memory_writeback",
+      "ordinal": 2,
+      "primitive": "wrapper",
+      "qualname": "MemoryWritebackWatcher._run",
+      "source_column": 16,
+      "source_line": 92,
+      "wrapper_target": "chrys.orchestration.engine.memory_writeback.MemoryWritebackWatcher.flush"
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "async with self._lock",
+      "identity": "chrys.orchestration.engine.memory_writeback:MemoryWritebackWatcher.flush:1",
+      "module": "chrys.orchestration.engine.memory_writeback",
+      "ordinal": 1,
+      "primitive": "sync_primitive",
+      "qualname": "MemoryWritebackWatcher.flush",
+      "source_column": 19,
+      "source_line": 66,
+      "wrapper_target": null
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await self._on_flush(reason)",
+      "identity": "chrys.orchestration.engine.memory_writeback:MemoryWritebackWatcher.flush:2",
+      "module": "chrys.orchestration.engine.memory_writeback",
+      "ordinal": 2,
+      "primitive": "awaitable",
+      "qualname": "MemoryWritebackWatcher.flush",
+      "source_column": 16,
+      "source_line": 70,
+      "wrapper_target": null
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await self.task",
+      "identity": "chrys.orchestration.engine.memory_writeback:MemoryWritebackWatcher.stop:1",
+      "module": "chrys.orchestration.engine.memory_writeback",
+      "ordinal": 1,
+      "primitive": "future",
+      "qualname": "MemoryWritebackWatcher.stop",
+      "source_column": 16,
+      "source_line": 81,
+      "wrapper_target": null
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await self.flush(reason)",
+      "identity": "chrys.orchestration.engine.memory_writeback:MemoryWritebackWatcher.stop:2",
+      "module": "chrys.orchestration.engine.memory_writeback",
+      "ordinal": 2,
+      "primitive": "wrapper",
+      "qualname": "MemoryWritebackWatcher.stop",
+      "source_column": 12,
+      "source_line": 84,
+      "wrapper_target": "chrys.orchestration.engine.memory_writeback.MemoryWritebackWatcher.flush"
     },
     {
       "cases": [
