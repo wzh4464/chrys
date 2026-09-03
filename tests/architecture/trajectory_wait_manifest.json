@@ -1,5 +1,5 @@
 {
-  "inventory_sha256": "cb3c0d3efbe58a83d27ba9e482ce3cc6245c6f93058e41d31949046912e8503a",
+  "inventory_sha256": "18c9ff4e176e6aa8d4655e2519788c6503e7bef85527f68b0dc1213ffa80c14e",
   "nodes": [
     {
       "cases": [
@@ -13278,8 +13278,48 @@
       "primitive": "awaitable",
       "qualname": "LongHorizonExtensions._degrade",
       "source_column": 8,
-      "source_line": 259,
+      "source_line": 351,
       "wrapper_target": null
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await self._host._bus.publish(Warning(code='long_horizon_delegation_failed', message=detail, session_id=self._host._session_id))",
+      "identity": "chrys.orchestration.engine.run.long_horizon:LongHorizonExtensions._degrade_delegation:1",
+      "module": "chrys.orchestration.engine.run.long_horizon",
+      "ordinal": 1,
+      "primitive": "awaitable",
+      "qualname": "LongHorizonExtensions._degrade_delegation",
+      "source_column": 8,
+      "source_line": 242,
+      "wrapper_target": null
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await self._phase(LongHorizonPhase.DEGRADED, detail, terminal=True)",
+      "identity": "chrys.orchestration.engine.run.long_horizon:LongHorizonExtensions._degrade_delegation:2",
+      "module": "chrys.orchestration.engine.run.long_horizon",
+      "ordinal": 2,
+      "primitive": "wrapper",
+      "qualname": "LongHorizonExtensions._degrade_delegation",
+      "source_column": 8,
+      "source_line": 250,
+      "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._phase"
     },
     {
       "cases": [
@@ -13298,7 +13338,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions._localize",
       "source_column": 12,
-      "source_line": 196,
+      "source_line": 288,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._degrade"
     },
     {
@@ -13318,7 +13358,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions._localize",
       "source_column": 12,
-      "source_line": 200,
+      "source_line": 292,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._degrade"
     },
     {
@@ -13338,7 +13378,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions._localize",
       "source_column": 12,
-      "source_line": 204,
+      "source_line": 296,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._degrade"
     },
     {
@@ -13358,7 +13398,7 @@
       "primitive": "thread_pool",
       "qualname": "LongHorizonExtensions._localize",
       "source_column": 21,
-      "source_line": 207,
+      "source_line": 299,
       "wrapper_target": null
     },
     {
@@ -13378,7 +13418,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions._localize",
       "source_column": 12,
-      "source_line": 220,
+      "source_line": 312,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._degrade"
     },
     {
@@ -13398,7 +13438,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions._localize",
       "source_column": 8,
-      "source_line": 225,
+      "source_line": 317,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._phase"
     },
     {
@@ -13418,7 +13458,7 @@
       "primitive": "awaitable",
       "qualname": "LongHorizonExtensions._phase",
       "source_column": 8,
-      "source_line": 268,
+      "source_line": 360,
       "wrapper_target": null
     },
     {
@@ -13437,8 +13477,148 @@
       "ordinal": 1,
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions.after_repair",
+      "source_column": 12,
+      "source_line": 182,
+      "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._phase"
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await self._degrade_delegation(f'could not stage the PACT inputs: {exc}', outcome)",
+      "identity": "chrys.orchestration.engine.run.long_horizon:LongHorizonExtensions.after_repair:2",
+      "module": "chrys.orchestration.engine.run.long_horizon",
+      "ordinal": 2,
+      "primitive": "wrapper",
+      "qualname": "LongHorizonExtensions.after_repair",
+      "source_column": 12,
+      "source_line": 194,
+      "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._degrade_delegation"
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await self._phase(LongHorizonPhase.DELEGATING, f'request {request.request_id}')",
+      "identity": "chrys.orchestration.engine.run.long_horizon:LongHorizonExtensions.after_repair:3",
+      "module": "chrys.orchestration.engine.run.long_horizon",
+      "ordinal": 3,
+      "primitive": "wrapper",
+      "qualname": "LongHorizonExtensions.after_repair",
       "source_column": 8,
-      "source_line": 172,
+      "source_line": 207,
+      "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._phase"
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await self._degrade_delegation('no turn runner is available for the delegation pass', outcome)",
+      "identity": "chrys.orchestration.engine.run.long_horizon:LongHorizonExtensions.after_repair:4",
+      "module": "chrys.orchestration.engine.run.long_horizon",
+      "ordinal": 4,
+      "primitive": "wrapper",
+      "qualname": "LongHorizonExtensions.after_repair",
+      "source_column": 12,
+      "source_line": 209,
+      "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._degrade_delegation"
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await self._turn_runner._run_fresh_standard(self._requirement, created_at=None, contents=None, run_scope=None, injection_window=None, admission_preparation=None, finalize=False)",
+      "identity": "chrys.orchestration.engine.run.long_horizon:LongHorizonExtensions.after_repair:5",
+      "module": "chrys.orchestration.engine.run.long_horizon",
+      "ordinal": 5,
+      "primitive": "awaitable",
+      "qualname": "LongHorizonExtensions.after_repair",
+      "source_column": 12,
+      "source_line": 212,
+      "wrapper_target": null
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await self._phase(LongHorizonPhase.INTERRUPTED, 'delegation interrupted', terminal=True)",
+      "identity": "chrys.orchestration.engine.run.long_horizon:LongHorizonExtensions.after_repair:6",
+      "module": "chrys.orchestration.engine.run.long_horizon",
+      "ordinal": 6,
+      "primitive": "wrapper",
+      "qualname": "LongHorizonExtensions.after_repair",
+      "source_column": 12,
+      "source_line": 222,
+      "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._phase"
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await self._degrade_delegation(f'delegation pass failed: {exc}', outcome)",
+      "identity": "chrys.orchestration.engine.run.long_horizon:LongHorizonExtensions.after_repair:7",
+      "module": "chrys.orchestration.engine.run.long_horizon",
+      "ordinal": 7,
+      "primitive": "wrapper",
+      "qualname": "LongHorizonExtensions.after_repair",
+      "source_column": 12,
+      "source_line": 227,
+      "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._degrade_delegation"
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await self._phase(LongHorizonPhase.COMPLETED, f'delegated request {request.request_id}', terminal=True)",
+      "identity": "chrys.orchestration.engine.run.long_horizon:LongHorizonExtensions.after_repair:8",
+      "module": "chrys.orchestration.engine.run.long_horizon",
+      "ordinal": 8,
+      "primitive": "wrapper",
+      "qualname": "LongHorizonExtensions.after_repair",
+      "source_column": 8,
+      "source_line": 229,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._phase"
     },
     {
@@ -13458,7 +13638,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions.on_clarification_start",
       "source_column": 8,
-      "source_line": 89,
+      "source_line": 98,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._phase"
     },
     {
@@ -13478,7 +13658,7 @@
       "primitive": "timeout",
       "qualname": "LongHorizonExtensions.on_clarification_start",
       "source_column": 12,
-      "source_line": 92,
+      "source_line": 101,
       "wrapper_target": null
     },
     {
@@ -13498,7 +13678,7 @@
       "primitive": "shield",
       "qualname": "LongHorizonExtensions.on_clarification_start",
       "source_column": 35,
-      "source_line": 92,
+      "source_line": 101,
       "wrapper_target": null
     },
     {
@@ -13518,7 +13698,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions.on_clarification_start",
       "source_column": 12,
-      "source_line": 95,
+      "source_line": 104,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._degrade"
     },
     {
@@ -13538,7 +13718,7 @@
       "primitive": "awaitable",
       "qualname": "LongHorizonExtensions.on_revision",
       "source_column": 8,
-      "source_line": 180,
+      "source_line": 272,
       "wrapper_target": null
     },
     {

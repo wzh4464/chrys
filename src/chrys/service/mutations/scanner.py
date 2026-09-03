@@ -95,6 +95,9 @@ DEFAULT_EXCLUDES: frozenset[str] = frozenset(
         # Containers / infra
         ".terraform",
         ".serverless",
+        # Chrys-owned handoff directory: the inputs a PACT campaign is launched
+        # with are Chrys artifacts, not the user's edits to their repository.
+        ".pact-io",
     }
 )
 

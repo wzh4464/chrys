@@ -15,14 +15,19 @@ import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+from uuid import uuid4
 
 from chrys.foundation.events.types import LongHorizonPhaseChanged, Warning
+from chrys.foundation.platform import safe_getcwd
 from chrys.orchestration.engine.run.workflow_extensions import RepairOutcome
 from chrys.service.profiles.models.registry import ModelProfileRegistry
 from chrys.service.routing.delegation import (
+    PactRunRequest,
     augment_delta_with_locations,
+    build_delegation_reminder,
     build_task_brief,
     localization_hints,
+    materialize_pact_request,
 )
 from chrys.service.semantic_search import SemanticSearchConfig, SemanticSearchMode, localize_requirement
 from chrys.service.semantic_search.localization_model import resolve_localization_model_profile
@@ -66,12 +71,16 @@ class LocalizationOutcome:
 class LongHorizonExtensions:
     """Clarification-workflow extensions for a routed long-horizon turn."""
 
-    def __init__(self, host: Any, decision: RouteDecision) -> None:
+    def __init__(self, host: Any, decision: RouteDecision, *, runner: Any = None) -> None:
         self._host = host
         self._decision = decision
+        # The workflow's own runner: the delegation pass is another executor
+        # pass of the same turn, not a new turn with its own runner.
+        self._turn_runner = runner
         self._workflow_id = ""
         self.localization = LocalizationOutcome()
         self.brief_path: Path | None = None
+        self.request: PactRunRequest | None = None
         self._requirement = ""
         self._task: asyncio.Task[None] | None = None
 
@@ -168,12 +177,92 @@ class LongHorizonExtensions:
 
     async def after_repair(self, outcome: RepairOutcome) -> None:
         """Hand the repaired baseline to a PACT campaign when one is warranted."""
-        self.write_brief(baseline=outcome.baseline)
+        brief_path = self.write_brief(baseline=outcome.baseline)
+        if not self._can_delegate(outcome):
+            await self._phase(
+                LongHorizonPhase.COMPLETED if outcome.status == "succeeded" else LongHorizonPhase.DEGRADED,
+                f"baseline={outcome.baseline}",
+                terminal=True,
+            )
+            return
+        assert outcome.pact_input_dir is not None
+        try:
+            request = materialize_pact_request(Path(self._workspace_cwd()), outcome.pact_input_dir, uuid4().hex[:12])
+        except OSError as exc:
+            await self._degrade_delegation(f"could not stage the PACT inputs: {exc}", outcome)
+            return
+        self.request = request
+        reminder = build_delegation_reminder(
+            brief_path=brief_path or Path("brief.md"),
+            brief_summary=self._brief_summary(),
+            baseline=outcome.baseline,
+            request=request,
+            pact_tool=self._pact_tool(),
+        )
+        reminder_middleware = self._host._reminder_middleware
+        if reminder_middleware is not None:
+            reminder_middleware.queue_hook_reminders([reminder])
+        await self._phase(LongHorizonPhase.DELEGATING, f"request {request.request_id}")
+        if self._turn_runner is None:
+            await self._degrade_delegation("no turn runner is available for the delegation pass", outcome)
+            return
+        try:
+            await self._turn_runner._run_fresh_standard(
+                self._requirement,
+                created_at=None,
+                contents=None,
+                run_scope=None,
+                injection_window=None,
+                admission_preparation=None,
+                finalize=False,
+            )
+        except asyncio.CancelledError:
+            await self._phase(LongHorizonPhase.INTERRUPTED, "delegation interrupted", terminal=True)
+            raise
+        except Exception as exc:
+            # The repaired baseline is already in the workspace and already
+            # answered; a failed hand-off must not discard it.
+            await self._degrade_delegation(f"delegation pass failed: {exc}", outcome)
+            return
         await self._phase(
-            LongHorizonPhase.COMPLETED if outcome.status == "succeeded" else LongHorizonPhase.DEGRADED,
-            f"baseline={outcome.baseline}",
+            LongHorizonPhase.COMPLETED,
+            f"delegated request {request.request_id}",
             terminal=True,
         )
+
+    def _can_delegate(self, outcome: RepairOutcome) -> bool:
+        """Whether there is both an accepted PACT pair and a plan that wants one."""
+        return self.wants_delegation_pass() and outcome.pact_input_dir is not None
+
+    async def _degrade_delegation(self, detail: str, outcome: RepairOutcome) -> None:
+        """Fall back to the repaired text as this turn's answer."""
+        logger.warning("long-horizon delegation degraded: %s", detail)
+        await self._host._bus.publish(
+            Warning(
+                code="long_horizon_delegation_failed",
+                message=detail,
+                session_id=self._host._session_id,
+            )
+        )
+        self._host._executor.adopt_fallback_success(outcome.final_text)
+        await self._phase(LongHorizonPhase.DEGRADED, detail, terminal=True)
+
+    def _pact_tool(self) -> str:
+        profile = self._host._agent_profile
+        return profile.routing.long_horizon.pact_tool if profile is not None else "chrys_pact"
+
+    def _workspace_cwd(self) -> str:
+        workspace = self._host._workspace
+        return workspace.primary_cwd if workspace is not None else safe_getcwd()
+
+    def _brief_summary(self, *, max_chars: int = 1200) -> str:
+        """Return the first part of the brief, for a reminder that cannot hold it all."""
+        if self.brief_path is None:
+            return "(no task brief was written)"
+        try:
+            return self.brief_path.read_text(encoding="utf-8")[:max_chars]
+        except OSError:
+            return "(the task brief could not be read)"
 
     async def on_revision(self, revision: RequirementRevision) -> None:
         """An amendment invalidates the search: the requirement it ran on changed."""

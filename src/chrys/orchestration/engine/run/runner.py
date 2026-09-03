@@ -186,7 +186,7 @@ class TurnRunner:
         if long_horizon and decision is not None:
             from chrys.orchestration.engine.run.long_horizon import LongHorizonExtensions
 
-            extensions = LongHorizonExtensions(host, decision)
+            extensions = LongHorizonExtensions(host, decision, runner=self)
         await RequirementClarificationWorkflow(
             self._host,
             self,
