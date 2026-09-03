@@ -22,7 +22,7 @@ from typing import Any
 
 from chrys.foundation.config.settings import resolve_sessions_dir
 from chrys.orchestration.startup import bootstrap_runtime
-from chrys.service.memory.writeback import WATERMARK_KEY, count_turns, deposit_pending_turns
+from chrys.service.memory.writeback import WATERMARK_KEY, deposit_pending_turns, pending_turns
 from chrys.service.state.store import SESSION_FILE_NAME
 
 
@@ -168,7 +168,7 @@ def _sweep(*, idle_seconds: float, dry_run: bool) -> int:
             if session_file.stat().st_mtime > cutoff:
                 continue
             watermark = _stored_watermark(session_file)
-            pending = count_turns(session_file) - watermark
+            pending = len(pending_turns(session_file, watermark))
         except OSError as exc:
             sys.stdout.write(f"{session_id}: unreadable ({exc})\n")
             failed = True

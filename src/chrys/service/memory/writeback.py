@@ -17,8 +17,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from chrys.foundation.models.turns import turn_slices
-from chrys.service.memory.contextgraph_deposit import deposit_experience, extract_turn_experience
+from chrys.service.memory.contextgraph_deposit import (
+    deposit_experience,
+    extract_turn_experience,
+    live_turn_numbers,
+)
 from chrys.service.session.runtime_metadata import MEMORY_DEPOSIT_WATERMARK_KEY
 from chrys.service.state.serializers import deserialize_state
 
@@ -38,20 +41,31 @@ class WritebackOutcome:
     watermark: int
 
 
-def count_turns(session_file: Path) -> int:
-    """Return how many complete turns *session_file* holds, or ``0`` if unreadable."""
+def session_turn_numbers(session_file: Path) -> list[int]:
+    """Return the global numbers of the turns *session_file* still holds live.
+
+    Global, not positional: compaction folds completed turns out of the live
+    list, so counting slices would make the watermark mean a different turn
+    after every fold.
+    """
     try:
         envelope = json.loads(session_file.read_text(encoding="utf-8"))
     except OSError, json.JSONDecodeError:
-        return 0
+        return []
     state = envelope.get("state") if isinstance(envelope, dict) else None
     if not isinstance(state, dict):
-        return 0
+        return []
+    blocks = state.get("compressed_msgs")
     try:
         messages = deserialize_state(state).get("messages", [])
     except TypeError, ValueError, KeyError:
-        return 0
-    return len(turn_slices(messages))
+        return []
+    return live_turn_numbers(messages, folded=isinstance(blocks, list) and bool(blocks))
+
+
+def pending_turns(session_file: Path, watermark: int) -> list[int]:
+    """Return the turns after *watermark* that are still available to deposit."""
+    return [turn for turn in session_turn_numbers(session_file) if turn > watermark]
 
 
 def deposit_pending_turns(
@@ -68,10 +82,14 @@ def deposit_pending_turns(
     been handled, so skipping past a failure would silently drop that turn from
     the graph forever. A turn with no tool-backed work yields nothing to deposit
     but still advances the mark — there is nothing to retry.
+
+    The mark only ever moves forward. Compaction removes completed turns from
+    the live list, and a mark that followed it down would re-point at turns
+    that were never deposited and call them done.
     """
-    total = count_turns(session_file)
+    mark = max(watermark, 0)
     deposited: list[int] = []
-    for turn in range(max(watermark, 0) + 1, total + 1):
+    for turn in pending_turns(session_file, mark):
         try:
             extracted = extract_turn_experience(session_file, turn)
             if extracted is not None:
@@ -86,5 +104,6 @@ def deposit_pending_turns(
                 deposited.append(turn)
         except Exception:
             logger.warning("ContextGraph deposit failed for turn %d", turn, exc_info=True)
-            return WritebackOutcome(deposited=tuple(deposited), failed=turn, watermark=turn - 1)
-    return WritebackOutcome(deposited=tuple(deposited), failed=None, watermark=total)
+            return WritebackOutcome(deposited=tuple(deposited), failed=turn, watermark=mark)
+        mark = turn
+    return WritebackOutcome(deposited=tuple(deposited), failed=None, watermark=mark)

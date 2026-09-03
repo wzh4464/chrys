@@ -29,6 +29,7 @@ from chrys.kernel.exchanges import (
     iter_exchanges,
     pair_results,
 )
+from chrys.service.context.providers.history import TURN_INDEX_KEY
 from chrys.service.memory.contextgraph_repository import (
     MAX_REPOSITORY_STEPS,
     RepositoryDepositResult,
@@ -172,8 +173,65 @@ def _paired_steps(messages: list[dict[str, Any]]) -> tuple[dict[str, str], ...]:
     return tuple(steps)
 
 
+def _marker_turn_number(selected: Sequence[Any]) -> int | None:
+    """Return the global turn number this span's own turn marker carries."""
+    for message in reversed(list(selected)):
+        properties = getattr(message, "additional_properties", None)
+        if not isinstance(properties, Mapping):
+            continue
+        number = properties.get(TURN_INDEX_KEY)
+        if isinstance(number, int) and not isinstance(number, bool):
+            return number
+    return None
+
+
+def live_turn_numbers(live_messages: Sequence[Any], *, folded: bool) -> list[int]:
+    """Return the global numbers of the finalized turns still in the live list.
+
+    Identity comes from each turn's own marker, never from its position.
+    Compaction folds completed turns out of ``state["messages"]`` and leaves an
+    assistant summary that opens no turn, so the Nth slice stops being turn N
+    the first time a session compacts -- and a positional watermark then marks
+    turns as deposited that never were.
+
+    A session with nothing folded is the one case where position is provably
+    equal to identity, so an unmarked span there still counts. Once anything
+    has been folded, an unmarked span is skipped: refusing to guess is what
+    keeps a turn from being silently written off.
+    """
+    numbers: list[int] = []
+    for index, (start, end) in enumerate(turn_slices(live_messages), start=1):
+        number = _marker_turn_number(live_messages[start:end])
+        if number is None and not folded:
+            number = index
+        if number is not None:
+            numbers.append(number)
+    return sorted(set(numbers))
+
+
+def _turn_span(live_messages: Sequence[Any], *, folded: bool, turn: int) -> tuple[int, int] | None:
+    """Resolve a global turn number to its span in the live message list."""
+    slices = turn_slices(live_messages)
+    for start, end in slices:
+        if _marker_turn_number(live_messages[start:end]) == turn:
+            return start, end
+    if folded or not 1 <= turn <= len(slices):
+        return None
+    return slices[turn - 1]
+
+
+def _folded(state: Mapping[str, Any]) -> bool:
+    """Whether this session has ever folded a turn out of its live history."""
+    blocks = state.get("compressed_msgs")
+    return isinstance(blocks, list) and bool(blocks)
+
+
 def extract_turn_experience(session_file: Path, turn: int) -> TurnExperience | None:
-    """Extract one real turn using Chrys's canonical turn/exchange grammar."""
+    """Extract one real turn using Chrys's canonical turn/exchange grammar.
+
+    ``turn`` is the session's global turn number -- the one the turn marker and
+    the artifact directories use -- not an index into the live message list.
+    """
     if turn < 1 or session_file.is_symlink() or not session_file.is_file():
         return None
     if session_file.stat().st_size > MAX_SESSION_FILE_BYTES:
@@ -184,10 +242,10 @@ def extract_turn_experience(session_file: Path, turn: int) -> TurnExperience | N
         return None
     deserialized = deserialize_state(state)
     live_messages = deserialized.get("messages", [])
-    slices = turn_slices(live_messages)
-    if turn > len(slices):
+    span = _turn_span(live_messages, folded=_folded(state), turn=turn)
+    if span is None:
         return None
-    start, end = slices[turn - 1]
+    start, end = span
     selected = live_messages[start:end]
     if not selected:
         return None
