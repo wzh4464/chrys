@@ -114,7 +114,13 @@ def _worker_environment(repository: Path) -> dict[str, str]:
     return environment
 
 
-def _run_repository_writer(payload: dict[str, Any]) -> RepositoryDepositResult:
+def initialize_schema(*, vector_dimensions: int = 1536) -> None:
+    """Create ContextGraph's constraints and indexes through its own checkout."""
+    _run_worker({"op": "init_schema", "vector_dimensions": vector_dimensions})
+
+
+def _run_worker(payload: dict[str, Any]) -> dict[str, Any]:
+    """Run one isolated worker request in the ContextGraph interpreter."""
     repository = _repository_path()
     worker = Path(__file__).with_name("_contextgraph_repository_worker.py")
     completed = subprocess.run(  # noqa: S603 — interpreter is an operator-configured ContextGraph runtime
@@ -136,6 +142,11 @@ def _run_repository_writer(payload: dict[str, Any]) -> RepositoryDepositResult:
         raise RuntimeError("ContextGraph repository writer returned invalid JSON") from exc
     if not isinstance(result, dict):
         raise RuntimeError("ContextGraph repository writer returned an invalid result")
+    return result
+
+
+def _run_repository_writer(payload: dict[str, Any]) -> RepositoryDepositResult:
+    result = _run_worker(payload)
     trajectory_id = result.get("trajectory_id")
     fragment_count = result.get("fragment_count")
     created = result.get("created")

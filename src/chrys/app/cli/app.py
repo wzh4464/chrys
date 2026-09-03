@@ -81,6 +81,7 @@ def build_parser() -> argparse.ArgumentParser:
             "  acp         Run an Agent Client Protocol stdio server\n"
             "  pact-agent  Run the external PACT Campaign ACP agent\n"
             f"  serve       Host the {APP_DISPLAY_NAME} TUI in a browser\n"
+            "  memory      Inspect, sweep, or provision ContextGraph memory\n"
             "  trajectory  Export recorded trajectory analytics (perfetto/json/csv)\n"
             f"  install     Install {APP_DISPLAY_NAME} to PATH\n\n"
             "Default: 'chrys' launches the TUI. Run 'chrys <command> --help' for command options."
@@ -154,6 +155,10 @@ def main() -> int:
         return _run_acp(argv[1:])
     if argv and argv[0] == "pact-agent":
         return _run_pact_agent(argv[1:])
+    if argv and argv[0] == "memory":
+        from chrys.app.cli.memory import main as memory_main
+
+        return memory_main(argv[1:])
     if argv and argv[0] == "trajectory":
         from chrys.app.cli.trajectory import main as trajectory_main
 

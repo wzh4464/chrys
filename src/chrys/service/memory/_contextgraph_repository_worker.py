@@ -91,12 +91,40 @@ def _deposit(payload: dict[str, Any]) -> dict[str, Any]:
             memory.store.close()
 
 
+def _init_schema(payload: dict[str, Any]) -> dict[str, Any]:
+    """Create ContextGraph's own constraints and indexes, idempotently.
+
+    The schema belongs to ContextGraph, not to Chrys: re-declaring the labels
+    and properties here would fork it silently the next time upstream changes.
+    ``init_schema`` is already ``IF NOT EXISTS`` throughout, so this is safe to
+    run against a populated graph.
+    """
+    repository = Path(_required_env("CONTEXTGRAPH_REPO")).resolve()
+    if not (repository / "agent_memory" / "neo4j_store.py").is_file():
+        raise RuntimeError(f"CONTEXTGRAPH_REPO is not a ContextGraph checkout: {repository}")
+    sys.path.insert(0, str(repository))
+
+    from agent_memory.neo4j_store import Neo4jStore  # ty: ignore[unresolved-import]
+
+    dimensions = int(payload.get("vector_dimensions") or 1536)
+    store = Neo4jStore(
+        uri=_required_env("NEO4J_URI"),
+        auth=(_required_env("NEO4J_USER"), os.environ.get("NEO4J_PASSWORD", "")),
+    )
+    try:
+        store.init_schema(vector_dimensions=dimensions)
+    finally:
+        store.close()
+    return {"schema_initialized": True, "vector_dimensions": dimensions}
+
+
 def main() -> None:
     """Read one JSON request from stdin and write one JSON response."""
     payload = json.load(sys.stdin)
     if not isinstance(payload, dict):
         raise ValueError("ContextGraph worker payload must be a JSON object")
-    sys.stdout.write(json.dumps(_deposit(payload), ensure_ascii=True))
+    handler = _init_schema if payload.get("op") == "init_schema" else _deposit
+    sys.stdout.write(json.dumps(handler(payload), ensure_ascii=True))
 
 
 if __name__ == "__main__":

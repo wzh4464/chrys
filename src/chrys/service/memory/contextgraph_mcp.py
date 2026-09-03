@@ -282,6 +282,32 @@ def _count(cypher: LiteralString) -> int | None:
     return count if isinstance(count, int) else None
 
 
+RETRIEVAL_INDEXES = (
+    "canonical_rule_embedding",
+    "canonical_rule_text",
+    "fragment_embedding",
+    "fragment_description",
+)
+"""The four ContextGraph indexes retrieval fuses over.
+
+Named here for diagnostics only -- the schema itself is ContextGraph's, and
+``chrys memory init`` delegates creation to its own ``Neo4jStore.init_schema``.
+"""
+
+
+def existing_indexes() -> frozenset[str]:
+    """Return the names of indexes present in the configured graph."""
+    with _driver().session(default_access_mode=READ_ACCESS) as session:
+        rows = session.run(Query("SHOW INDEXES YIELD name RETURN name"))
+        return frozenset(str(row["name"]) for row in rows if row.get("name"))
+
+
+def missing_retrieval_indexes() -> tuple[str, ...]:
+    """Return which of :data:`RETRIEVAL_INDEXES` the graph does not have."""
+    present = existing_indexes()
+    return tuple(name for name in RETRIEVAL_INDEXES if name not in present)
+
+
 def _do_health() -> str:
     """Verify Neo4j connectivity and report static/dynamic inventories."""
     _driver().verify_connectivity()
