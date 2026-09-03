@@ -393,6 +393,7 @@ DEFERRED_KEYS: frozenset[str] = frozenset(
         # Keep the backend/config surface while its product UX is undecided.
         "trajectory.verify_commands",
         "memory.mcp.enabled",
+        "pact.verify_command",
         "routing.mode",
         "routing.tiebreaker_model_profile",
         "memory.writeback.idle_seconds",

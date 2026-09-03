@@ -615,6 +615,7 @@ _LABEL_SESSION_TITLE_AUTO = msg("settings.session.title.auto.label", fallback="A
 _LABEL_CONTEXT_WARN_THRESHOLD_PCT = msg(
     "settings.context.warn_threshold_pct.label", fallback="Context warning threshold"
 )
+_LABEL_PACT_VERIFY_COMMAND = msg("settings.pact.verify_command.label", fallback="PACT verify command")
 _LABEL_ROUTING_MODE = msg("settings.routing.mode.label", fallback="Long-horizon routing")
 _LABEL_ROUTING_TIEBREAKER_MODEL_PROFILE = msg(
     "settings.routing.tiebreaker_model_profile.label", fallback="Routing tiebreaker model"
@@ -1292,6 +1293,32 @@ class Settings:
             # Where a user's sessions live is not a repository's business.
             project_merge=ProjectMerge.DENY,
             risk=Risk.CAUTION,
+        ),
+    )
+
+    # ── PACT ──────────────────────────────────────────────────────
+    # Command a PACT campaign runs to decide whether work is actually done.
+    # A repository is the only place that knows it, and it is the reason the
+    # project layer may set this at all — but it is executed on the user's
+    # machine, hence Risk.HIGH and the project-trust gate that comes with it.
+    # Empty means campaigns cannot be verified, and the router treats the
+    # workspace as unable to delegate rather than delegating blind.
+    pact_verify_command: str = field(
+        default="",
+        metadata=spec(
+            key="pact.verify_command",
+            label=_LABEL_PACT_VERIFY_COMMAND,
+            env="CHRYS_PACT_VERIFY_COMMAND",
+            coerce=text_coercer(),
+            apply=Apply.RELOAD,
+            group="pact",
+            kind=Kind.TEXT,
+            risk=Risk.DANGEROUS,
+            # A rejected value must not fall through to a lower layer that
+            # happens to hold a command: the campaign would verify with
+            # something the current workspace never asked for.
+            invalid_policy=InvalidPolicy.SAFE_DEFAULT,
+            project_merge=ProjectMerge.FREE,
         ),
     )
 

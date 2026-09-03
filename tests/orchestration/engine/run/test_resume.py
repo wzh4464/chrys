@@ -900,6 +900,9 @@ class TestRetryLifecycleApprovalContext:
             return []
 
     class _Host:
+        # TurnRunnerHost contract: no routing decision by default.
+        _last_route = None
+
         def __init__(self, messages: list[Message]) -> None:
             self._turn_state = TurnRuntimeState()
             self._bus = EventBus()
@@ -1172,6 +1175,9 @@ async def test_pending_retry_dispatch_strips_trailing_markers_before_task() -> N
             order.append("remove_trailing_markers")
 
     class _Host:
+        # TurnRunnerHost contract: no routing decision by default.
+        _last_route = None
+
         def __init__(self) -> None:
             self._turn_state = TurnRuntimeState()
             self._history = _History()
@@ -1294,6 +1300,9 @@ async def test_later_retry_after_interrupted_finalization_preserves_last_words_a
             self.last_usage_details = {"input_token_count": 7}
 
     class _Host:
+        # TurnRunnerHost contract: no routing decision by default.
+        _last_route = None
+
         def __init__(self) -> None:
             self._agent_loading = False
             self._bus = EventBus()

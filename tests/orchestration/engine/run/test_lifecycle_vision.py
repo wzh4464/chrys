@@ -283,6 +283,9 @@ class _RunnerTrajectoryRecorder:
 
 
 class _Host:
+    # TurnRunnerHost contract: no routing decision by default.
+    _last_route = None
+
     def __init__(self, tmp_path: Path, *, vision: bool) -> None:
         self._bus = _Bus()
         self._session_id = "session-1"

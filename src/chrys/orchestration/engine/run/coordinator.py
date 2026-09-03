@@ -5,12 +5,16 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import Awaitable, Callable
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Protocol
 
 from chrys.foundation.events.types import (
+    AgentProfileSwitch,
     Error,
+    ProfileSwitched,
+    RouteOverride,
     UserInject,
     UserInjectCancel,
     UserInjectResult,
@@ -20,6 +24,7 @@ from chrys.foundation.events.types import (
     Warning,
 )
 from chrys.foundation.i18n import msg
+from chrys.foundation.platform import safe_getcwd
 from chrys.orchestration.engine.run.active_injection import (
     ActiveInjectionHost,
     ActiveTurnInjector,
@@ -34,6 +39,7 @@ from chrys.orchestration.engine.run.attachments import (
 from chrys.orchestration.engine.run.finalizer import TurnFinalizerHost, _expire_current_run_scope
 from chrys.orchestration.engine.run.prompt_content import PromptContentHost, PromptContentPreparer
 from chrys.orchestration.engine.run.retry import RetryCoordinator, RetryHost
+from chrys.orchestration.engine.run.routing import TurnRouter
 from chrys.orchestration.engine.run.runner import TurnRunnerHost
 from chrys.orchestration.engine.run.turn_hooks import PromptSubmitGate, TurnHookDispatcher, TurnHookHost
 from chrys.orchestration.engine.run.turn_state import (
@@ -47,6 +53,8 @@ from chrys.orchestration.engine.run.turn_state import (
 )
 from chrys.orchestration.engine.state.machine import EngineState, Trigger
 from chrys.service.hooks.schema import HookDecision
+from chrys.service.routing.classifier import RouteDecision
+from chrys.service.routing.guard import TiebreakerGuard
 from chrys.service.trajectory.preparation import (
     PreparationOutcome,
     PreparationScope,
@@ -74,6 +82,13 @@ _COORDINATOR_PROMPT_ADMISSION_CONFLICT = msg(
 )
 
 
+_log = logging.getLogger(__name__)
+
+# A soft restart rebuilds tools, skills and MCP connections; past this the
+# switch is not coming and the turn is better run on the current profile.
+_ROUTE_SWITCH_TIMEOUT_SECONDS = 60.0
+
+
 class TurnCoordinatorHost(
     TurnRunnerHost,
     RetryHost,
@@ -95,6 +110,11 @@ class TurnCoordinatorHost(
     # the coordinator admits prompts before the first build, when the
     # executor can still be None, so the union type is pinned here.
     _executor: Executor | None
+    _route_override: RouteOverride | None
+    _last_route: RouteDecision | None
+    _route_fingerprint: str
+    _tiebreaker_guard: TiebreakerGuard
+    _agent_registry: Any | None
 
     async def _run_and_save(
         self,
@@ -294,6 +314,7 @@ class TurnCoordinator:
         host = self._host
         admission: PromptAdmissionScope | None = None
         admission_released = False
+        routed = False
         while True:
             await self._wait_for_pre_admission_gate(host._wait_for_agent_load_idle, preparation_tracker)
             preparation = preparation_tracker.preparation
@@ -374,6 +395,13 @@ class TurnCoordinator:
                     preparation_tracker,
                 )
                 continue
+            if not routed:
+                routed = True
+                if await self._route_turn(event):
+                    # The profile switch rebuilt the agent, so every gate above
+                    # has to be re-checked against the new build before a slot
+                    # is reserved against its generation.
+                    continue
             admission = host._turn_state.reserve_prompt_admission(
                 kind="fresh",
                 session_generation=host.session_generation,
@@ -766,6 +794,67 @@ class TurnCoordinator:
         task = self._host._turn_state.run_task
         if task is not None and not task.done():
             await task
+
+    async def _route_turn(self, event: UserMessage) -> bool:
+        """Classify this turn and report whether a profile switch rebuilt the agent.
+
+        Routing is an optimization layer over a turn that is already valid, so
+        a failure here must cost the classification and nothing else: losing
+        the user's message to a router bug would be far worse than running it
+        on the standard pass.
+        """
+        try:
+            return await self._route_turn_unguarded(event)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            _log.warning("turn routing failed; running the standard pass", exc_info=True)
+            self._host._last_route = None
+            return False
+
+    async def _route_turn_unguarded(self, event: UserMessage) -> bool:
+        host = self._host
+        router = TurnRouter(
+            host,
+            workspace_cwd=host._workspace.primary_cwd if host._workspace is not None else safe_getcwd(),
+            switch_profile=self._switch_routing_profile,
+        )
+        decision = await router.apply(await router.decide(event.text, turn=host._turn_number + 1))
+        await router.publish(decision, turn=host._turn_number + 1)
+        await host._trajectory_recorder.turn_routed(
+            track=decision.track.value,
+            band=decision.band.value,
+            source=decision.source,
+            confidence=decision.confidence,
+            prompt_score=decision.prompt_score,
+            plan_pact=decision.plan.pact,
+            switched_to=decision.switched_to,
+            tiebreaker_failure=decision.tiebreaker_failure,
+        )
+        return bool(decision.switched_to)
+
+    async def _switch_routing_profile(self, target: str) -> bool:
+        """Soft-restart onto *target*, keeping history, and report success.
+
+        The same path as a manual ``#Profile`` switch, so history preservation
+        and the model's switch reminder come for free rather than being
+        reimplemented for routing.
+        """
+        host = self._host
+        registry = host._agent_registry
+        if registry is None or registry.get(target) is None:
+            return False
+        async with host._bus.stream(ProfileSwitched, Error) as events:
+            await host._bus.publish(AgentProfileSwitch(profile_name=target, session_id=host._session_id))
+            try:
+                async with asyncio.timeout(_ROUTE_SWITCH_TIMEOUT_SECONDS):
+                    async for observed in events:
+                        if isinstance(observed, ProfileSwitched):
+                            return observed.to_profile == target
+                        return False
+            except TimeoutError:
+                return False
+        return False
 
     def _admission_owner_is_current(self, admission: PromptAdmissionScope) -> bool:
         """Return whether *admission* still belongs to the live session/build owner."""

@@ -120,6 +120,9 @@ class _Fsm:
 
 
 class _Host:
+    # TurnRunnerHost contract: no routing decision by default.
+    _last_route = None
+
     def __init__(self, order: list[str], *, save_result: bool = True) -> None:
         self._turn_state = TurnRuntimeState(history_start_index=7)
         self._bus = EventBus()

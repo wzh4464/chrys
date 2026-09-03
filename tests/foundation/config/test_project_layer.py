@@ -192,6 +192,7 @@ def test_the_project_whitelist_is_exactly_the_engineering_knobs() -> None:
 
     assert merges == {
         "context.warn_threshold_pct": ProjectMerge.FREE,
+        "pact.verify_command": ProjectMerge.FREE,
         "llm.retry.max_transient": ProjectMerge.TIGHTEN_ONLY,
         "mutations.coordination.enabled": ProjectMerge.ENABLE_ONLY,
         "mutations.parallel_implicit_tools": ProjectMerge.DISABLE_ONLY,

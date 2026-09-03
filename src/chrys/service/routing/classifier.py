@@ -89,7 +89,13 @@ class RouteDecision:
     plan: TurnPlan
     reason: str
     confidence: float
-    source: Literal["override", "profile", "heuristic", "llm", "inherited", "guard"]
+    source: str
+    """``override``, ``profile``, ``heuristic``, ``llm``, ``inherited`` or ``guard``.
+
+    A plain string rather than a Literal: the value crosses into ``TurnRouted``
+    and the trajectory payload, and pinning it here only moves the cast to
+    every construction site.
+    """
     prompt_score: float = 0.0
     decided_at: float = 0.0
     archetype: Archetype = "mutating_narrow"

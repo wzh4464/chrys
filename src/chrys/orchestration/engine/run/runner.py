@@ -10,6 +10,7 @@ from collections.abc import Callable, Mapping
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Protocol
 
+from chrys.foundation.events.types import Warning
 from chrys.foundation.models.history_markers import HistoryMarkerKind
 from chrys.foundation.models.turns import current_turn_start, is_continuation_message
 from chrys.foundation.trajectory.ids import new_analytics_id
@@ -20,6 +21,7 @@ from chrys.orchestration.engine.run.prompt_content import PromptContentPreparer
 from chrys.orchestration.engine.run.retry import RetryCoordinator
 from chrys.orchestration.engine.run.runtime_skills import RuntimeSkillRefresher
 from chrys.orchestration.engine.run.turn_hooks import TurnHookDispatcher
+from chrys.service.routing.classifier import RouteDecision, RouteTrack
 from chrys.service.trajectory.preparation import PreparationOutcome, PreparationScope, PreparationTrace
 
 if TYPE_CHECKING:
@@ -94,6 +96,7 @@ class TurnRunnerHost(Protocol):
     _on_successful_turn: Callable[[], None]
     _on_turn_started: Callable[[], None]
     _requirement_clarification_workflow: Any | None
+    _last_route: RouteDecision | None
 
     def _accumulate_side_call_usage(self, usage_details: Mapping[str, Any]) -> None: ...
 
@@ -154,7 +157,20 @@ class TurnRunner:
         admission_preparation: PreparationTrace | None = None,
     ) -> None:
         """Execute a fresh agent turn, optionally through clarification."""
-        profile = self._host._agent_profile
+        host = self._host
+        profile = host._agent_profile
+        decision = host._last_route
+        if decision is not None and decision.track is RouteTrack.LONG_HORIZON:
+            # The long-horizon workflow lands in a later milestone. Until then
+            # the decision is honest about being unusable rather than silently
+            # running a standard pass the user was told was long-horizon.
+            await host._bus.publish(
+                Warning(
+                    code="long_horizon_unavailable",
+                    message="The long-horizon workflow is not available in this build; running the standard pass",
+                    session_id=host._session_id,
+                )
+            )
         clarification_enabled = bool(profile is not None and profile.requirement_clarification.enabled)
         if not clarification_enabled:
             await self._run_fresh_standard(

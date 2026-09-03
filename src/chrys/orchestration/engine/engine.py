@@ -28,6 +28,7 @@ from chrys.foundation.events.types import (
     Error,
     MemoryWritebackCompleted,
     ProfileSwitched,
+    RouteOverride,
     SessionClear,
     SessionDelete,
     SessionFork,
@@ -85,6 +86,8 @@ from chrys.service.mutations.coordination import MutationCoordinator
 from chrys.service.mutations.tracker import MutationTracker
 from chrys.service.mutations.workspace_changes import WorkspaceChangeTracker
 from chrys.service.profiles.models.schema import API_STYLE_RESPONSES
+from chrys.service.routing.classifier import RouteDecision
+from chrys.service.routing.guard import TiebreakerGuard
 from chrys.service.session import checkpoint as session_checkpoint
 from chrys.service.session import lifecycle as session_lifecycle
 from chrys.service.session.history import SessionHistoryManager
@@ -310,6 +313,10 @@ class AgentEngine:
         self._active_session_transition_committed = False
         self._runtime_meta = SessionRuntimeMetadata()
         self._memory_watcher: MemoryWritebackWatcher | None = None
+        self._route_override: RouteOverride | None = None
+        self._last_route: RouteDecision | None = None
+        self._route_fingerprint: str = ""
+        self._tiebreaker_guard = TiebreakerGuard()
         self._turn_number: int = 0
         self._active_session_guard = ActiveSessionGuard(state_store)
         self._tool_names: list[str] = []
@@ -1121,6 +1128,7 @@ class AgentEngine:
         await self._bus.subscribe(SetApprovalMode, self._on_set_approval_mode)
         await self._bus.subscribe(SetModelProfile, self._on_set_model_profile)
         await self._bus.subscribe(SubAgentRetryRequested, self._on_sub_agent_retry)
+        await self._bus.subscribe(RouteOverride, self._on_route_override)
         await self._bus.subscribe(SubAgentAbortRequested, self._on_sub_agent_abort)
         await self._bus.subscribe(SubAgentPaused, self._on_sub_agent_paused)
         await self._bus.subscribe(SubAgentResumed, self._on_sub_agent_unpaused)
@@ -1870,6 +1878,10 @@ class AgentEngine:
             injection_window=injection_window,
             admission_preparation=admission_preparation,
         )
+
+    async def _on_route_override(self, event: RouteOverride) -> None:
+        """Hold a frontend routing override for the next admitted message."""
+        self._route_override = event
 
     async def _post_run(self) -> None:
         """Unified post-execution fixup for both run and retry paths."""
