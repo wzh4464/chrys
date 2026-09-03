@@ -3010,7 +3010,7 @@ msgstr "正在加载智能体"
 
 #. English: Agent failed to load.
 #. chrys-meta={"fingerprint":"d6044ba84ca996419379aa4ef4c638dabfb2acd6ec84eaef7070ec0b6d24a4f8","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:135
+#: src/chrys/app/tui/screens/main/event_handlers.py:137
 msgid "tui.agent_load.failed"
 msgstr "智能体加载失败。"
 
@@ -3028,7 +3028,7 @@ msgstr "智能体配置已切换：{from_label} -> {to_label}"
 
 #. English: Session ready: {profile}
 #. chrys-meta={"fingerprint":"737ac1453d6624ce3d4764a49c9771301762908822b7fb2b18201dad92ec9036","multiline":false,"placeholders":["profile"]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:288
+#: src/chrys/app/tui/screens/main/event_handlers.py:293
 msgid "tui.agent_load.finish.session_ready"
 msgstr "会话已就绪：{profile}"
 
@@ -3408,7 +3408,7 @@ msgstr "已标记：{reason}"
 
 #. English: Approval mode: {mode}
 #. chrys-meta={"fingerprint":"54de92c0fa693f1dd1411a606471b7857c877d561be1fd640e1d1f3ef9d6870c","multiline":false,"placeholders":["mode"]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:132
+#: src/chrys/app/tui/screens/main/event_handlers.py:134
 msgid "tui.approval.mode_changed"
 msgstr "审批模式：{mode}"
 
@@ -3475,7 +3475,7 @@ msgstr "请在消息发送给子智能体前审查或编辑。编辑仅对本次
 
 #. English: Approval
 #. chrys-meta={"fingerprint":"e034cf95ac923be84e0a11a87d7245a74c5640c7e92cd1ef91bd1086193ecde0","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:131
+#: src/chrys/app/tui/screens/main/event_handlers.py:133
 msgid "tui.approval.title"
 msgstr "审批"
 
@@ -3529,7 +3529,7 @@ msgstr "问题"
 
 #. English: Agents
 #. chrys-meta={"fingerprint":"a5bb9560e9ea162c7ee9c240168ee643410fbf17779975cc28a71308ea717fb7","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/screen.py:149
+#: src/chrys/app/tui/screens/main/screen.py:150
 msgid "tui.binding.agents"
 msgstr "智能体"
 
@@ -3541,7 +3541,7 @@ msgstr "返回"
 
 #. English: Break
 #. chrys-meta={"fingerprint":"46d487be2d3d7a809acef406e3b7cdfa989ecf95984b6b137647b4e4b9c4ddfc","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/screen.py:159
+#: src/chrys/app/tui/screens/main/screen.py:160
 msgid "tui.binding.break_agent"
 msgstr "中断"
 
@@ -3553,19 +3553,19 @@ msgstr "取消"
 
 #. English: Chat Page Down
 #. chrys-meta={"fingerprint":"8d631512befc6e56152875e930ba55605e73a505561c59a1f6024052fb025208","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/screen.py:162
+#: src/chrys/app/tui/screens/main/screen.py:163
 msgid "tui.binding.chat_page_down"
 msgstr "聊天区下翻页"
 
 #. English: Chat Page Up
 #. chrys-meta={"fingerprint":"32086884b57370e067a1093b6033cccdf3c1ff6784a8f86dd107d95c144b173b","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/screen.py:161
+#: src/chrys/app/tui/screens/main/screen.py:162
 msgid "tui.binding.chat_page_up"
 msgstr "聊天区上翻页"
 
 #. English: Chat Scroll Bottom
 #. chrys-meta={"fingerprint":"8db2449ce69266f994e2435d8f4f30b1cb01118eb7d2f4121853db9111714b8d","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/screen.py:163
+#: src/chrys/app/tui/screens/main/screen.py:164
 msgid "tui.binding.chat_scroll_bottom"
 msgstr "聊天区滚动到底部"
 
@@ -3595,13 +3595,13 @@ msgstr "删除"
 
 #. English: Logs
 #. chrys-meta={"fingerprint":"0e7c69cea0e78b5573b8f96ac667a66c8358d0f260a9ca30152997f9f4418696","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/screen.py:151
+#: src/chrys/app/tui/screens/main/screen.py:152
 msgid "tui.binding.logs"
 msgstr "日志"
 
 #. English: Models
 #. chrys-meta={"fingerprint":"990b201324d8a1ae9fa621621cfe70a972e277ffd50eb573508a6ed1b8253e61","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/screen.py:150
+#: src/chrys/app/tui/screens/main/screen.py:151
 msgid "tui.binding.models"
 msgstr "模型"
 
@@ -3619,25 +3619,25 @@ msgstr "退出"
 
 #. English: Sessions
 #. chrys-meta={"fingerprint":"c5cc776a4d7579ddf82b6d982259975f712ab352028d2c5a15b02fa329179077","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/screen.py:148
+#: src/chrys/app/tui/screens/main/screen.py:149
 msgid "tui.binding.sessions"
 msgstr "会话"
 
 #. English: Settings
 #. chrys-meta={"fingerprint":"794bd89198036b3c90e32bf50e53ce88b6a35addcd9b6f537e1d1fb9a161d83e","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/screen.py:154
+#: src/chrys/app/tui/screens/main/screen.py:155
 msgid "tui.binding.settings"
 msgstr "设置"
 
 #. English: Sidebar
 #. chrys-meta={"fingerprint":"6a6db5bf6c1bc4ac2deeff354ee581dca36bc9bd386cf64700365b2c7ea1ab83","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/screen.py:152
+#: src/chrys/app/tui/screens/main/screen.py:153
 msgid "tui.binding.sidebar"
 msgstr "侧边栏"
 
 #. English: Themes
 #. chrys-meta={"fingerprint":"61b99f640ff48917786aa7c94fd59fee57de8feaed70245cbca5c426ab3a0d56","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/screen.py:153
+#: src/chrys/app/tui/screens/main/screen.py:154
 msgid "tui.binding.themes"
 msgstr "主题"
 
@@ -3673,7 +3673,7 @@ msgstr "切换视图"
 
 #. English: Trajectory
 #. chrys-meta={"fingerprint":"889b308f04b04f92b25014599db3feb54b79c0fbc7bcdb8abb64b03aae759d11","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/screen.py:160
+#: src/chrys/app/tui/screens/main/screen.py:161
 msgid "tui.binding.trajectory"
 msgstr "轨迹"
 
@@ -3945,73 +3945,73 @@ msgstr "手动"
 
 #. English: Open Basic settings
 #. chrys-meta={"fingerprint":"63e96ac3eccd8aeae324692831f8125c006436abe7916021404334f9fbf4d057","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:93
+#: src/chrys/app/tui/screens/main/commands.py:101
 msgid "tui.commands.agents_target.basic"
 msgstr "打开基本设置"
 
 #. English: Open Compaction settings
 #. chrys-meta={"fingerprint":"44471fd166e06aa6c2c1ee9ac61994ff328a1f3f50b76c1cc701c21d114a1a22","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:106
+#: src/chrys/app/tui/screens/main/commands.py:114
 msgid "tui.commands.agents_target.compaction"
 msgstr "打开压缩设置"
 
 #. English: Open Instructions editor
 #. chrys-meta={"fingerprint":"48d38254ee568880dc3f9dc6fdaf78d9350f575148d159a47684295f10a17e61","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:94
+#: src/chrys/app/tui/screens/main/commands.py:102
 msgid "tui.commands.agents_target.instructions"
 msgstr "打开提示词编辑器"
 
 #. English: Open MCP server settings
 #. chrys-meta={"fingerprint":"552e0f160ddcc77044d850af1a79e7a8546304551648c868aa55fb9c04815058","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:104
+#: src/chrys/app/tui/screens/main/commands.py:112
 msgid "tui.commands.agents_target.mcp"
 msgstr "打开 MCP 服务器设置"
 
 #. English: Open Memory settings
 #. chrys-meta={"fingerprint":"4cf090e36136f39adba7390d95068d14b86a823473e5c2fa58b2dee1041cd5a8","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:105
+#: src/chrys/app/tui/screens/main/commands.py:113
 msgid "tui.commands.agents_target.memory"
 msgstr "打开记忆设置"
 
 #. English: Open Skills settings
 #. chrys-meta={"fingerprint":"d3987bea31de66e644edd6c192bc939a62142e9dee3cb8b21d0585b4aa203ebf","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:103
+#: src/chrys/app/tui/screens/main/commands.py:111
 msgid "tui.commands.agents_target.skills"
 msgstr "打开技能设置"
 
 #. English: Open Sub-Agents settings
 #. chrys-meta={"fingerprint":"886c4e8095a429bb1361d52296cf2356fa5a9fe8720651ae62277d8a0e48af18","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:99
+#: src/chrys/app/tui/screens/main/commands.py:107
 msgid "tui.commands.agents_target.sub_agents"
 msgstr "打开子智能体设置"
 
 #. English: Open Tools settings
 #. chrys-meta={"fingerprint":"74119034241f9238ba039d99128f97e5e5303e6371d402dcbe33f192f81b0249","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:98
+#: src/chrys/app/tui/screens/main/commands.py:106
 msgid "tui.commands.agents_target.tools"
 msgstr "打开工具设置"
 
 #. English: Approve every tool call manually
 #. chrys-meta={"fingerprint":"dea960c1cb6b6d5518fbdf279b63041cdef68e7f03487c88bf8fd950b1354510","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:88
+#: src/chrys/app/tui/screens/main/commands.py:96
 msgid "tui.commands.approval.manual"
 msgstr "手动审批每个工具调用"
 
 #. English: Manage agent configs
 #. chrys-meta={"fingerprint":"c21f50978ab907239205ec2bf4ab586168bb3d77c00037fffe75afd24ee38e38","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:80
+#: src/chrys/app/tui/screens/main/commands.py:88
 msgid "tui.commands.description.agents"
 msgstr "管理智能体配置"
 
 #. English: Switch approval mode: manual → auto → bypass
 #. chrys-meta={"fingerprint":"24ad985f3aedc2d87b38d1a17b6cadd4dfc38820322689fb9600b8de979dabd0","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:71
+#: src/chrys/app/tui/screens/main/commands.py:79
 msgid "tui.commands.description.approval"
 msgstr "切换审批模式：manual → auto → bypass"
 
 #. English: Interact with your buddy companion
 #. chrys-meta={"fingerprint":"08e603b923055305b23f69a3f298ce5301badb7dfebbe5497e095ccb680d1143","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:79
+#: src/chrys/app/tui/screens/main/commands.py:87
 msgid "tui.commands.description.buddy"
 msgstr "与你的伙伴互动"
 
@@ -4035,7 +4035,7 @@ msgstr "将智能体、用户或全部轮次复制到剪贴板"
 
 #. English: View file changes for the current session
 #. chrys-meta={"fingerprint":"c533f9c2ab9b1b737757c116c13605cad8d323f516040324b5a4452d9de27c7d","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:63
+#: src/chrys/app/tui/screens/main/commands.py:71
 msgid "tui.commands.description.diff"
 msgstr "查看当前会话的文件更改"
 
@@ -4063,15 +4063,21 @@ msgstr "创建当前会话的分支"
 msgid "tui.commands.description.language"
 msgstr "设置显示语言"
 
+#. English: Run the next message on the long-horizon track
+#. chrys-meta={"fingerprint":"5f56ca8ede0bac6ed7f7724afc7414607278369fc3e635571c7bbc41926dc543","multiline":false,"placeholders":[]}
+#: src/chrys/app/tui/screens/main/commands.py:63
+msgid "tui.commands.description.longrun"
+msgstr "让下一条消息走长程链路"
+
 #. English: Show manual page for a command
 #. chrys-meta={"fingerprint":"33b413cc648122d8bbafdb627cad520b9e034ef3ce7fb8a3fd4886f64656f4be","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:86
+#: src/chrys/app/tui/screens/main/commands.py:94
 msgid "tui.commands.description.man"
 msgstr "显示命令的手册页"
 
 #. English: Configure model provider and settings
 #. chrys-meta={"fingerprint":"efadf99ce91c6f9558b3cf9fd68b8453212b899ca19211c3e3d5f393d1ad4846","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:75
+#: src/chrys/app/tui/screens/main/commands.py:83
 msgid "tui.commands.description.models"
 msgstr "配置模型提供商和设置"
 
@@ -4080,6 +4086,12 @@ msgstr "配置模型提供商和设置"
 #: src/chrys/app/tui/screens/main/commands.py:42
 msgid "tui.commands.description.new"
 msgstr "开始新会话"
+
+#. English: Keep the next message on the standard track
+#. chrys-meta={"fingerprint":"b820d19316655e7fda9fa2a96437f58e657d3160e0916554aef60b1da3e2ebcc","multiline":false,"placeholders":[]}
+#: src/chrys/app/tui/screens/main/commands.py:66
+msgid "tui.commands.description.quick"
+msgstr "让下一条消息留在标准链路"
 
 #. English: Set or clear a custom session title
 #. chrys-meta={"fingerprint":"ce608ff632e8e9ccf20d24eb8c1f229e44e14e668a53fd4fa8f5e3619e937c61","multiline":false,"placeholders":[]}
@@ -4095,13 +4107,19 @@ msgstr "恢复最近的会话"
 
 #. English: Discard recent turns or return to a specific turn
 #. chrys-meta={"fingerprint":"b0d093c5206be3a113cb4065228d47cda65197455492a2a8f736f4ec538554b6","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:67
+#: src/chrys/app/tui/screens/main/commands.py:75
 msgid "tui.commands.description.rollback"
 msgstr "丢弃最近的轮次或返回指定轮次"
 
+#. English: Show or re-run turn routing
+#. chrys-meta={"fingerprint":"bd393ec404459aa59eed6210d925dd0a9dbc4ceb9c561da7d907b003d57ffca3","multiline":false,"placeholders":[]}
+#: src/chrys/app/tui/screens/main/commands.py:67
+msgid "tui.commands.description.route"
+msgstr "查看或重新判定本轮路由"
+
 #. English: Show active model, tools, skills, and files
 #. chrys-meta={"fingerprint":"8bf5798e4ac5d1e32a94579209df800125b177587df2c8756ff118dee784447e","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:81
+#: src/chrys/app/tui/screens/main/commands.py:89
 msgid "tui.commands.description.runtime"
 msgstr "显示当前模型、工具、技能和文件"
 
@@ -4113,7 +4131,7 @@ msgstr "浏览已保存的会话"
 
 #. English: Open the Settings panel
 #. chrys-meta={"fingerprint":"e4e0e7446ecf702e80582c5fde105c31c811dbcc6a750c9915e2dc23f16c2f27","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:85
+#: src/chrys/app/tui/screens/main/commands.py:93
 msgid "tui.commands.description.settings"
 msgstr "打开设置面板"
 
@@ -4125,7 +4143,7 @@ msgstr "设置配色主题"
 
 #. English: Show help for /{name}
 #. chrys-meta={"fingerprint":"df2f841cd072593f47ac017908fec4bba0bf4a4a9b63698b72a1fb72c5b8ebbb","multiline":false,"placeholders":["name"]}
-#: src/chrys/app/tui/screens/main/commands.py:111
+#: src/chrys/app/tui/screens/main/commands.py:119
 msgid "tui.commands.man.command"
 msgstr "显示 /{name} 的帮助"
 
@@ -4355,28 +4373,28 @@ msgstr "正在测试 {subject} 连接"
 #. English: Conversation context compaction stopped because the compaction
 #. breaker was already disabled. The active task may exceed its model window.
 #. chrys-meta={"fingerprint":"cd310bc821e11e07a98d3c8c22f3d819c7f042b7135cb2a371f4216b72a437c5","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:176
+#: src/chrys/app/tui/screens/main/event_handlers.py:181
 msgid "tui.context_pressure.conversation.disabled"
 msgstr "对话上下文压缩已停止，因为压缩断路器已被禁用。当前任务可能会超出模型上下文窗口。"
 
 #. English: Conversation context compaction stopped because progress-note
 #. generation failed repeatedly. The active task may exceed its model window.
 #. chrys-meta={"fingerprint":"f2643472f3c48b7e4b793aa17314a560ae26cf11c9b37af5d59044609668788a","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:190
+#: src/chrys/app/tui/screens/main/event_handlers.py:195
 msgid "tui.context_pressure.conversation.generation_failure"
 msgstr "对话上下文压缩已停止，因为进度说明生成反复失败。当前任务可能会超出模型上下文窗口。"
 
 #. English: Conversation context compaction stopped because {reason}. The
 #. active task may exceed its model window.
 #. chrys-meta={"fingerprint":"8461af729d02ff32bb4f357e26c009b955e41fee3278851ede92693ff62a1300","multiline":false,"placeholders":["reason"]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:154
+#: src/chrys/app/tui/screens/main/event_handlers.py:159
 msgid "tui.context_pressure.conversation.generic"
 msgstr "对话上下文压缩已停止，原因是 {reason}。当前任务可能会超出模型上下文窗口。"
 
 #. English: Conversation context compaction stopped because an internal safety
 #. limit was reached. The active task may exceed its model window.
 #. chrys-meta={"fingerprint":"1e943011436da38bbe2f205d8e2cef0a1b4b8d981c9961ac381fdda4d3298e11","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:162
+#: src/chrys/app/tui/screens/main/event_handlers.py:167
 msgid "tui.context_pressure.conversation.internal_limit"
 msgstr "对话上下文压缩已停止，因为已达到内部安全限制。当前任务可能会超出模型上下文窗口。"
 
@@ -4384,21 +4402,21 @@ msgstr "对话上下文压缩已停止，因为已达到内部安全限制。当
 #. attempts made insufficient progress. The active task may exceed its model
 #. window.
 #. chrys-meta={"fingerprint":"d25307af5211b47e7101b043820c8fa0bd985b92a3847090fa7d5bc148a916f2","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:204
+#: src/chrys/app/tui/screens/main/event_handlers.py:209
 msgid "tui.context_pressure.conversation.no_progress"
 msgstr "对话上下文压缩已停止，因为反复尝试压缩仍未取得足够进展。当前任务可能会超出模型上下文窗口。"
 
 #. English: Conversation context compaction stopped because the compaction
 #. attempt limit was reached. The active task may exceed its model window.
 #. chrys-meta={"fingerprint":"d481d26e326a97f4599fe0373fd6031d74be49b425d1204c7a37b956170ff079","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:218
+#: src/chrys/app/tui/screens/main/event_handlers.py:223
 msgid "tui.context_pressure.conversation.round_limit"
 msgstr "对话上下文压缩已停止，因为已达到压缩尝试次数上限。当前任务可能会超出模型上下文窗口。"
 
 #. English: Conversation context compaction stopped because the progress-note
 #. token budget was exhausted. The active task may exceed its model window.
 #. chrys-meta={"fingerprint":"fb4f69769976c0f89612e956501d359af7b794f662c309bb77dbce7642f61a3c","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:232
+#: src/chrys/app/tui/screens/main/event_handlers.py:237
 msgid "tui.context_pressure.conversation.side_call_budget"
 msgstr "对话上下文压缩已停止，因为进度说明的词元预算已耗尽。当前任务可能会超出模型上下文窗口。"
 
@@ -4406,35 +4424,35 @@ msgstr "对话上下文压缩已停止，因为进度说明的词元预算已耗
 #. storage could not be durably checkpointed. The active task may exceed its
 #. model window.
 #. chrys-meta={"fingerprint":"eadf98a6ad6e54061da4b9e908a0a71d414e7ff7544414263574e429dc75766d","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:246
+#: src/chrys/app/tui/screens/main/event_handlers.py:251
 msgid "tui.context_pressure.conversation.spill_abort"
 msgstr "对话上下文压缩已停止，因为无法持久保存丢弃调用的检查点。当前任务可能会超出模型上下文窗口。"
 
 #. English: Sub-agent context compaction stopped because the compaction breaker
 #. was already disabled. The active task may exceed its model window.
 #. chrys-meta={"fingerprint":"8d657ea3a97cce1edf61ceb4d8ad038a3c119f53caeb39cc22d877075f17ce13","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:183
+#: src/chrys/app/tui/screens/main/event_handlers.py:188
 msgid "tui.context_pressure.sub_agent.disabled"
 msgstr "子智能体上下文压缩已停止，因为压缩断路器已被禁用。当前任务可能会超出模型上下文窗口。"
 
 #. English: Sub-agent context compaction stopped because progress-note
 #. generation failed repeatedly. The active task may exceed its model window.
 #. chrys-meta={"fingerprint":"ed2b2c1a09600fc1fdec60dd985eccde8c80402e5d6b57a831b5ec1814d3c69a","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:197
+#: src/chrys/app/tui/screens/main/event_handlers.py:202
 msgid "tui.context_pressure.sub_agent.generation_failure"
 msgstr "子智能体上下文压缩已停止，因为进度说明生成反复失败。当前任务可能会超出模型上下文窗口。"
 
 #. English: Sub-agent context compaction stopped because {reason}. The active
 #. task may exceed its model window.
 #. chrys-meta={"fingerprint":"8029e980e4168a2ca95ede30131d7c7c2f6434f1d6b85d5b898593ec00f7824a","multiline":false,"placeholders":["reason"]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:158
+#: src/chrys/app/tui/screens/main/event_handlers.py:163
 msgid "tui.context_pressure.sub_agent.generic"
 msgstr "子智能体上下文压缩已停止，原因是 {reason}。当前任务可能会超出模型上下文窗口。"
 
 #. English: Sub-agent context compaction stopped because an internal safety
 #. limit was reached. The active task may exceed its model window.
 #. chrys-meta={"fingerprint":"f1688bb0ed53a248d65bb77075ff2c3698c79a4bed0190ca02db6a0265234855","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:169
+#: src/chrys/app/tui/screens/main/event_handlers.py:174
 msgid "tui.context_pressure.sub_agent.internal_limit"
 msgstr "子智能体上下文压缩已停止，因为已达到内部安全限制。当前任务可能会超出模型上下文窗口。"
 
@@ -4442,21 +4460,21 @@ msgstr "子智能体上下文压缩已停止，因为已达到内部安全限制
 #. attempts made insufficient progress. The active task may exceed its model
 #. window.
 #. chrys-meta={"fingerprint":"081b51cc34235a8c94d94a0e3e906e5a64a2ed695451442bcda0f7cac0cd2b65","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:211
+#: src/chrys/app/tui/screens/main/event_handlers.py:216
 msgid "tui.context_pressure.sub_agent.no_progress"
 msgstr "子智能体上下文压缩已停止，因为反复尝试压缩仍未取得足够进展。当前任务可能会超出模型上下文窗口。"
 
 #. English: Sub-agent context compaction stopped because the compaction attempt
 #. limit was reached. The active task may exceed its model window.
 #. chrys-meta={"fingerprint":"7b89416410b3889770a51b249e4a191ed343205e029a731c1ffebad61bb1d49f","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:225
+#: src/chrys/app/tui/screens/main/event_handlers.py:230
 msgid "tui.context_pressure.sub_agent.round_limit"
 msgstr "子智能体上下文压缩已停止，因为已达到压缩尝试次数上限。当前任务可能会超出模型上下文窗口。"
 
 #. English: Sub-agent context compaction stopped because the progress-note
 #. token budget was exhausted. The active task may exceed its model window.
 #. chrys-meta={"fingerprint":"c82c6de732ebf6aaef38913979c705aeac5c6b0b1a459eabbaf7242d43e4fd07","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:239
+#: src/chrys/app/tui/screens/main/event_handlers.py:244
 msgid "tui.context_pressure.sub_agent.side_call_budget"
 msgstr "子智能体上下文压缩已停止，因为进度说明的词元预算已耗尽。当前任务可能会超出模型上下文窗口。"
 
@@ -4464,7 +4482,7 @@ msgstr "子智能体上下文压缩已停止，因为进度说明的词元预算
 #. could not be durably checkpointed. The active task may exceed its model
 #. window.
 #. chrys-meta={"fingerprint":"c7432d92d880d6329bb3b978b71cdf4e1f2f85ca08f2bdbad508d06f77372e2a","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:253
+#: src/chrys/app/tui/screens/main/event_handlers.py:258
 msgid "tui.context_pressure.sub_agent.spill_abort"
 msgstr "子智能体上下文压缩已停止，因为无法持久保存丢弃调用的检查点。当前任务可能会超出模型上下文窗口。"
 
@@ -4699,7 +4717,7 @@ msgstr "聊天草稿已更改 — 再次提交以覆盖"
 
 #. English: Editor supports drafts up to {limit} characters.
 #. chrys-meta={"fingerprint":"10c0cca5d3e68382aeb12c91e8b298f2e79f7a9e218f74c2b2d0d920b08e28e4","multiline":false,"placeholders":["limit"]}
-#: src/chrys/app/tui/screens/main/screen.py:168
+#: src/chrys/app/tui/screens/main/screen.py:169
 msgid "tui.editor.draft_too_large"
 msgstr "编辑器支持的草稿上限为 {limit} 个字符。"
 
@@ -4832,7 +4850,7 @@ msgstr "编辑器字符限制"
 
 #. English: Draft too large for editor
 #. chrys-meta={"fingerprint":"01bc5c4f61d8080c49a8cbe07ceb8754f440553ac331121b57cef6e164908724","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/screen.py:164
+#: src/chrys/app/tui/screens/main/screen.py:165
 msgid "tui.editor.title.draft_too_large"
 msgstr "草稿过大，无法在编辑器中打开"
 
@@ -4886,7 +4904,7 @@ msgstr "不是编辑器命令：{command}"
 
 #. English: Unknown error
 #. chrys-meta={"fingerprint":"0645cfe9c2132a7e6925bc416ff64c54e2df0a570c228ee55369d9cadded6c33","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:134
+#: src/chrys/app/tui/screens/main/event_handlers.py:136
 msgid "tui.error.unknown"
 msgstr "未知错误"
 
@@ -5424,6 +5442,12 @@ msgstr "级别：{level_name}（按空格键循环切换，按 c 复制）"
 msgid "tui.logs.title"
 msgstr "日志查看器"
 
+#. English: Long-horizon: {phase}
+#. chrys-meta={"fingerprint":"d634e4c906c469b9b93346f87082bcb9288562a27dd8c3a6e0e7a9a62a178c4d","multiline":false,"placeholders":["phase"]}
+#: src/chrys/app/tui/screens/main/event_handlers.py:144
+msgid "tui.long_horizon.phase"
+msgstr "长程：{phase}"
+
 #. English: Nothing to clear: the current session is empty
 #. chrys-meta={"fingerprint":"e4e860cd82cdc3678c7a037a022f7e31d196d934d55fb8e3bd05433126a43f3f","multiline":false,"placeholders":[]}
 #: src/chrys/app/tui/screens/main/navigation.py:46
@@ -5485,7 +5509,7 @@ msgstr "是否中断当前运行？"
 
 #. English: Session Already Open  {message}
 #. chrys-meta={"fingerprint":"8b64c99d3ba428d8d95c7eeff76c35f72de09486eb098459f54d184e9ab9da12","multiline":true,"placeholders":["message"]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:290
+#: src/chrys/app/tui/screens/main/event_handlers.py:295
 msgid "tui.main.session_in_use.message"
 msgstr ""
 "会话已在其他窗口打开\n"
@@ -5494,13 +5518,13 @@ msgstr ""
 
 #. English: OK
 #. chrys-meta={"fingerprint":"6df638960a5ede1f4a19b118e821e01478abe5fc851a4370ac9574784032e9f0","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:295
+#: src/chrys/app/tui/screens/main/event_handlers.py:300
 msgid "tui.main.session_in_use.ok"
 msgstr "确定"
 
 #. English: Session In Use
 #. chrys-meta={"fingerprint":"237cc6d792bf33e263a0532716afba37c9c73f30f36cc6936a08e358195d896e","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:289
+#: src/chrys/app/tui/screens/main/event_handlers.py:294
 msgid "tui.main.session_in_use.title"
 msgstr "会话正在使用中"
 
@@ -5519,7 +5543,7 @@ msgstr "当前没有活动会话。"
 #. settings         memory       - Configure memory files and folders
 #. compaction   - Context compaction settings
 #. chrys-meta={"fingerprint":"4a7fa755b5290ff4c5230fbd8968207f7597e17696fe46dc615c11c6892e64c3","multiline":true,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:374
+#: src/chrys/app/tui/screens/main/commands.py:413
 msgid "tui.man.agents.body"
 msgstr ""
 "打开智能体配置面板。\n"
@@ -5539,14 +5563,14 @@ msgstr ""
 
 #. English: none
 #. chrys-meta={"fingerprint":"6d8a106e90e658e0f6da3d0ce91881d67e2b9351659c3192b403c517a3eb37da","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:127
+#: src/chrys/app/tui/screens/main/commands.py:135
 msgid "tui.man.aliases_none"
 msgstr "无"
 
 #. English: Control how tool calls are approved during agent execution.
 #. Modes:
 #. chrys-meta={"fingerprint":"608e18a051e49194d17bdc5463819865e7553bfd23bd151787c554e857b72e46","multiline":true,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:340
+#: src/chrys/app/tui/screens/main/commands.py:379
 msgid "tui.man.approval.body"
 msgstr ""
 "控制智能体执行期间工具调用的审批方式。\n"
@@ -5555,7 +5579,7 @@ msgstr ""
 
 #. English: Use tab completion to switch directly to a specific mode.
 #. chrys-meta={"fingerprint":"009bcac8ba50ca9eadb16e15fc98755883621a6eab58abab8cc54bbc81be77b6","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:345
+#: src/chrys/app/tui/screens/main/commands.py:384
 msgid "tui.man.approval.mode_hint"
 msgstr "使用 Tab 补全可直接切换到指定模式。"
 
@@ -5564,7 +5588,7 @@ msgstr "使用 Tab 补全可直接切换到指定模式。"
 #. information         pet     - Pet your buddy (AI response)         mute    -
 #. Toggle buddy notifications         name    - Rename your buddy
 #. chrys-meta={"fingerprint":"69b9393114a783ba3dfc9e811248dcae498ea8a1b08bc3cebadcbf2c8ac5fd6b","multiline":true,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:361
+#: src/chrys/app/tui/screens/main/commands.py:400
 msgid "tui.man.buddy.body"
 msgstr ""
 "管理你的 AI 伙伴。\n"
@@ -5580,7 +5604,7 @@ msgstr ""
 #. Subsequent file operations and AI context will use the new directory as the
 #. base path.
 #. chrys-meta={"fingerprint":"cea2115d99bbb987218e571867a7e93f50508783a53cc65d7f98f6e8fdae134f","multiline":true,"placeholders":["app"]}
-#: src/chrys/app/tui/screens/main/commands.py:266
+#: src/chrys/app/tui/screens/main/commands.py:274
 msgid "tui.man.chdir.body"
 msgstr ""
 "更改 {app} 会话的当前工作目录。\n"
@@ -5593,7 +5617,7 @@ msgstr ""
 #. permanently removes it from disk. A confirmation dialog opens first; nothing
 #. is deleted until you confirm, and the deletion cannot be undone.
 #. chrys-meta={"fingerprint":"2f600952646faf256e695fffdb2280eb6b1c267d31d649d2f03a8483c0a91e29","multiline":true,"placeholders":["app"]}
-#: src/chrys/app/tui/screens/main/commands.py:182
+#: src/chrys/app/tui/screens/main/commands.py:190
 msgid "tui.man.clear.body"
 msgstr ""
 "删除当前 {app} 会话并开始一个新会话。\n"
@@ -5609,7 +5633,7 @@ msgstr ""
 #. last N user turns. Use "all" to copy all turns for a role, or the full
 #. transcript.
 #. chrys-meta={"fingerprint":"f1cf79e331e1e39de172a9f0f7ec745092d612c9aba69562cdea58f3222ca5bf","multiline":true,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:275
+#: src/chrys/app/tui/screens/main/commands.py:314
 msgid "tui.man.copy.body"
 msgstr ""
 "将对话轮次复制到剪贴板。\n"
@@ -5623,7 +5647,7 @@ msgstr ""
 #. English: Useful for:     - Sharing conversation snippets     - Archiving
 #. important AI outputs     - Creating documentation from AI-generated content
 #. chrys-meta={"fingerprint":"98098c1402e2a068831ebcf31615cfd13ac7a7b34e4ff4c7543ff86441547dbd","multiline":true,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:287
+#: src/chrys/app/tui/screens/main/commands.py:326
 msgid "tui.man.copy.useful_for"
 msgstr ""
 "适用于：\n"
@@ -5635,7 +5659,7 @@ msgstr ""
 #. session.  Shows added, modified, and deleted files with line-by-line
 #. changes. Useful for reviewing what the agent has done before committing.
 #. chrys-meta={"fingerprint":"521814a3dc5d176ff2410b173e4c175a94c6a6dad2db9915bc058e55d18c6019","multiline":true,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:307
+#: src/chrys/app/tui/screens/main/commands.py:346
 msgid "tui.man.diff.body"
 msgstr ""
 "显示当前会话中所有文件更改的差异视图。\n"
@@ -5645,32 +5669,32 @@ msgstr ""
 
 #. English: Show all commands
 #. chrys-meta={"fingerprint":"068a8c340542418df7b7da85912b5ecdc181dac6e59c82f7647ff52ffcbbf0c7","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:124
+#: src/chrys/app/tui/screens/main/commands.py:132
 msgid "tui.man.example.show_all"
 msgstr "显示全部命令"
 
 #. English: Show help for /diff
 #. chrys-meta={"fingerprint":"5674ba31dea944f68390ef0531e8c7d042b4b468f5b6dde5a8760175a7e3ee4e","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:126
+#: src/chrys/app/tui/screens/main/commands.py:134
 msgid "tui.man.example.show_diff"
 msgstr "显示 /diff 的帮助"
 
 #. English: Show help for /theme
 #. chrys-meta={"fingerprint":"f888e4e5654632e5001448a0b50ea0e990fe9137661af8df61768bb2a4e13d88","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:125
+#: src/chrys/app/tui/screens/main/commands.py:133
 msgid "tui.man.example.show_theme"
 msgstr "显示 /theme 的帮助"
 
 #. English: Examples:
 #. chrys-meta={"fingerprint":"b4ac8532b4a6bacdaef407385dfcc76733199025d62448192c8a1bdf242d15f5","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:123
+#: src/chrys/app/tui/screens/main/commands.py:131
 msgid "tui.man.examples_label"
 msgstr "示例："
 
 #. English: Exit {app} and return to the terminal.  If an agent is currently
 #. running, you will be prompted to confirm before exiting.
 #. chrys-meta={"fingerprint":"be388ab0cd1ca19c7e5c5ca1ac391f6fe0f1cef6a0efe91a796a45377166c99e","multiline":true,"placeholders":["app"]}
-#: src/chrys/app/tui/screens/main/commands.py:193
+#: src/chrys/app/tui/screens/main/commands.py:201
 msgid "tui.man.exit.body"
 msgstr ""
 "退出 {app} 并返回终端。\n"
@@ -5681,7 +5705,7 @@ msgstr ""
 #. conversation view.  Collapsed items show only a summary header. Useful for
 #. decluttering the view when reviewing long sessions.
 #. chrys-meta={"fingerprint":"37a0fd0ea50a69d919afe758ae14237c1ed6df082defd6b940fb04a4dedd880b","multiline":true,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:297
+#: src/chrys/app/tui/screens/main/commands.py:336
 msgid "tui.man.fold.body"
 msgstr ""
 "切换当前对话视图中所有工具组的折叠状态。\n"
@@ -5693,7 +5717,7 @@ msgstr ""
 #. window stays on the existing session. After the fork is created, choose
 #. whether to stay here or switch this window to the forked session.
 #. chrys-meta={"fingerprint":"8fa3c6cfea1e5f4ad5e2af6d109848eee72d121c1f9c862581bce84c78ced01a","multiline":true,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:211
+#: src/chrys/app/tui/screens/main/commands.py:219
 msgid "tui.man.fork.body"
 msgstr ""
 "为当前会话创建一个独立分支。\n"
@@ -5703,50 +5727,50 @@ msgstr ""
 
 #. English: ALIASES
 #. chrys-meta={"fingerprint":"6c2cade5eb24c3067fd4ec4bf38798be874aa1f57f9b53d97658552c51c951e5","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:116
+#: src/chrys/app/tui/screens/main/commands.py:124
 msgid "tui.man.heading.aliases"
 msgstr "别名"
 
 #. English: AVAILABLE COMMANDS
 #. chrys-meta={"fingerprint":"a8d600564d199b38901871ee719b63f99b711dd63e5c624f159333d9086226b5","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:118
+#: src/chrys/app/tui/screens/main/commands.py:126
 msgid "tui.man.heading.available_commands"
 msgstr "可用命令"
 
 #. English: DESCRIPTION
 #. chrys-meta={"fingerprint":"60a640e0e81697d6effbfe8d86306bc3b62ae879c80862700d934eb3808061d2","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:115
+#: src/chrys/app/tui/screens/main/commands.py:123
 msgid "tui.man.heading.description"
 msgstr "说明"
 
 #. English: NAME
 #. chrys-meta={"fingerprint":"7ef268bbfe34a3398ce6ce34b2ad9a63e747d902dd056ce3beac2a826473a309","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:113
+#: src/chrys/app/tui/screens/main/commands.py:121
 msgid "tui.man.heading.name"
 msgstr "名称"
 
 #. English: OPTIONS
 #. chrys-meta={"fingerprint":"f6765dc5133e549cbcc5d495378f4027bf742a9de4ac73ae41925c182d040454","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:117
+#: src/chrys/app/tui/screens/main/commands.py:125
 msgid "tui.man.heading.options"
 msgstr "选项"
 
 #. English: SEE ALSO
 #. chrys-meta={"fingerprint":"9153f90949cb4084d91e33fcb3cfcea5e26d0b93a2ab549b2d76c77dfd5d9db1","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:122
+#: src/chrys/app/tui/screens/main/commands.py:130
 msgid "tui.man.heading.see_also"
 msgstr "另请参阅"
 
 #. English: SYNOPSIS
 #. chrys-meta={"fingerprint":"b5e157a7a8ceda0c9412146d37af30eadcc4e96dd43afec5004e1528edf53c4e","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:114
+#: src/chrys/app/tui/screens/main/commands.py:122
 msgid "tui.man.heading.synopsis"
 msgstr "用法"
 
 #. English: {app} is a terminal-based AI assistant for code exploration,
 #. analysis, and understanding.
 #. chrys-meta={"fingerprint":"1124778f7a8fd26b84b8aa8fe93fe95016bed58307806686f2af3d4021fe9088","multiline":true,"placeholders":["app"]}
-#: src/chrys/app/tui/screens/main/commands.py:140
+#: src/chrys/app/tui/screens/main/commands.py:148
 msgid "tui.man.index.description"
 msgstr ""
 "{app} 是一款用于代码探索、\n"
@@ -5754,13 +5778,13 @@ msgstr ""
 
 #. English: {app} - AI-powered code assistant
 #. chrys-meta={"fingerprint":"a285e3786bff8436b3d0124a6144812b65109cb7d0c4b7bd70519367f6da9d09","multiline":false,"placeholders":["app"]}
-#: src/chrys/app/tui/screens/main/commands.py:136
+#: src/chrys/app/tui/screens/main/commands.py:144
 msgid "tui.man.index.name"
 msgstr "{app} - AI 驱动的代码助手"
 
 #. English: Show detailed help for a specific command
 #. chrys-meta={"fingerprint":"c74196aa0f4a1b11ae75f06481cfc2e64b93d0c4738e44d3542f869b9d6bb37c","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:145
+#: src/chrys/app/tui/screens/main/commands.py:153
 msgid "tui.man.index.see_also"
 msgstr "显示指定命令的详细帮助"
 
@@ -5769,7 +5793,7 @@ msgstr "显示指定命令的详细帮助"
 #. directly confirms that language.  Available locales can be listed using tab
 #. completion after /language.
 #. chrys-meta={"fingerprint":"3f7c56ae96e99b1a79a79fe00abb65869ff28f5086d1820586b4e6603a78b972","multiline":true,"placeholders":["app"]}
-#: src/chrys/app/tui/screens/main/commands.py:256
+#: src/chrys/app/tui/screens/main/commands.py:264
 msgid "tui.man.language.body"
 msgstr ""
 "更改 {app} 界面的显示语言。\n"
@@ -5779,11 +5803,24 @@ msgstr ""
 "\n"
 "在 /language 后使用 Tab 补全可列出可用区域设置。"
 
+#. English: Force the next message onto the long-horizon track: a baseline
+#. pass, clarification with code localization, a repair pass, and -- when the
+#. workspace can verify one -- a governed PACT campaign.  Pass the message with
+#. the command to submit it in one step. The override applies to that one
+#. message only; later messages are classified normally.
+#. chrys-meta={"fingerprint":"3edb8f14a6efbf3068fce50cd35cf6d7e2422cc9430215d3da7a87d848d23d22","multiline":true,"placeholders":[]}
+#: src/chrys/app/tui/screens/main/commands.py:283
+msgid "tui.man.longrun.body"
+msgstr ""
+"强制让下一条消息走长程链路：基线实现、带代码定位的需求澄清、修复，以及在工作区可验证时的受治理 PACT campaign。\n"
+"\n"
+"把消息跟在命令后面可以一步提交。该覆盖只对这一条消息生效，之后的消息照常分类。"
+
 #. English: Display detailed documentation for {app} commands.      Without
 #. arguments, shows a list of all available commands.     With a command name,
 #. shows detailed help for that command.
 #. chrys-meta={"fingerprint":"dba128be44e62b57f1f0733559e667c85f0b8371a0e5dd40874592537aaf02fa","multiline":true,"placeholders":["app"]}
-#: src/chrys/app/tui/screens/main/commands.py:415
+#: src/chrys/app/tui/screens/main/commands.py:454
 msgid "tui.man.man.body"
 msgstr ""
 "显示 {app} 命令的详细文档。\n"
@@ -5795,7 +5832,7 @@ msgstr ""
 #. provider (OpenAI, Anthropic, local, etc.)     - Model name and version     -
 #. Temperature and other generation parameters     - API keys and endpoints
 #. chrys-meta={"fingerprint":"28b09311e8ec1ff4993a34ff86aa6582fc78fa2de0d5dcdd432d23d97327a108","multiline":true,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:349
+#: src/chrys/app/tui/screens/main/commands.py:388
 msgid "tui.man.models.body"
 msgstr ""
 "打开模型配置对话框。\n"
@@ -5810,7 +5847,7 @@ msgstr ""
 #. conversation context and begins fresh. Use this when you want to work on a
 #. new task without carrying over previous context.
 #. chrys-meta={"fingerprint":"bd9205a64c33761fa0b4d5d4aad52bc492da73d97d3d23e102c9055f24bebc99","multiline":true,"placeholders":["app"]}
-#: src/chrys/app/tui/screens/main/commands.py:172
+#: src/chrys/app/tui/screens/main/commands.py:180
 msgid "tui.man.new.body"
 msgstr ""
 "开始一个全新的 {app} 会话。\n"
@@ -5820,51 +5857,63 @@ msgstr ""
 
 #. English: Copy agent turns. /copy N is shorthand for /copy agent N.
 #. chrys-meta={"fingerprint":"fc0f4965af64632971a8327c96a55b851b4c1e4a7c3e3bcea65a23440ec5fd03","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:150
+#: src/chrys/app/tui/screens/main/commands.py:158
 msgid "tui.man.option.copy_agent"
 msgstr "复制智能体轮次。/copy N 是 /copy agent N 的简写。"
 
 #. English: Copy the full conversation transcript.
 #. chrys-meta={"fingerprint":"f1ec1da9e657535cda69e9a785c41c34555bde47f261afb6f26a02b25c01f70c","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:155
+#: src/chrys/app/tui/screens/main/commands.py:163
 msgid "tui.man.option.copy_all"
 msgstr "复制完整对话记录。"
 
 #. English: Positive integer count of recent turns to copy.
 #. chrys-meta={"fingerprint":"570e371a8f7b1bb5be7a923fd414e567d735aff3c95216b2b053fa4211f5b5e1","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:159
+#: src/chrys/app/tui/screens/main/commands.py:167
 msgid "tui.man.option.copy_count"
 msgstr "要复制的最近轮次数，必须为正整数。"
 
 #. English: Copy user turns.
 #. chrys-meta={"fingerprint":"80738e9cb2f120e00407bbbf6ee79eaa00b7d0ee06fa7f2534cc26b03c08310a","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:154
+#: src/chrys/app/tui/screens/main/commands.py:162
 msgid "tui.man.option.copy_user"
 msgstr "复制用户轮次。"
 
 #. English: Positive number of most recent turns to discard.
 #. chrys-meta={"fingerprint":"7c58c6c8cda6bbf485cee3201186bef7e3724827376ea79ac5c145b8ad414b86","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:163
+#: src/chrys/app/tui/screens/main/commands.py:171
 msgid "tui.man.option.rollback_count"
 msgstr "要丢弃的最近轮次数，必须为正数。"
 
 #. English: Keep turns 1 through N and discard every later turn. N may be 0.
 #. chrys-meta={"fingerprint":"133dff90fe795ee2d87a88a6b1a1cadfad5f4f33c2f138c70718c1e15a17f6ff","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:167
+#: src/chrys/app/tui/screens/main/commands.py:175
 msgid "tui.man.option.rollback_target"
 msgstr "保留第 1 至第 N 轮，并丢弃之后的所有轮次。N 可以为 0。"
 
 #. English: This command does not take additional options.
 #. chrys-meta={"fingerprint":"dcabecbb61b813204aed5a5ff4517505bdb41c013211f28cb529dd089d6772ca","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:132
+#: src/chrys/app/tui/screens/main/commands.py:140
 msgid "tui.man.options.no_additional_options"
 msgstr "此命令不接受其他选项。"
 
 #. English: This command supports subcommands.
 #. chrys-meta={"fingerprint":"2cecc4eb179b3292b859eac4d9c06b800f990662fffa8af193ba404b8b608fd1","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:128
+#: src/chrys/app/tui/screens/main/commands.py:136
 msgid "tui.man.options.supports_subcommands"
 msgstr "此命令支持子命令。"
+
+#. English: Keep the next message on the ordinary single-pass track, whatever
+#. the router would have decided.  Accepted while the agent is running: during
+#. a long-horizon turn's preparation it pulls that turn back to the standard
+#. pass.
+#. chrys-meta={"fingerprint":"8f1f95b98646e34f7d1c5a2a03e8699129ccc6e1405f03a341c0e3b2ce48f14d","multiline":true,"placeholders":[]}
+#: src/chrys/app/tui/screens/main/commands.py:294
+msgid "tui.man.quick.body"
+msgstr ""
+"无论路由器会怎么判定，都让下一条消息留在普通的单趟链路上。\n"
+"\n"
+"运行中也接受：在长程轮次的准备阶段输入即可把该轮拉回标准链路。"
 
 #. English: With a title argument, apply it directly as the custom session
 #. title. Without one (or with only whitespace), open the session title editor
@@ -5873,7 +5922,7 @@ msgstr "此命令支持子命令。"
 #. terminal tab, session list) and disables auto-generated titles. Clearing it
 #. in the editor falls back to the automatic title.
 #. chrys-meta={"fingerprint":"3c7dc42eeef2c87987eeeea4aebc7a9508cf627e7723ab123430bacdb13e0d96","multiline":true,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:221
+#: src/chrys/app/tui/screens/main/commands.py:229
 msgid "tui.man.rename.body"
 msgstr ""
 "指定标题参数时，直接将其设为自定义会话标题。\n"
@@ -5887,7 +5936,7 @@ msgstr ""
 #. English: Resume the most recently saved {app} session.  This restores your
 #. previous conversation context, allowing you to continue where you left off.
 #. chrys-meta={"fingerprint":"0f712cb275b5949c9ac37c9337be70e73c29f1249aa94fb27263297681f5c014","multiline":true,"placeholders":["app"]}
-#: src/chrys/app/tui/screens/main/commands.py:202
+#: src/chrys/app/tui/screens/main/commands.py:210
 msgid "tui.man.resume.body"
 msgstr ""
 "恢复最近保存的 {app} 会话。\n"
@@ -5910,7 +5959,7 @@ msgstr ""
 #. blocks interaction until rollback has completely finished.  Use with
 #. caution: this action cannot be undone.
 #. chrys-meta={"fingerprint":"21d96faba3950d2c6c5b91d3aacca2dba2efe0c6f3e5c1af343bb5037c654d88","multiline":true,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:316
+#: src/chrys/app/tui/screens/main/commands.py:355
 msgid "tui.man.rollback.body"
 msgstr ""
 "回滚最近的对话轮次。\n"
@@ -5933,12 +5982,23 @@ msgstr ""
 "\n"
 "请谨慎使用：此操作无法撤销。"
 
+#. English: Show how turns are being routed: the global mode, this profile's
+#. mode, and how the last message was classified.  '/route reroute' abandons
+#. the inherited decision so the next message is classified from scratch.
+#. chrys-meta={"fingerprint":"282d17b75408f9b30ab937b543e592ccf5c39bc242e8aab1ebcb0ff379bd9e0c","multiline":true,"placeholders":[]}
+#: src/chrys/app/tui/screens/main/commands.py:304
+msgid "tui.man.route.body"
+msgstr ""
+"查看当前的路由情况：全局模式，以及上一条消息是如何被分类的。\n"
+"\n"
+"'/route reroute' 放弃继承下来的判定，让下一条消息重新分类。"
+
 #. English: Open the active runtime details dialog.      Shows:         - The
 #. active model profile and model ID         - Built-in tools grouped by
 #. category         - MCP tools grouped by server         - Skills grouped by
 #. source directory         - Preconfigured memory files grouped by source
 #. chrys-meta={"fingerprint":"354e9af7b944f3b013833ac8844f9c0fd9be99de428590b2d67338bbb9161adb","multiline":true,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:392
+#: src/chrys/app/tui/screens/main/commands.py:431
 msgid "tui.man.runtime.body"
 msgstr ""
 "打开当前运行时详情对话框。\n"
@@ -5954,7 +6014,7 @@ msgstr ""
 #. From the browser you can:     - Select a session to resume     - Delete old
 #. sessions     - View session metadata (date, turns, etc.)
 #. chrys-meta={"fingerprint":"6bd2a9018c6d5c5aabd993b293e24cfe6292187ade9d8cb8e84698b873baa93f","multiline":true,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:235
+#: src/chrys/app/tui/screens/main/commands.py:243
 msgid "tui.man.sessions.body"
 msgstr ""
 "打开会话浏览器以查看和恢复先前的会话。\n"
@@ -5969,7 +6029,7 @@ msgstr ""
 #. saved as you make them; the panel says when each     one takes effect
 #. (immediately, on close, or after a restart).
 #. chrys-meta={"fingerprint":"2b21b292bfa8fe449d092f675cb2e23fad6d0607e94377403171d53efc617d23","multiline":true,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/commands.py:405
+#: src/chrys/app/tui/screens/main/commands.py:444
 msgid "tui.man.settings.body"
 msgstr ""
 "打开设置面板（F10），可指定打开某个标签页。\n"
@@ -5982,7 +6042,7 @@ msgstr ""
 #. opens the theme picker dialog. With a theme name, directly switches to that
 #. theme.  Available themes can be listed using tab completion after /theme.
 #. chrys-meta={"fingerprint":"bcb190dd328f2c6625e46f5f8d7129d0dfd8b49365dba4d7792c1541bef896f4","multiline":true,"placeholders":["app"]}
-#: src/chrys/app/tui/screens/main/commands.py:246
+#: src/chrys/app/tui/screens/main/commands.py:254
 msgid "tui.man.theme.body"
 msgstr ""
 "更改 {app} 界面的配色主题。\n"
@@ -7135,20 +7195,20 @@ msgstr "chat_options {{\"store\": true}} 会启用服务端续接。此模式暂
 
 #. English: Set up model
 #. chrys-meta={"fingerprint":"f1ef5c854f61637720b4f43175c18baa5e04582d0692aeaf615eed03015f9e58","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/screen.py:177
+#: src/chrys/app/tui/screens/main/screen.py:178
 msgid "tui.model_guard.button.setup"
 msgstr "配置模型"
 
 #. English: Your message was not sent. Configure and select a model to get
 #. started.
 #. chrys-meta={"fingerprint":"4546a3c7f398d13e1a0130843219b40be2cbc95de470cec4e7496d544c75c772","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/screen.py:173
+#: src/chrys/app/tui/screens/main/screen.py:174
 msgid "tui.model_guard.message"
 msgstr "消息未发送。请先配置并选择模型，再开始对话。"
 
 #. English: Model not configured or selected
 #. chrys-meta={"fingerprint":"e6776e7703392888f957e00e8a5753b2cf8365fb7dbe7585cb53b1d6658ee956","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/screen.py:172
+#: src/chrys/app/tui/screens/main/screen.py:173
 msgid "tui.model_guard.title"
 msgstr "模型未配置或未选择"
 
@@ -7368,37 +7428,37 @@ msgstr "通知"
 
 #. English: Baseline candidate (provisional)
 #. chrys-meta={"fingerprint":"8e55bedf01747bea641cb2469c256f2c82d1857b0e63e6baf3664b566f5adf88","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:136
+#: src/chrys/app/tui/screens/main/event_handlers.py:138
 msgid "tui.requirement_clarification.baseline_provisional"
 msgstr "基线候选（暂定）"
 
 #. English: Clarifying repository requirements…
 #. chrys-meta={"fingerprint":"0aeba4da89a57d5983bab4b601653416d64f7b0cdfd3d97f46d44b9ee79740e9","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:142
+#: src/chrys/app/tui/screens/main/event_handlers.py:147
 msgid "tui.requirement_clarification.clarification"
 msgstr "正在澄清仓库需求…"
 
 #. English: Finalizing the implementation…
 #. chrys-meta={"fingerprint":"3b9dfc9fedaeea7446cc90c0ab20ef7262483b0ba75f2b2d3cc2182fe28a9543","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:146
+#: src/chrys/app/tui/screens/main/event_handlers.py:151
 msgid "tui.requirement_clarification.finalizing"
 msgstr "正在完成实现…"
 
 #. English: Building an initial implementation…
 #. chrys-meta={"fingerprint":"dc930c14da12376ae2ff5e390825e5f479ffadad860660180b7c60de9b5673ff","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:141
+#: src/chrys/app/tui/screens/main/event_handlers.py:146
 msgid "tui.requirement_clarification.initial"
 msgstr "正在构建初始实现…"
 
 #. English: Repairing the initial implementation…
 #. chrys-meta={"fingerprint":"b90348b759a3a0cf547f0c272781db9de3ffdad516ed3d61bcd14b2d37b7743b","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:145
+#: src/chrys/app/tui/screens/main/event_handlers.py:150
 msgid "tui.requirement_clarification.repair"
 msgstr "正在修复初始实现…"
 
 #. English: Freezing the turn workspace…
 #. chrys-meta={"fingerprint":"6b7e77ec5925d84b41755c7ba3ad72d3583b2f88f930db9805583a69dc1b607b","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:140
+#: src/chrys/app/tui/screens/main/event_handlers.py:145
 msgid "tui.requirement_clarification.snapshot"
 msgstr "正在冻结本轮工作区…"
 
@@ -7695,6 +7755,36 @@ msgstr "用法：/rollback、/rollback N 或 /rollback to N。"
 #: src/chrys/app/tui/screens/diff/rollback_modal.py:120
 msgid "tui.rollback.warning_note"
 msgstr "⚠ {message}"
+
+#. English: Routing: long-horizon · {reason}
+#. chrys-meta={"fingerprint":"2a2d42d9a0105abe8023e4166a85c1e19b9d6b57e02a8a6d4aaf5a83516a89b1","multiline":false,"placeholders":["reason"]}
+#: src/chrys/app/tui/screens/main/event_handlers.py:142
+msgid "tui.route.announcement"
+msgstr "路由：长程 · {reason}"
+
+#. English: /quick keeps this turn on the standard track
+#. chrys-meta={"fingerprint":"3c841686811b55bc657ddb28cb8160dbaa36ed943a21b61539593aa26b37410b","multiline":false,"placeholders":[]}
+#: src/chrys/app/tui/screens/main/event_handlers.py:143
+msgid "tui.route.downgrade_hint"
+msgstr "/quick 可让本轮回到标准链路"
+
+#. English: The next message will be classified from scratch.
+#. chrys-meta={"fingerprint":"a03cb187679c639bea70a93831325b507ef585ab9874b0504458622d1d24022e","multiline":false,"placeholders":[]}
+#: src/chrys/app/tui/screens/main/commands.py:69
+msgid "tui.route.reroute_queued"
+msgstr "下一条消息将重新分类。"
+
+#. English: Routing
+#. chrys-meta={"fingerprint":"29b992b0b4870c4089022836551975cb60ab57db2a6532bf20125d251e1c34a7","multiline":false,"placeholders":[]}
+#: src/chrys/app/tui/screens/main/commands.py:68
+msgid "tui.route.status.title"
+msgstr "路由"
+
+#. English: Unknown /route argument: {argument}
+#. chrys-meta={"fingerprint":"b986a5e6cb94e4d1d06d27468a7e031cd6318ee1b9c3be16aa0c5cb2b653d53e","multiline":false,"placeholders":["argument"]}
+#: src/chrys/app/tui/screens/main/commands.py:70
+msgid "tui.route.unknown_argument"
+msgstr "无法识别的 /route 参数：{argument}"
 
 #. English: Chat Completions
 #. chrys-meta={"fingerprint":"a496f1445fcc52b30620f6f702fd977e237ae2322c5867b7d684af7a56fff68d","multiline":false,"placeholders":[]}
@@ -8683,7 +8773,7 @@ msgstr "已为本会话固定；保存的值适用于新会话。"
 
 #. English: Could not save settings; the store rejected: {keys}.
 #. chrys-meta={"fingerprint":"16a74971b57de5711328da353dbee3a64d24fe1089f8b419d04f51f960848eac","multiline":false,"placeholders":["keys"]}
-#: src/chrys/app/tui/screens/main/screen.py:155
+#: src/chrys/app/tui/screens/main/screen.py:156
 msgid "tui.settings.save_rejected"
 msgstr "无法保存设置；存储拒绝了：{keys}。"
 
@@ -11517,13 +11607,13 @@ msgstr "图像输入不可用"
 
 #. English: Image Not Attached
 #. chrys-meta={"fingerprint":"ef95faf3f92a8e25a04f799c4eb59a191611e52c36d518a409ad798f6232d340","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:296
+#: src/chrys/app/tui/screens/main/event_handlers.py:301
 msgid "tui.vision_unsupported.title.not_attached"
 msgstr "图像未附加"
 
 #. English: Warning
 #. chrys-meta={"fingerprint":"d921f3bd2bb07927d457aae3c3560e726748eed4cd9009826372a2d82f02b65c","multiline":false,"placeholders":[]}
-#: src/chrys/app/tui/screens/main/event_handlers.py:133
+#: src/chrys/app/tui/screens/main/event_handlers.py:135
 msgid "tui.warning.title"
 msgstr "警告"
 

@@ -60,6 +60,14 @@ _DESCRIPTION_COPY = msg(
     fallback="Copy agent, user, or all turns to clipboard",
 )
 _DESCRIPTION_FOLD = msg("tui.commands.description.fold", fallback="Toggle collapse on all tool groups")
+_DESCRIPTION_LONGRUN = msg(
+    "tui.commands.description.longrun", fallback="Run the next message on the long-horizon track"
+)
+_DESCRIPTION_QUICK = msg("tui.commands.description.quick", fallback="Keep the next message on the standard track")
+_DESCRIPTION_ROUTE = msg("tui.commands.description.route", fallback="Show or re-run turn routing")
+_ROUTE_STATUS_TITLE = msg("tui.route.status.title", fallback="Routing")
+_ROUTE_REROUTE_QUEUED = msg("tui.route.reroute_queued", fallback="The next message will be classified from scratch.")
+_ROUTE_UNKNOWN_ARGUMENT = msg("tui.route.unknown_argument", fallback="Unknown /route argument: {argument}")
 _DESCRIPTION_DIFF = msg(
     "tui.commands.description.diff",
     fallback="View file changes for the current session",
@@ -272,6 +280,37 @@ _MAN_CHDIR_BODY = msg(
     ),
     multiline=True,
 )
+_MAN_LONGRUN_BODY = msg(
+    "tui.man.longrun.body",
+    fallback=(
+        "Force the next message onto the long-horizon track: a baseline pass, clarification with "
+        "code localization, a repair pass, and -- when the workspace can verify one -- a governed "
+        "PACT campaign.\n\n"
+        "Pass the message with the command to submit it in one step. The override applies to that "
+        "one message only; later messages are classified normally."
+    ),
+    multiline=True,
+)
+_MAN_QUICK_BODY = msg(
+    "tui.man.quick.body",
+    fallback=(
+        "Keep the next message on the ordinary single-pass track, whatever the router would have "
+        "decided.\n\n"
+        "Accepted while the agent is running: during a long-horizon turn\u0027s preparation it pulls "
+        "that turn back to the standard pass."
+    ),
+    multiline=True,
+)
+_MAN_ROUTE_BODY = msg(
+    "tui.man.route.body",
+    fallback=(
+        "Show how turns are being routed: the global mode, this profile\u0027s mode, and how the last "
+        "message was classified.\n\n"
+        "\u0027/route reroute\u0027 abandons the inherited decision so the next message is classified "
+        "from scratch."
+    ),
+    multiline=True,
+)
 _MAN_COPY_BODY = msg(
     "tui.man.copy.body",
     fallback=(
@@ -448,6 +487,9 @@ class SlashCommandActionPort(Protocol):
     def toggle_fold(self) -> None: ...
     def show_diff(self) -> None: ...
     def show_rollback(self, arg: str = "") -> None: ...
+    def set_route_override(self, track: str, *, reroute: bool = False) -> None: ...
+    def submit_prompt(self, text: str) -> None: ...
+    def route_status(self) -> str: ...
     def current_approval_mode(self) -> str: ...
     def set_approval_mode(self, arg: str) -> None: ...
     def open_model_config(self) -> None: ...
@@ -492,6 +534,9 @@ class SlashCommandActions:
     fold_tools: Callable[[], None]
     open_diff: Callable[[], None]
     open_rollback: Callable[[str], None]
+    apply_route_override: Callable[[str, bool], None]
+    send_prompt: Callable[[str], None]
+    describe_route: Callable[[], str]
     get_approval_mode: Callable[[], str]
     change_approval_mode: Callable[[str], object]
     configure_model: Callable[[], None]
@@ -528,6 +573,15 @@ class SlashCommandActions:
 
     def unknown_language_warning(self, requested_locale: str) -> str:
         return self.render_unknown_language_warning(requested_locale)
+
+    def set_route_override(self, track: str, *, reroute: bool = False) -> None:
+        self.apply_route_override(track, reroute)
+
+    def submit_prompt(self, text: str) -> None:
+        self.send_prompt(text)
+
+    def route_status(self) -> str:
+        return self.describe_route()
 
     def debug(self, key: str, message: str = "") -> None:
         self.debug_event(key, message)
@@ -968,6 +1022,31 @@ class MainSlashCommandRegistry:
                 man_page=_MAN_ROLLBACK_BODY.bind(),
             ),
             SlashCommandDef(
+                "longrun",
+                _DESCRIPTION_LONGRUN.bind(),
+                action=lambda arg: _route_and_submit(actions, "long_horizon", arg),
+                synopsis="/longrun [message]",
+                man_page=_MAN_LONGRUN_BODY.bind(),
+            ),
+            SlashCommandDef(
+                "quick",
+                _DESCRIPTION_QUICK.bind(),
+                action=lambda arg: _route_and_submit(actions, "standard", arg),
+                # Accepted mid-run on purpose: the point is to catch a
+                # long-horizon turn during its preparation phase.
+                allow_while_running=True,
+                synopsis="/quick [message]",
+                man_page=_MAN_QUICK_BODY.bind(),
+            ),
+            SlashCommandDef(
+                "route",
+                _DESCRIPTION_ROUTE.bind(),
+                action=lambda arg: _route_command(actions, arg),
+                allow_while_running=True,
+                synopsis="/route [show|reroute]",
+                man_page=_MAN_ROUTE_BODY.bind(),
+            ),
+            SlashCommandDef(
                 "approval",
                 _DESCRIPTION_APPROVAL.bind(),
                 action=actions.set_approval_mode,
@@ -1050,3 +1129,24 @@ class MainSlashCommandRegistry:
             ),
         ]
         return self._slash_commands
+
+
+def _route_and_submit(actions: SlashCommandActionPort, track: str, argument: str) -> None:
+    """Set a one-shot override and, when text came with it, send it."""
+    actions.set_route_override(track)
+    text = argument.strip()
+    if text:
+        actions.submit_prompt(text)
+
+
+def _route_command(actions: SlashCommandActionPort, argument: str) -> None:
+    """Report routing, or drop the inherited decision."""
+    choice = argument.strip().lower()
+    if choice in {"", "show"}:
+        actions.notify_warning(actions.route_status(), title=_ROUTE_STATUS_TITLE.bind(), timeout=8)
+        return
+    if choice == "reroute":
+        actions.set_route_override("", reroute=True)
+        actions.notify_warning(_ROUTE_REROUTE_QUEUED.bind(), title=_ROUTE_STATUS_TITLE.bind())
+        return
+    actions.notify_warning(_ROUTE_UNKNOWN_ARGUMENT.bind(argument=argument.strip()))

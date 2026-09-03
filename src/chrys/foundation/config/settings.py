@@ -1381,6 +1381,9 @@ class Settings:
     # Idle seconds before a session's completed turns are deposited into the
     # graph.  ``0`` disables the timer entirely; a negative value is rejected
     # so it falls through to this default rather than meaning "immediately".
+    # The watcher reads this once when a session starts, so a change reaches
+    # the next session rather than the running one -- which is what RELOAD
+    # promises, and unlike RESTART it is true inside one process.
     memory_writeback_idle_seconds: int = field(
         default=3600,
         metadata=spec(
@@ -1388,7 +1391,7 @@ class Settings:
             label=_LABEL_MEMORY_WRITEBACK_IDLE_SECONDS,
             env="CHRYS_MEMORY_WRITEBACK_IDLE_SECONDS",
             coerce=int_coercer(reject_negative=True),
-            apply=Apply.LIVE,
+            apply=Apply.RELOAD,
             group="memory",
             kind=Kind.INT,
         ),

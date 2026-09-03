@@ -1695,6 +1695,9 @@ def test_live_catalog_artifacts_contain_effective_translations_and_are_loadable(
         "tui.chrome.approval_mode.badge",
         "tui.chrome.approval_mode.bypass",
         "tui.chrome.approval_mode.manual",
+        "tui.commands.description.longrun",
+        "tui.commands.description.quick",
+        "tui.commands.description.route",
         "tui.commands.title.disabled",
         "tui.commands.title.invalid",
         "tui.commands.title.man_page",
@@ -1890,6 +1893,7 @@ def test_live_catalog_artifacts_contain_effective_translations_and_are_loadable(
         "tui.logs.empty.module",
         "tui.logs.level_hint",
         "tui.logs.title",
+        "tui.long_horizon.phase",
         "tui.main.clear.empty_session",
         "tui.main.clear.no_active_session",
         "tui.main.confirm.clear",
@@ -1930,6 +1934,7 @@ def test_live_catalog_artifacts_contain_effective_translations_and_are_loadable(
         "tui.man.index.name",
         "tui.man.index.see_also",
         "tui.man.language.body",
+        "tui.man.longrun.body",
         "tui.man.man.body",
         "tui.man.models.body",
         "tui.man.new.body",
@@ -1941,9 +1946,11 @@ def test_live_catalog_artifacts_contain_effective_translations_and_are_loadable(
         "tui.man.option.rollback_target",
         "tui.man.options.no_additional_options",
         "tui.man.options.supports_subcommands",
+        "tui.man.quick.body",
         "tui.man.rename.body",
         "tui.man.resume.body",
         "tui.man.rollback.body",
+        "tui.man.route.body",
         "tui.man.runtime.body",
         "tui.man.sessions.body",
         "tui.man.theme.body",
@@ -2020,6 +2027,11 @@ def test_live_catalog_artifacts_contain_effective_translations_and_are_loadable(
         "tui.rollback.unavailable",
         "tui.rollback.usage",
         "tui.rollback.warning_note",
+        "tui.route.announcement",
+        "tui.route.downgrade_hint",
+        "tui.route.reroute_queued",
+        "tui.route.status.title",
+        "tui.route.unknown_argument",
         "tui.runtime_details.boolean.off",
         "tui.runtime_details.boolean.on",
         "tui.runtime_details.empty.entries",
@@ -3308,7 +3320,7 @@ def test_live_catalog_artifacts_contain_effective_translations_and_are_loadable(
             "tui.trajectory.tool_usage.unattributed",
         }
     )
-    assert len(expected_ids) == 1824
+    assert len(expected_ids) == 1836
     assert {_entry_id(message) for message in pot if message.id} == expected_ids
     assert {_entry_id(message) for message in po if message.id} == expected_ids
     assert set(_effective_catalog_entries(po)) == expected_ids

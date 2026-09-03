@@ -68,6 +68,7 @@ from chrys.foundation.events.types import (
     Error,
     ImageAttachmentCompressionFinished,
     ImageAttachmentCompressionStarted,
+    LongHorizonPhaseChanged,
     PresentationAttemptAccepted,
     PresentationAttemptRejected,
     QuestionToUser,
@@ -97,6 +98,7 @@ from chrys.foundation.events.types import (
     ToolCallStart,
     ToolCallStatusUpdated,
     ToolCompacted,
+    TurnRouted,
     UsageUpdate,
     UserInjectResult,
     Warning,
@@ -137,6 +139,9 @@ _BASELINE_PROVISIONAL = msg(
     "tui.requirement_clarification.baseline_provisional",
     fallback="Baseline candidate (provisional)",
 )
+_ROUTE_ANNOUNCEMENT = msg("tui.route.announcement", fallback="Routing: long-horizon \u00b7 {reason}")
+_ROUTE_DOWNGRADE_HINT = msg("tui.route.downgrade_hint", fallback="/quick keeps this turn on the standard track")
+_LONG_HORIZON_PHASE_STATUS = msg("tui.long_horizon.phase", fallback="Long-horizon: {phase}")
 _REQUIREMENT_SNAPSHOT = msg("tui.requirement_clarification.snapshot", fallback="Freezing the turn workspace…")
 _REQUIREMENT_INITIAL = msg("tui.requirement_clarification.initial", fallback="Building an initial implementation…")
 _REQUIREMENT_CLARIFICATION = msg(
@@ -1144,6 +1149,31 @@ class BackendEventHandler:
         else:
             ui.show_status(STATUS_STREAMING.bind())
             await ui.add_agent_message(event.text, is_final=False, created_at=event.timestamp)
+
+    async def on_turn_routed(self, event: TurnRouted) -> None:
+        """Announce a long-horizon decision and remember it for ``/route``."""
+        summary = f"{event.band} ({event.source})"
+        if event.reason:
+            summary = f"{summary}: {event.reason}"
+        self._state.run.last_route = summary
+        self.debug("TurnRouted", summary)
+        if event.track != "long_horizon":
+            return
+        line = self._render_display(_ROUTE_ANNOUNCEMENT.bind(reason=event.reason or event.band))
+        if event.can_downgrade:
+            line = f"{line}\n{self._render_display(_ROUTE_DOWNGRADE_HINT.bind())}"
+        await self._ui().add_agent_message(
+            f"_{line}_",
+            is_final=True,
+            is_intermediate=True,
+            created_at=event.timestamp,
+        )
+
+    async def on_long_horizon_phase(self, event: LongHorizonPhaseChanged) -> None:
+        """Show long-horizon progress without closing the active turn."""
+        if self.agent_running and event.phase:
+            self._ui().show_status(_LONG_HORIZON_PHASE_STATUS.bind(phase=event.phase))
+        self.debug("LongHorizon", f"{event.phase} terminal={event.terminal}")
 
     async def on_requirement_clarification_phase(
         self,

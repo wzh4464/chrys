@@ -48,6 +48,8 @@ class RunState:
     has_messages: bool = False
     generation: int = 0
     started_at: datetime | None = None
+    last_route: str = ""
+    """One-line summary of the latest routing decision, for ``/route``."""
 
 
 @dataclass

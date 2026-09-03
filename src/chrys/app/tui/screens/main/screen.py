@@ -121,6 +121,7 @@ from chrys.foundation.events.types import (
     AgentRuntimeDetails,
     Error,
     RollbackResult,
+    RouteOverride,
     SessionRestored,
 )
 from chrys.foundation.i18n import DisplaySequence, Localizer, msg
@@ -946,6 +947,32 @@ class MainScreen(RightClickScreenCopyMixin, _HostRefreshLeaseScreen):
             LANGUAGE_UNKNOWN_LOCALE.bind(locale=requested_locale),
         )
 
+    def _submit_routed_prompt(self, text: str) -> None:
+        """Submit text a routing slash command carried with it.
+
+        Indirect on purpose: the slash actions are built before the input flow
+        exists, so binding its method here would capture nothing.
+        """
+        self._input_flow.submit_user_text(text)
+
+    def _apply_route_override(self, track: str, reroute: bool) -> None:
+        """Queue a one-shot routing override for the next submitted message."""
+        self.run_worker(
+            self._services.bus.publish(RouteOverride(track=track, reroute=reroute)),
+            thread=False,
+        )
+
+    def _describe_route(self) -> str:
+        """Summarise how turns are being routed right now."""
+        settings = cast("ChrysApp", self.app).settings_handle.settings
+        last = self._state.run.last_route
+        return "\n".join(
+            [
+                f"global mode: {settings.routing_mode}",
+                f"last turn: {last}" if last else "last turn: not classified yet",
+            ]
+        )
+
     def _new_slash_command_actions(self) -> SlashCommandActions:
         return SlashCommandActions(
             list_themes=lambda: sorted(self.app.available_themes),
@@ -971,6 +998,9 @@ class MainScreen(RightClickScreenCopyMixin, _HostRefreshLeaseScreen):
             fold_tools=self._toggle_fold,
             open_diff=self.action_show_diff,
             open_rollback=self.action_show_rollback,
+            apply_route_override=self._apply_route_override,
+            send_prompt=self._submit_routed_prompt,
+            describe_route=self._describe_route,
             get_approval_mode=lambda: self._state.runtime.approval_mode.value,
             change_approval_mode=self._set_approval_mode,
             configure_model=self._open_model_config,

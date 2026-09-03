@@ -57,6 +57,16 @@ _GREYED_LAYERS = frozenset({Source.PROJECT, Source.USER_ENV, Source.ENV})
 _STARTUP_ONLY_RELOAD_KEYS = frozenset({"agent.default_profile", "approval.default_mode"})
 
 
+_READ_AT_USE_KEYS = frozenset(
+    {
+        "memory.writeback.on_session_end",
+        "routing.mode",
+        "routing.tiebreaker_model_profile",
+    }
+)
+"""Live keys whose consumers re-read settings per use, so a save is the apply."""
+
+
 @dataclass(frozen=True, slots=True)
 class SettingsCoordinatorCallbacks:
     """Screen- and app-owned effects the coordinator drives."""
@@ -215,6 +225,10 @@ class SettingsCoordinator:
             self._reproject_dialog()
         elif key == "trajectory.verify_commands":
             self._callbacks.apply_trajectory_verify_commands(str(value))
+        elif key in _READ_AT_USE_KEYS:
+            # Nothing to hot-apply: every consumer reads these off the settings
+            # handle at the moment it needs them, so persisting IS applying.
+            return
         else:
             msg_text = f"{key}: no live writer registered"
             raise ValueError(msg_text)
