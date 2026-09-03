@@ -209,6 +209,7 @@ def _run_locate(
     mode: str,
     model_profile: str,
     timeout: float,
+    localization_timeout: float,
 ) -> tuple[int, str, str]:
     command = [
         *command_prefix,
@@ -221,6 +222,12 @@ def _run_locate(
         str(artifact_dir),
         "--mode",
         mode,
+        # ``chrys locate`` defaults this to 120s, which is the budget for the
+        # whole localization loop -- far below one reasoning-model pass. Pass
+        # it explicitly so the outer subprocess timeout is never the shorter
+        # of the two and a slow model produces a report instead of a timeout.
+        "--timeout",
+        str(localization_timeout),
         "--json",
     ]
     if model_profile:
@@ -295,6 +302,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--clone", action=argparse.BooleanOptionalAction, default=True, help="Clone missing task repositories"
     )
     parser.add_argument("--locate-timeout", type=float, default=900.0)
+    parser.add_argument(
+        "--localization-timeout",
+        type=float,
+        default=120.0,
+        help="Budget for the localization loop itself; must stay below --locate-timeout",
+    )
     parser.add_argument("--agent-timeout", type=float, default=3_600.0)
     parser.add_argument(
         "--per-task", action="store_true", help="Run one task at a time (recommended for long DeepSWE jobs)"
@@ -380,6 +393,7 @@ def main(argv: list[str] | None = None) -> int:
                     mode=args.mode,
                     model_profile=args.localization_model,
                     timeout=args.locate_timeout,
+                    localization_timeout=args.localization_timeout,
                 )
                 (task_dir / "locate.stdout").write_text(stdout, encoding="utf-8")
                 (task_dir / "locate.stderr").write_text(stderr, encoding="utf-8")
