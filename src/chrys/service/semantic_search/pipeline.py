@@ -97,6 +97,23 @@ def _redact_payload_paths(payload: dict[str, Any], *, artifact_dir: Path) -> dic
     return redacted
 
 
+def _read_payload(path: Path) -> dict[str, Any]:
+    """Read a localization payload, turning corruption into a typed failure.
+
+    A truncated ``code-localization.json`` (disk full, interrupted write) would
+    otherwise raise ``json.JSONDecodeError``, which callers that degrade on
+    :class:`SemanticSearchError` do not catch -- so one bad artifact would abort
+    every later run in that repository until the file was deleted by hand.
+    """
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise SemanticSearchError(f"semantic-search artifact is unreadable: {path}: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise SemanticSearchError(f"semantic-search artifact is not an object: {path}")
+    return payload
+
+
 def localize_requirement(
     repo: str | Path,
     requirement: str,
@@ -118,8 +135,10 @@ def localize_requirement(
     root = _resolve_repo(repo)
     artifacts = artifact_paths(_safe_artifact_dir(root, artifact_dir))
     if not refresh and _cache_valid(artifacts, repo=root, requirement=requirement):
-        payload = json.loads(artifacts.result_json.read_text(encoding="utf-8"))
-        return LocalizationResult(payload=payload, artifacts=artifacts, reused=True)
+        # A corrupt cache is not a cache: fall through and regenerate rather
+        # than failing a run the user never asked to reuse anything for.
+        with suppress(SemanticSearchError):
+            return LocalizationResult(payload=_read_payload(artifacts.result_json), artifacts=artifacts, reused=True)
 
     prompt_path = artifacts.result_json.parent / "PROMPT.md"
     prompt_path.write_text(requirement, encoding="utf-8")
@@ -195,7 +214,7 @@ def localize_requirement(
             _run_script("localize_task.py", arguments, cwd=root, timeout=cfg.timeout_seconds)
         else:
             raise
-    payload = json.loads(artifacts.result_json.read_text(encoding="utf-8"))
+    payload = _read_payload(artifacts.result_json)
     redacted = _redact_payload_paths(payload, artifact_dir=artifacts.result_json.parent)
     if redacted != payload:
         artifacts.result_json.write_text(

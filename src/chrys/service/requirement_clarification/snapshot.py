@@ -146,6 +146,20 @@ def _safe_view_destination(view_root: Path, relative_path: str) -> Path:
     return destination
 
 
+def _ensure_restore_parent(path: Path) -> None:
+    """Create a restore destination's parent without touching existing modes.
+
+    Restore writes into the user's *live* workspace, so
+    ``ensure_owner_only_directory`` is wrong here: it unconditionally chmods the
+    directory to 0700, and because snapshot entries record file and symlink
+    modes only, that tightening is never captured, never restored, and never
+    reported by ``matches()`` or by ``git status``. One failed repair would
+    otherwise leave the repository root and every restored file's directory
+    owner-only for good.
+    """
+    path.mkdir(parents=True, exist_ok=True)
+
+
 def _materialize_model_entry(
     *,
     view_root: Path,
@@ -418,7 +432,7 @@ class WorkspaceSnapshotter:
                     raise WorkspaceSnapshotError(f"failed to remove repair-created path {path}: {exc}") from exc
             for relative, entry in expected.items():
                 destination = _safe_view_destination(source_root, relative)
-                ensure_owner_only_directory(destination.parent)
+                _ensure_restore_parent(destination.parent)
                 data = (blob_root / entry.content_hash).read_bytes()
                 if entry.kind == "symlink":
                     if destination.exists() or destination.is_symlink():
@@ -700,7 +714,7 @@ class WorkspaceSnapshotter:
     def _restore_reference(reference: SnapshotReference, blob_root: Path) -> None:
         destination = Path(reference.source_path)
         entry = reference.entry
-        ensure_owner_only_directory(destination.parent)
+        _ensure_restore_parent(destination.parent)
         data = (blob_root / entry.content_hash).read_bytes()
         if destination.exists() or destination.is_symlink():
             if destination.is_dir() and not destination.is_symlink():

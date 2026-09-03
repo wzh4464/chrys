@@ -74,13 +74,32 @@ def load_inputs(args: argparse.Namespace) -> tuple[Path, Path, Path, Path, Path]
     return repo, requirement, artifact_dir, out, markdown
 
 
-def run_component(python: str, script_name: str, args: list[str], *, artifact_dir: Path) -> dict[str, Any]:
+# A component that never returns would hold the whole preflight past whatever
+# budget its caller set, so every child gets a bound of its own.
+COMPONENT_TIMEOUT_SECONDS = float(os.environ.get("SEMANTIC_SEARCH_COMPONENT_TIMEOUT", "900"))
+
+
+def run_component(
+    python: str,
+    script_name: str,
+    args: list[str],
+    *,
+    artifact_dir: Path,
+    timeout: float = COMPONENT_TIMEOUT_SECONDS,
+) -> dict[str, Any]:
     stdout_path = artifact_dir / f"{Path(script_name).stem.replace('_', '-')}.stdout"
     stderr_path = artifact_dir / f"{Path(script_name).stem.replace('_', '-')}.stderr"
     argv = [python, str(SCRIPT_DIR / script_name), *args]
     try:
-        proc = subprocess.run(argv, text=True, capture_output=True, check=False)
-    except OSError as err:
+        proc = subprocess.run(
+            argv,
+            text=True,
+            capture_output=True,
+            check=False,
+            stdin=subprocess.DEVNULL,
+            timeout=timeout,
+        )
+    except (OSError, subprocess.SubprocessError) as err:
         stdout_path.write_text("", encoding="utf-8")
         stderr_path.write_text(str(err) + "\n", encoding="utf-8")
         return {

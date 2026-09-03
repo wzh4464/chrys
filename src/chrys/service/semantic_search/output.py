@@ -10,12 +10,20 @@ import os
 from pathlib import Path
 from typing import Any
 
+from chrys.service.mutations.scanner import DEFAULT_EXCLUDES
+
 from .models import LocalizationArtifact
 
 
 def requirement_hash(requirement: str) -> str:
     """Return a stable hash for cache validation."""
     return hashlib.sha256(requirement.encode("utf-8", "surrogateescape")).hexdigest()
+
+
+_FINGERPRINT_EXCLUDED_DIRS: frozenset[str] = DEFAULT_EXCLUDES | {
+    ".semantic-search",
+    ".semantic-search-tools",
+}
 
 
 def repo_fingerprint(repo: Path) -> str:
@@ -32,11 +40,12 @@ def repo_fingerprint(repo: Path) -> str:
             index_stat = index.stat()
             digest.update(f"{index_stat.st_mtime_ns}:{index_stat.st_size}".encode())
         for directory, dirnames, filenames in os.walk(repo):
-            dirnames[:] = sorted(
-                name
-                for name in dirnames
-                if name not in {".git", ".semantic-search", ".semantic-search-tools", "__pycache__", ".venv"}
-            )
+            # The fingerprint runs before every localization, twice, so it must
+            # not stat a populated node_modules/ or target/. Reuse the shared
+            # exclude set rather than a local shortlist: dependency and build
+            # trees are not source, so their mtimes cannot invalidate a
+            # localization cache anyway.
+            dirnames[:] = sorted(name for name in dirnames if name not in _FINGERPRINT_EXCLUDED_DIRS)
             for name in sorted(filenames):
                 path = Path(directory) / name
                 try:

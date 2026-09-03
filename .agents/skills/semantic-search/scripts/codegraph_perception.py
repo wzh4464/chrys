@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import os
 import shlex
 import shutil
@@ -49,8 +50,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--install-codegraph",
         choices=("auto", "never", "force"),
-        default=os.environ.get("SEMANTIC_SEARCH_CODEGRAPH_INSTALL", "auto"),
-        help="Install CodeGraph into the current Python environment when no CLI is available.",
+        default=os.environ.get("SEMANTIC_SEARCH_CODEGRAPH_INSTALL", "never"),
+        help=(
+            "Install CodeGraph when no CLI is available. Any value but 'never' downloads and runs a "
+            "third-party installer, so it also requires a pinned --codegraph-install-sha256."
+        ),
     )
     parser.add_argument(
         "--codegraph-install-url",
@@ -61,6 +65,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         "--codegraph-install-script-url",
         default=os.environ.get("SEMANTIC_SEARCH_CODEGRAPH_INSTALL_SCRIPT_URL", "https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh"),
         help="Official CodeGraph installer script URL.",
+    )
+    parser.add_argument(
+        "--codegraph-install-sha256",
+        default=os.environ.get("SEMANTIC_SEARCH_CODEGRAPH_INSTALL_SHA256", ""),
+        help="SHA-256 of the installer script. Required to install: an unpinned script is refused.",
     )
     parser.add_argument(
         "--codegraph-version",
@@ -172,7 +181,9 @@ def resolve_codegraph_command(args: argparse.Namespace, artifact_dir: Path) -> t
             download_dir=download_dir,
             repo_url=args.codegraph_install_url,
             install_script_url=args.codegraph_install_script_url,
+            install_script_sha256=args.codegraph_install_sha256,
             version=args.codegraph_version,
+            timeout=args.timeout,
         )
         resolution["attempts"].append(install_result)
         if env_candidate.is_file() and os.access(env_candidate, os.X_OK):
@@ -194,8 +205,19 @@ def install_codegraph_bundle(
     download_dir: Path,
     repo_url: str,
     install_script_url: str,
+    install_script_sha256: str,
     version: str,
+    timeout: float,
 ) -> dict[str, Any]:
+    """Download, verify, and run the official CodeGraph installer.
+
+    The script is fetched to a file and checked against a caller-supplied
+    SHA-256 before anything executes it. Piping a remote URL straight into a
+    shell would make whoever controls that branch -- or whoever can set
+    ``SEMANTIC_SEARCH_CODEGRAPH_INSTALL_SCRIPT_URL`` -- an arbitrary-code-
+    execution vector, which is exactly what this repository's pinning rule
+    exists to prevent, so an unpinned install is refused outright.
+    """
     result: dict[str, Any] = {
         "method": "official-install-script",
         "repo_url": repo_url,
@@ -207,6 +229,12 @@ def install_codegraph_bundle(
         "ok": False,
     }
     try:
+        expected_digest = install_script_sha256.strip().lower()
+        if not expected_digest:
+            raise ScriptError(
+                "refusing to run the CodeGraph installer without --codegraph-install-sha256: "
+                "pin the script's digest, or install CodeGraph yourself and pass --codegraph-cmd"
+            )
         curl = shutil.which("curl") or "/usr/bin/curl"
         shell = shutil.which("sh") or "/usr/bin/sh"
         if not Path(curl).exists() and "/" in curl:
@@ -218,6 +246,26 @@ def install_codegraph_bundle(
         tmp_dir.mkdir(parents=True, exist_ok=True)
         bin_dir.mkdir(parents=True, exist_ok=True)
         install_dir.mkdir(parents=True, exist_ok=True)
+        script_path = download_dir / "codegraph-install.sh"
+        fetch = subprocess.run(
+            [curl, "-fsSL", "-o", str(script_path), install_script_url],
+            text=True,
+            capture_output=True,
+            check=False,
+            stdin=subprocess.DEVNULL,
+            timeout=timeout,
+        )
+        if fetch.returncode != 0:
+            raise ScriptError(
+                f"could not download the CodeGraph installer (rc={fetch.returncode}): "
+                f"{(fetch.stderr or '').strip()[:500]}"
+            )
+        actual_digest = hashlib.sha256(script_path.read_bytes()).hexdigest()
+        result["install_script_sha256"] = actual_digest
+        if actual_digest != expected_digest:
+            raise ScriptError(
+                f"CodeGraph installer digest mismatch: expected {expected_digest}, got {actual_digest}"
+            )
         env = os.environ.copy()
         env.update(
             {
@@ -228,8 +276,16 @@ def install_codegraph_bundle(
         )
         if version:
             env["CODEGRAPH_VERSION"] = normalize_version(version)
-        cmd = [shell, "-c", f"{shlex.quote(curl)} -fsSL {shlex.quote(install_script_url)} | {shlex.quote(shell)}"]
-        proc = subprocess.run(cmd, text=True, capture_output=True, check=False, env=env)
+        cmd = [shell, str(script_path)]
+        proc = subprocess.run(
+            cmd,
+            text=True,
+            capture_output=True,
+            check=False,
+            env=env,
+            stdin=subprocess.DEVNULL,
+            timeout=timeout,
+        )
         result.update(
             {
                 "argv": cmd,
@@ -241,13 +297,16 @@ def install_codegraph_bundle(
         )
         launcher = bin_dir / "codegraph"
         if proc.returncode != 0:
-            raise ScriptError(f"official CodeGraph installer failed with rc={proc.returncode}: {(proc.stderr or proc.stdout or '').strip()[:500]}")
+            raise ScriptError(
+                f"official CodeGraph installer failed with rc={proc.returncode}: "
+                f"{(proc.stderr or proc.stdout or '').strip()[:500]}"
+            )
         if not launcher.is_file() and not launcher.is_symlink():
             raise ScriptError(f"official CodeGraph installer did not create {launcher}")
         launcher.chmod(launcher.stat().st_mode | 0o111)
         result.update({"ok": True, "launcher": str(launcher)})
         return result
-    except Exception as err:
+    except (OSError, subprocess.SubprocessError, ScriptError) as err:
         result.update({"ok": False, "error": str(err)})
         return result
 

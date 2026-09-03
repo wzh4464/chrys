@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import stat
 import subprocess
 from pathlib import Path
 
@@ -200,3 +201,33 @@ def test_snapshot_freezes_and_restores_explicit_reference_file(tmp_path: Path) -
     assert snapshotter.matches(snapshot) is False
     snapshotter.restore(snapshot)
     assert reference.read_text(encoding="utf-8") == "version: 1\n"
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX directory modes")
+def test_restore_leaves_live_workspace_directory_modes_alone(tmp_path: Path) -> None:
+    """A P0 rollback must not tighten the user's own repository to 0700.
+
+    Snapshot entries record file and symlink modes only, so a directory mode
+    changed during restore is never captured, never restored, and invisible to
+    ``matches()`` and to ``git status``.
+    """
+    workspace_root = tmp_path / "workspace"
+    nested = workspace_root / "scripts"
+    nested.mkdir(parents=True)
+    (nested / "build.sh").write_text("echo build\n", encoding="utf-8")
+    workspace_root.chmod(0o755)
+    nested.chmod(0o755)
+    snapshotter = WorkspaceSnapshotter()
+
+    snapshot = snapshotter.capture(
+        Workspace.from_cwd(str(workspace_root)),
+        tmp_path / "artifact",
+        snapshot_id="s0",
+        include_git_history=False,
+    )
+    (nested / "build.sh").write_text("echo repaired\n", encoding="utf-8")
+    snapshotter.restore(snapshot)
+
+    assert (nested / "build.sh").read_text(encoding="utf-8") == "echo build\n"
+    assert stat.S_IMODE(nested.stat().st_mode) == 0o755
+    assert stat.S_IMODE(workspace_root.stat().st_mode) == 0o755
