@@ -63,7 +63,10 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument(
         "--codegraph-install-script-url",
-        default=os.environ.get("SEMANTIC_SEARCH_CODEGRAPH_INSTALL_SCRIPT_URL", "https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh"),
+        default=os.environ.get(
+            "SEMANTIC_SEARCH_CODEGRAPH_INSTALL_SCRIPT_URL",
+            "https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh",
+        ),
         help="Official CodeGraph installer script URL.",
     )
     parser.add_argument(
@@ -76,8 +79,14 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default=os.environ.get("CODEGRAPH_VERSION", ""),
         help="Optional CodeGraph release tag/version. Defaults to latest release.",
     )
-    parser.add_argument("--timeout", type=float, default=float(os.environ.get("SEMANTIC_SEARCH_CODEGRAPH_TIMEOUT", "25")))
-    parser.add_argument("--max-output-chars", type=int, default=int(os.environ.get("SEMANTIC_SEARCH_CODEGRAPH_MAX_OUTPUT_CHARS", "9000")))
+    parser.add_argument(
+        "--timeout", type=float, default=float(os.environ.get("SEMANTIC_SEARCH_CODEGRAPH_TIMEOUT", "25"))
+    )
+    parser.add_argument(
+        "--max-output-chars",
+        type=int,
+        default=int(os.environ.get("SEMANTIC_SEARCH_CODEGRAPH_MAX_OUTPUT_CHARS", "9000")),
+    )
     parser.add_argument("--max-queries", type=int, default=5)
     parser.add_argument("--max-symbols", type=int, default=4)
     return parser.parse_args(argv)
@@ -89,12 +98,19 @@ def load_inputs(args: argparse.Namespace) -> tuple[Path, Path, Path, Path, Path,
         raise ScriptError(f"repo path does not exist: {repo}")
     out = resolve_path(args.out)
     artifact_dir = resolve_path(args.artifact_dir or out.parent)
-    requirement = ensure_allowed_path(args.requirement, allowed_roots=[artifact_dir], allowed_files=[resolve_path(args.requirement)], purpose="requirement")
+    requirement = ensure_allowed_path(
+        args.requirement,
+        allowed_roots=[artifact_dir],
+        allowed_files=[resolve_path(args.requirement)],
+        purpose="requirement",
+    )
     reject_benchmark_answer_path(requirement, purpose="requirement")
     index_path = ensure_allowed_path(args.index, allowed_roots=[repo, artifact_dir], purpose="index")
     out = ensure_allowed_path(out, allowed_roots=[repo, artifact_dir, out.parent], purpose="output")
     markdown = resolve_path(args.markdown or out.with_suffix(".md"))
-    markdown = ensure_allowed_path(markdown, allowed_roots=[repo, artifact_dir, markdown.parent], purpose="markdown-output")
+    markdown = ensure_allowed_path(
+        markdown, allowed_roots=[repo, artifact_dir, markdown.parent], purpose="markdown-output"
+    )
     requirement_text = read_text(requirement)
     index = load_json(index_path)
     if index.get("format") != FORMAT_INDEX:
@@ -162,7 +178,14 @@ def resolve_codegraph_command(args: argparse.Namespace, artifact_dir: Path) -> t
             resolution.update({"source": "requested", "command": tokens, "available": True})
             return tokens, resolution
         if args.install_codegraph == "never":
-            resolution.update({"source": "requested", "command": tokens, "available": False, "note": "requested CodeGraph command is unavailable and installation is disabled"})
+            resolution.update(
+                {
+                    "source": "requested",
+                    "command": tokens,
+                    "available": False,
+                    "note": "requested CodeGraph command is unavailable and installation is disabled",
+                }
+            )
             return tokens, resolution
     else:
         if env_candidate.is_file() and os.access(env_candidate, os.X_OK):
@@ -247,7 +270,7 @@ def install_codegraph_bundle(
         bin_dir.mkdir(parents=True, exist_ok=True)
         install_dir.mkdir(parents=True, exist_ok=True)
         script_path = download_dir / "codegraph-install.sh"
-        fetch = subprocess.run(
+        fetch = subprocess.run(  # noqa: S603 — argv is a list built from validated inputs
             [curl, "-fsSL", "-o", str(script_path), install_script_url],
             text=True,
             capture_output=True,
@@ -263,9 +286,7 @@ def install_codegraph_bundle(
         actual_digest = hashlib.sha256(script_path.read_bytes()).hexdigest()
         result["install_script_sha256"] = actual_digest
         if actual_digest != expected_digest:
-            raise ScriptError(
-                f"CodeGraph installer digest mismatch: expected {expected_digest}, got {actual_digest}"
-            )
+            raise ScriptError(f"CodeGraph installer digest mismatch: expected {expected_digest}, got {actual_digest}")
         env = os.environ.copy()
         env.update(
             {
@@ -277,7 +298,7 @@ def install_codegraph_bundle(
         if version:
             env["CODEGRAPH_VERSION"] = normalize_version(version)
         cmd = [shell, str(script_path)]
-        proc = subprocess.run(
+        proc = subprocess.run(  # noqa: S603 — argv is a list built from validated inputs
             cmd,
             text=True,
             capture_output=True,
@@ -321,13 +342,14 @@ def normalize_version(value: str) -> str:
 def run_command(base: list[str], extra: list[str], *, cwd: Path, timeout: float, max_chars: int) -> dict[str, Any]:
     argv = [*base, *extra]
     try:
-        proc = subprocess.run(
+        proc = subprocess.run(  # noqa: S603 — argv is a list built from validated inputs
             argv,
             cwd=str(cwd),
             text=True,
             capture_output=True,
             timeout=timeout,
             check=False,
+            stdin=subprocess.DEVNULL,
         )
         stdout = (proc.stdout or "")[:max_chars]
         stderr = (proc.stderr or "")[:max_chars]
@@ -426,7 +448,9 @@ def collect_codegraph(args: argparse.Namespace) -> dict[str, Any]:
         "notes": [],
     }
     if not available:
-        payload["notes"].append("CodeGraph CLI was not found or could not be installed; repository perception will use builtin static evidence only.")
+        payload["notes"].append(
+            "CodeGraph CLI was not found or could not be installed; repository perception will use builtin static evidence only."
+        )
         payload["summary"] = {"status": "unavailable", "query_count": 0, "symbol_relationship_count": 0}
         write_outputs(out, markdown, payload)
         append_trace("codegraph-perception", {"out": str(out), "available": False})
@@ -443,7 +467,9 @@ def collect_codegraph(args: argparse.Namespace) -> dict[str, Any]:
     files_result = run_command(base, ["files"], cwd=repo, timeout=args.timeout, max_chars=args.max_output_chars)
     setup_results.append(files_result)
     if not files_result["ok"]:
-        setup_results.append(run_command(base, ["explore"], cwd=repo, timeout=args.timeout, max_chars=args.max_output_chars))
+        setup_results.append(
+            run_command(base, ["explore"], cwd=repo, timeout=args.timeout, max_chars=args.max_output_chars)
+        )
     payload["setup_attempts"] = setup_results
 
     query_results = []

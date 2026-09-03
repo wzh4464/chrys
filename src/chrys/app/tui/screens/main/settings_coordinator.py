@@ -62,6 +62,7 @@ _READ_AT_USE_KEYS = frozenset(
         "memory.writeback.on_session_end",
         "routing.mode",
         "routing.tiebreaker_model_profile",
+        "semantic_search.model_profile",
     }
 )
 """Live keys whose consumers re-read settings per use, so a save is the apply."""

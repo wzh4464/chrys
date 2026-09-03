@@ -218,7 +218,7 @@ def load_json(path: Path) -> dict[str, Any]:
 
 
 def sha1_path(path: Path) -> str:
-    digest = hashlib.sha1()
+    digest = hashlib.sha1()  # noqa: S324 — cache key, not a security primitive
     try:
         with path.open("rb") as handle:
             for chunk in iter(lambda: handle.read(1024 * 1024), b""):
@@ -281,7 +281,7 @@ def classify_file(path: Path, relative: str) -> dict[str, Any]:
     if is_test:
         kind = "test"
     elif name in CONFIG_NAMES or suffix in CONFIG_SUFFIXES:
-        kind = "build" if name in {"Makefile", "CMakeLists.txt", "pom.xml"} or suffix in {".gradle"} else "config"
+        kind = "build" if name in {"Makefile", "CMakeLists.txt", "pom.xml"} or suffix == ".gradle" else "config"
     elif suffix in DOC_SUFFIXES or "doc" in lower_parts or "docs" in lower_parts:
         kind = "docs"
     elif parts and (set(parts) & BUILD_DIR_NAMES or lower_parts & {item.lower() for item in BUILD_DIR_NAMES}):
@@ -305,11 +305,7 @@ def is_test_path(relative: str) -> bool:
         bool(parts & TEST_PARTS)
         or "/test" in lowered
         or name.startswith("test_")
-        or name.endswith("_test.py")
-        or name.endswith("_test.rs")
-        or name.endswith("test.java")
-        or name.endswith("tests.java")
-        or name.endswith("test.scala")
+        or name.endswith(("_test.py", "_test.rs", "test.java", "tests.java", "test.scala"))
     )
 
 

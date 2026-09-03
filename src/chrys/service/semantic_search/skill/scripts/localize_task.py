@@ -10,6 +10,7 @@ source; final verification and implementation remain Chrys responsibilities.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import sys
@@ -37,13 +38,10 @@ from _common import (
     write_json,
 )
 from _localization_agent import (
-    LocalizationAgent,
-    OpenAIChatClient,
     TraceWriter,
     normalize_locations,
 )
 from _localization_graph import LocalizationGraph
-from _localization_tools import LocalizationTools
 
 SOURCE_SUFFIXES = ("py", "java", "scala", "rs", "c", "h", "cc", "cpp", "hpp")
 FILE_RE = re.compile(r"(?P<path>[A-Za-z0-9_./-]+\.(?:" + "|".join(SOURCE_SUFFIXES) + r"))", flags=re.IGNORECASE)
@@ -86,6 +84,13 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--temperature", type=float, default=0.2)
     parser.add_argument("--max-iterations", type=int, default=20)
     parser.add_argument("--max-tool-results", type=int, default=20)
+    parser.add_argument(
+        "--locations",
+        help=(
+            "JSON array of raw locations produced by the in-process localization agent. "
+            "Present means the LLM stage already ran; this script only normalizes and renders."
+        ),
+    )
     return parser.parse_args(argv)
 
 
@@ -253,6 +258,19 @@ def fallback_locations(
     return normalize_locations(raw_locations, graph, source="deterministic-fallback")
 
 
+def _load_supplied_locations(path: str | None) -> list[dict[str, Any]]:
+    """Read the in-process agent's raw locations, treating absence as none."""
+    if not path:
+        return []
+    try:
+        payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError) as err:
+        raise ScriptError(f"could not read supplied localization results: {err}") from err
+    if not isinstance(payload, list):
+        raise ScriptError("supplied localization results must be a JSON array")
+    return [item for item in payload if isinstance(item, dict)]
+
+
 def localize(args: argparse.Namespace) -> dict[str, Any]:
     repo, requirement, index_path, out, markdown, requirement_text, index, facts, codegraph = load_inputs(args)
     terms = requirement_terms(requirement_text)
@@ -279,37 +297,23 @@ def localize(args: argparse.Namespace) -> dict[str, Any]:
     iteration_count = 0
     agent_error = ""
     agent_requested = args.mode != "fallback"
-    mock_configured = bool(
-        os.environ.get("SEMANTIC_SEARCH_LOCALIZATION_MOCK_RESPONSES")
-        or os.environ.get("SEMANTIC_SEARCH_LOCALIZATION_MOCK_RESPONSE")
-    )
-    if agent_requested and (args.model_profile or mock_configured):
-        try:
-            client = OpenAIChatClient(args.model_profile, args.llm_timeout, args.temperature)
-            agent = LocalizationAgent(
-                graph,
-                LocalizationTools(graph, max_results=args.max_tool_results),
-                client,
-                trace,
-                max_iterations=args.max_iterations,
-            )
-            agent_result = agent.run(requirement_text)
-            locations = agent_result.locations[: max(args.top_locations, 1)]
-            generation_mode = "llm-agent"
-            model = agent_result.model
-            tool_call_count = agent_result.tool_call_count
-            iteration_count = agent_result.iteration_count
-            if not locations:
-                raise ScriptError("LLM localization agent returned no valid repository locations")
-        except ScriptError as err:
-            if args.mode == "llm":
-                raise
-            agent_error = str(err)
+    # The LLM search runs inside the Chrys process, where the model client,
+    # the model lock, and usage accounting already live. This script receives
+    # its output and owns only the deterministic half: normalization, ranking,
+    # the graph export, and the rendered report.
+    supplied = _load_supplied_locations(args.locations)
+    if supplied:
+        locations = normalize_locations(supplied, graph, source="llm-search")[: max(args.top_locations, 1)]
+        generation_mode = "llm-agent"
+        model = str(args.model_profile or "")
+        trace.write("agent-locations-supplied", location_count=len(locations))
+        if not locations:
+            agent_error = "in-process localization agent returned no valid repository locations"
             trace.write("agent-fallback", reason=agent_error)
     elif args.mode == "llm":
-        raise ScriptError("--mode llm requires --model-profile or localization mock responses")
+        raise ScriptError("--mode llm requires locations from the in-process localization agent")
     else:
-        reason = "no localization model profile configured" if agent_requested else "fallback mode requested"
+        reason = "no in-process localization result" if agent_requested else "fallback mode requested"
         trace.write("agent-skipped", reason=reason)
 
     ranked: list[dict[str, Any]] = []
@@ -391,8 +395,10 @@ def render_markdown(payload: dict[str, Any]) -> str:
     lines = [
         "# Code Localization",
         "",
-        "This report ranks inspection candidates for Chrys. It is not an automatic edit list; "
-        "verify every location against source.",
+        (
+            "This report ranks inspection candidates for Chrys. It is not an automatic edit list; "
+            "verify every location against source."
+        ),
         "",
         "## Summary",
         "",

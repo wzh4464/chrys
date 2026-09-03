@@ -91,7 +91,7 @@ def run_component(
     stderr_path = artifact_dir / f"{Path(script_name).stem.replace('_', '-')}.stderr"
     argv = [python, str(SCRIPT_DIR / script_name), *args]
     try:
-        proc = subprocess.run(
+        proc = subprocess.run(  # noqa: S603 — argv is a list built from validated inputs
             argv,
             text=True,
             capture_output=True,
@@ -398,8 +398,10 @@ def render_markdown(payload: dict[str, Any]) -> str:
         "",
         "- Base code perception: CodeGraph when available, with builtin static perception as fallback.",
         "- Enhanced code perception: semantic-search links the original requirement to repository evidence.",
-        "- Requirement augmentation consumes `code-facts.json`, which includes the merged repository perception "
-        "and task-specific semantic perception.",
+        (
+            "- Requirement augmentation consumes `code-facts.json`, which includes the merged repository perception "
+            "and task-specific semantic perception."
+        ),
         "",
         "## Artifact Routes",
         "",

@@ -37,7 +37,17 @@ SURFACE_RULES = {
         "risk": "Syntax and parser work often requires source-of-truth grammar/token files and generated artifacts to stay in sync.",
     },
     "compiler-runtime": {
-        "terms": {"compiler", "compile", "runtime", "bytecode", "opcode", "interpreter", "scope", "semantic", "execution"},
+        "terms": {
+            "compiler",
+            "compile",
+            "runtime",
+            "bytecode",
+            "opcode",
+            "interpreter",
+            "scope",
+            "semantic",
+            "execution",
+        },
         "path_terms": {"python", "objects", "runtime", "compiler", "opcode"},
         "risk": "Runtime changes can pass local examples while breaking existing behavior or introspection paths.",
     },
@@ -134,9 +144,17 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--out", required=True, help="Output code-facts.json path.")
     parser.add_argument("--artifact-dir", help="Semantic-search artifact directory. Defaults to output parent.")
     parser.add_argument("--global-perception", help="Optional global-perception.json from global_perception.py.")
-    parser.add_argument("--repository-perception", help="Optional repository-perception.json from repository_perception.py.")
-    parser.add_argument("--semantic-out", help="Output semantic-perception.json path. Defaults to artifact-dir/semantic-perception.json.")
-    parser.add_argument("--semantic-markdown", help="Output semantic-perception.md path. Defaults to artifact-dir/semantic-perception.md.")
+    parser.add_argument(
+        "--repository-perception", help="Optional repository-perception.json from repository_perception.py."
+    )
+    parser.add_argument(
+        "--semantic-out",
+        help="Output semantic-perception.json path. Defaults to artifact-dir/semantic-perception.json.",
+    )
+    parser.add_argument(
+        "--semantic-markdown",
+        help="Output semantic-perception.md path. Defaults to artifact-dir/semantic-perception.md.",
+    )
     parser.add_argument("--top-files", type=int, default=18)
     parser.add_argument("--top-symbols", type=int, default=24)
     return parser.parse_args(argv)
@@ -150,23 +168,38 @@ def load_inputs(
         raise ScriptError(f"repo path does not exist: {repo}")
     out = resolve_path(args.out)
     artifact_dir = resolve_path(args.artifact_dir or out.parent)
-    requirement = ensure_allowed_path(args.requirement, allowed_roots=[artifact_dir], allowed_files=[resolve_path(args.requirement)], purpose="requirement")
+    requirement = ensure_allowed_path(
+        args.requirement,
+        allowed_roots=[artifact_dir],
+        allowed_files=[resolve_path(args.requirement)],
+        purpose="requirement",
+    )
     reject_benchmark_answer_path(requirement, purpose="requirement")
     index_path = ensure_allowed_path(args.index, allowed_roots=[repo, artifact_dir], purpose="index")
     out = ensure_allowed_path(out, allowed_roots=[repo, artifact_dir, out.parent], purpose="output")
     semantic_out = resolve_path(args.semantic_out or artifact_dir / "semantic-perception.json")
-    semantic_out = ensure_allowed_path(semantic_out, allowed_roots=[repo, artifact_dir, semantic_out.parent], purpose="semantic-output")
+    semantic_out = ensure_allowed_path(
+        semantic_out, allowed_roots=[repo, artifact_dir, semantic_out.parent], purpose="semantic-output"
+    )
     semantic_markdown = resolve_path(args.semantic_markdown or artifact_dir / "semantic-perception.md")
-    semantic_markdown = ensure_allowed_path(semantic_markdown, allowed_roots=[repo, artifact_dir, semantic_markdown.parent], purpose="semantic-markdown-output")
+    semantic_markdown = ensure_allowed_path(
+        semantic_markdown,
+        allowed_roots=[repo, artifact_dir, semantic_markdown.parent],
+        purpose="semantic-markdown-output",
+    )
     global_perception = None
     if args.global_perception:
-        global_path = ensure_allowed_path(args.global_perception, allowed_roots=[repo, artifact_dir], purpose="global-perception")
+        global_path = ensure_allowed_path(
+            args.global_perception, allowed_roots=[repo, artifact_dir], purpose="global-perception"
+        )
         global_perception = load_json(global_path)
         if global_perception.get("format") != FORMAT_GLOBAL:
             raise ScriptError(f"unsupported global perception format: {global_perception.get('format')}")
     repository_perception = None
     if args.repository_perception:
-        repository_path = ensure_allowed_path(args.repository_perception, allowed_roots=[repo, artifact_dir], purpose="repository-perception")
+        repository_path = ensure_allowed_path(
+            args.repository_perception, allowed_roots=[repo, artifact_dir], purpose="repository-perception"
+        )
         repository_perception = load_json(repository_path)
         if repository_perception.get("format") != FORMAT_REPOSITORY:
             raise ScriptError(f"unsupported repository perception format: {repository_perception.get('format')}")
@@ -174,13 +207,29 @@ def load_inputs(
     index = load_json(index_path)
     if index.get("format") != FORMAT_INDEX:
         raise ScriptError(f"unsupported index format: {index.get('format')}")
-    return repo, requirement, index_path, out, semantic_out, semantic_markdown, artifact_dir, requirement_text, index, global_perception, repository_perception
+    return (
+        repo,
+        requirement,
+        index_path,
+        out,
+        semantic_out,
+        semantic_markdown,
+        artifact_dir,
+        requirement_text,
+        index,
+        global_perception,
+        repository_perception,
+    )
 
 
 def extract_requirement_signals(text: str) -> list[dict[str, Any]]:
     code_terms = re.findall(r"`([^`]{2,80})`", text)
     fenced_blocks = re.findall(r"```(?:\w+)?\n(.*?)```", text, flags=re.DOTALL)
-    file_like = re.findall(r"[\w./-]+\.(?:py|java|scala|rs|c|h|cpp|hpp|toml|xml|gradle|rst|md|gram|asdl|g4|peg|y|l)", text, flags=re.IGNORECASE)
+    file_like = re.findall(
+        r"[\w./-]+\.(?:py|java|scala|rs|c|h|cpp|hpp|toml|xml|gradle|rst|md|gram|asdl|g4|peg|y|l)",
+        text,
+        flags=re.IGNORECASE,
+    )
     title_terms = []
     for line in text.splitlines():
         stripped = line.strip()
@@ -290,7 +339,9 @@ def repo_map(index: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def infer_surfaces(index: dict[str, Any], signals: list[dict[str, Any]], ranked: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def infer_surfaces(
+    index: dict[str, Any], signals: list[dict[str, Any]], ranked: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
     terms = {signal["term"] for signal in signals}
     signal_categories = {signal["category"] for signal in signals}
     surfaces: list[dict[str, Any]] = []
@@ -373,7 +424,9 @@ def capability_requirements(
     }
 
 
-def new_or_missing_surface_hints(requirement_text: str, signals: list[dict[str, Any]], index: dict[str, Any]) -> list[dict[str, str]]:
+def new_or_missing_surface_hints(
+    requirement_text: str, signals: list[dict[str, Any]], index: dict[str, Any]
+) -> list[dict[str, str]]:
     hints: list[dict[str, str]] = []
     for signal in signals:
         term = str(signal.get("term", "")).strip()
@@ -441,7 +494,9 @@ def likely_named_surface(signal: dict[str, Any]) -> bool:
         return False
     if term.startswith(("http://", "https://")):
         return False
-    if "." in term and not re.search(r"\.(?:py|java|scala|rs|c|h|cpp|hpp|toml|xml|gradle|rst|md|gram|asdl|g4|peg|y|l)$", term):
+    if "." in term and not re.search(
+        r"\.(?:py|java|scala|rs|c|h|cpp|hpp|toml|xml|gradle|rst|md|gram|asdl|g4|peg|y|l)$", term
+    ):
         return False
     if "/" in term and "." not in term:
         return False
@@ -483,7 +538,9 @@ def consistency_chains(
     categories = {signal.get("category", "") for signal in signals}
     surface_names = {surface.get("name", "") for surface in surfaces}
     chains: list[dict[str, str]] = []
-    if has_new_surfaces or any(word in text for word in ("add a module", "adding a module", "new module", "new package", "standard library")):
+    if has_new_surfaces or any(
+        word in text for word in ("add a module", "adding a module", "new module", "new package", "standard library")
+    ):
         chains.append(
             {
                 "name": "new-module-or-api-completeness",
@@ -492,7 +549,11 @@ def consistency_chains(
                 "action": "When the requirement introduces a module/API/class that does not exist yet, add the minimal source files plus only source-verified exports, build/install registration, metadata, and focused validation.",
             }
         )
-    if "syntax" in categories or "syntax-parser" in surface_names or any(term in terms for term in {"grammar", "parser", "asdl"}):
+    if (
+        "syntax" in categories
+        or "syntax-parser" in surface_names
+        or any(term in terms for term in {"grammar", "parser", "asdl"})
+    ):
         chains.append(
             {
                 "name": "parser-generated-runtime-completeness",
@@ -501,7 +562,9 @@ def consistency_chains(
                 "action": "For syntax/parser/ASDL changes, identify the source-of-truth chain first; synchronize generated parser/AST artifacts, compiler/symtable/runtime consumers, and validation only when required, and preserve existing diagnostics and pass-to-pass behavior.",
             }
         )
-    if "build-generated" in surface_names or any(word in text for word in ("generated", "regenerate", "configure", "makefile", "build")):
+    if "build-generated" in surface_names or any(
+        word in text for word in ("generated", "regenerate", "configure", "makefile", "build")
+    ):
         chains.append(
             {
                 "name": "build-generated-registration-completeness",
@@ -580,7 +643,9 @@ def code_details(ranked: list[dict[str, Any]], symbol_limit: int) -> list[dict[s
                 "path": record["path"],
                 "kind": record.get("kind"),
                 "language": record.get("language"),
-                "priority": "must inspect" if len(details) < 8 and record.get("kind") in {"source", "generated"} else "useful",
+                "priority": "must inspect"
+                if len(details) < 8 and record.get("kind") in {"source", "generated"}
+                else "useful",
                 "why": "Matched requirement signals or adjacent repository terms.",
                 "confidence": "high" if record.get("score", 0) >= 20 else "medium",
                 "symbols": symbols,
@@ -592,7 +657,9 @@ def code_details(ranked: list[dict[str, Any]], symbol_limit: int) -> list[dict[s
     return details
 
 
-def validation_hints(index: dict[str, Any], ranked: list[dict[str, Any]], signals: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def validation_hints(
+    index: dict[str, Any], ranked: list[dict[str, Any]], signals: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
     hints: list[dict[str, Any]] = []
     seen: set[str] = set()
     for record in ranked:
@@ -668,10 +735,16 @@ def anti_patterns(surfaces: list[dict[str, Any]]) -> list[dict[str, Any]]:
     generated = any(surface["name"] == "build-generated" for surface in surfaces)
     parser = any(surface["name"] == "syntax-parser" for surface in surfaces)
     if generated or parser:
-        base.append("Do not change a source-of-truth grammar/token/schema without checking generated or registered artifacts.")
-        base.append("Do not let generated/build synchronization change executable bits, file metadata, diagnostics, or pass-to-pass behavior unless the requirement explicitly needs it.")
+        base.append(
+            "Do not change a source-of-truth grammar/token/schema without checking generated or registered artifacts."
+        )
+        base.append(
+            "Do not let generated/build synchronization change executable bits, file metadata, diagnostics, or pass-to-pass behavior unless the requirement explicitly needs it."
+        )
     if any(surface["name"] == "new-or-missing-surface" for surface in surfaces):
-        base.append("Do not force a required new module/API into unrelated existing files just because current-repo search found similar names.")
+        base.append(
+            "Do not force a required new module/API into unrelated existing files just because current-repo search found similar names."
+        )
     return [
         {"claim": item, "source": "inferred", "confidence": "medium", "action": "Use as a pre-final checklist."}
         for item in base
@@ -761,7 +834,11 @@ def global_semantic_links(
             [
                 str(cluster.get("name", "")),
                 " ".join(cluster.get("representative_files", [])),
-                " ".join(symbol.get("name", "") for symbol in cluster.get("representative_symbols", []) if isinstance(symbol, dict)),
+                " ".join(
+                    symbol.get("name", "")
+                    for symbol in cluster.get("representative_symbols", [])
+                    if isinstance(symbol, dict)
+                ),
             ]
         ).lower()
         overlap = sorted(term for term in signal_terms if term and term in cluster_text)[:12]
@@ -844,13 +921,20 @@ def render_semantic_markdown(payload: dict[str, Any]) -> str:
     ]
     lines.extend(
         bullet_lines(
-            [f"`{item.get('term', '')}` ({item.get('category', '')}, source={item.get('source', '')})" for item in payload.get("requirement_signals", [])[:80]]
+            [
+                f"`{item.get('term', '')}` ({item.get('category', '')}, source={item.get('source', '')})"
+                for item in payload.get("requirement_signals", [])[:80]
+            ]
         )
     )
     lines.extend(["", "## Ranked Task Evidence", ""])
     for item in payload.get("ranked_file_details", [])[:12]:
-        lines.append(f"- `{item.get('path', '')}` ({item.get('kind', '')}/{item.get('language', '')}, score={item.get('score', 0)})")
-        symbols = ", ".join(symbol.get("name", "") for symbol in item.get("symbols", [])[:6] if isinstance(symbol, dict))
+        lines.append(
+            f"- `{item.get('path', '')}` ({item.get('kind', '')}/{item.get('language', '')}, score={item.get('score', 0)})"
+        )
+        symbols = ", ".join(
+            symbol.get("name", "") for symbol in item.get("symbols", [])[:6] if isinstance(symbol, dict)
+        )
         if symbols:
             lines.append(f"  Symbols: {symbols}")
     lines.extend(["", "## Implementation Surfaces", ""])
@@ -991,7 +1075,9 @@ def build_facts(args: argparse.Namespace) -> dict[str, Any]:
         "augmentation_routes": [],
     }
     write_json(out, facts)
-    semantic_payload = semantic_perception_payload(requirement, index_path, facts, global_perception, repository_perception, global_links)
+    semantic_payload = semantic_perception_payload(
+        requirement, index_path, facts, global_perception, repository_perception, global_links
+    )
     write_json(semantic_out, semantic_payload)
     semantic_markdown.write_text(render_semantic_markdown(semantic_payload), encoding="utf-8")
     write_json(

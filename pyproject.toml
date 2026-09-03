@@ -86,6 +86,9 @@ dev = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/chrys"]
+# The semantic-search skill lives inside the package (rather than a repo-root
+# .agents/ directory) precisely so hatch ships it: SKILL.md, schemas/ and the
+# scripts all travel with the wheel, and `chrys locate` works from an install.
 
 [tool.hatch.build]
 # Include vendored assets that are gitignored (downloaded at build time)
@@ -166,6 +169,9 @@ ignore = [
 "src/chrys/app/tui/terminal/shell.py" = ["SIM105"]
 "playground/*" = ["RUF001", "RUF012"]
 "src/chrys/app/tui/terminal/shell_read.py" = ["T20"]
+# The semantic-search skill scripts are stand-alone CLIs run as subprocesses:
+# their stdout IS their contract, so print() is the interface, not a leak.
+"src/chrys/service/semantic_search/skill/scripts/*" = ["T20", "PERF"]
 # Buddy sprites/types — ASCII art intentionally uses special characters
 "src/chrys/app/features/buddy/sprites.py" = ["RUF001", "RUF003"]
 "src/chrys/app/features/buddy/types.py" = ["RUF003"]
@@ -182,6 +188,16 @@ known-first-party = ["chrys"]
 
 # OTLP HTTP exporters are optional observability dependencies and are imported
 # only after their matching feature gate is enabled.
+# Ported SemLoc scripts: stand-alone, dynamically typed CLIs that talk to each
+# other through JSON payloads. They are shipped as skill data rather than as
+# Chrys modules, and typing their payload unions would be a rewrite, not a fix.
+[[tool.ty.overrides]]
+include = ["src/chrys/service/semantic_search/skill/scripts/*.py"]
+
+[tool.ty.overrides.rules]
+unresolved-attribute = "ignore"
+unsupported-operator = "ignore"
+
 [[tool.ty.overrides]]
 include = ["src/chrys/foundation/observability/setup.py"]
 

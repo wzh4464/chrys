@@ -10,16 +10,22 @@ without importing the scripts into the application process.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import subprocess
 import sys
+from collections.abc import Callable
 from contextlib import suppress
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from chrys.service.llm.model_lock import ModelLockError
+from chrys.service.profiles.models.schema import ModelProfile
+
 from .config import SemanticSearchConfig, SemanticSearchMode
-from .models import LocalizationResult
+from .models import LocalizationArtifact, LocalizationResult
 from .output import artifact_paths, repo_fingerprint, requirement_hash, write_manifest
 
 
@@ -27,7 +33,11 @@ class SemanticSearchError(RuntimeError):
     """Raised when a required localization stage fails."""
 
 
-_SKILL_SCRIPT_DIR = Path(__file__).resolve().parents[4] / ".agents" / "skills" / "semantic-search" / "scripts"
+# Resolved through the package rather than the repository layout: the previous
+# ``parents[4]`` walk only ever found the scripts from a source checkout, so an
+# installed wheel raised "script is missing" for every localization.
+_SKILL_DIR = Path(__file__).resolve().parent / "skill"
+_SKILL_SCRIPT_DIR = _SKILL_DIR / "scripts"
 
 
 def _resolve_repo(repo: str | Path) -> Path:
@@ -41,6 +51,81 @@ def _safe_artifact_dir(repo: Path, artifact_dir: str | Path | None) -> Path:
     path = Path(artifact_dir).expanduser().resolve() if artifact_dir else repo / ".semantic-search"
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def _run_in_process_localization(
+    requirement: str,
+    *,
+    root: Path,
+    artifacts: LocalizationArtifact,
+    cfg: SemanticSearchConfig,
+    model_profile: ModelProfile | None,
+    client: Any | None,
+    session_id: str | None,
+    parent_session_id: str | None,
+    session_dir: Path | None,
+    warnings: list[str],
+) -> Path | None:
+    """Run the model-driven search, or explain why it did not run.
+
+    Returns the path holding its raw locations for the rendering script, or
+    ``None`` when the deterministic ranking should stand in.
+    """
+    if cfg.mode in {SemanticSearchMode.OFF, SemanticSearchMode.FALLBACK}:
+        return None
+    if model_profile is None:
+        warnings.append("model_unavailable: no model profile for semantic localization")
+        return None
+    from chrys.service.semantic_search.localization_model import ChrysLocalizationModel
+
+    codegraph = artifacts.codegraph_json if artifacts.codegraph_json is not None else None
+    if codegraph is not None and not codegraph.is_file():
+        codegraph = None
+    model = ChrysLocalizationModel(
+        model_profile,
+        session_id=session_id,
+        parent_session_id=parent_session_id,
+        session_dir=session_dir,
+        client=client,
+        on_trace=_trace_writer(artifacts.trace_jsonl),
+    )
+    try:
+        run = asyncio.run(
+            model.localize(
+                requirement,
+                repo=root,
+                index_path=artifacts.index_json,
+                codegraph_path=codegraph,
+                config=cfg,
+            )
+        )
+    except ModelLockError as exc:
+        # The lock is a deliberate refusal, not a failure: fall back silently
+        # to deterministic ranking rather than making a call it forbade.
+        warnings.append(f"model_locked: {exc}")
+        return None
+    except Exception as exc:
+        warnings.append(f"model_unavailable: {exc}")
+        return None
+    if run is None:
+        warnings.append("model_unavailable: the search returned no repository locations")
+        return None
+    destination = artifacts.result_json.parent / "agent-locations.json"
+    destination.write_text(json.dumps(run.locations, ensure_ascii=False, indent=2), encoding="utf-8")
+    return destination
+
+
+def _trace_writer(path: Path) -> Callable[[str, dict[str, Any]], None]:
+    """Append in-process search events to the same trace the scripts write."""
+
+    def _write(event: str, data: dict[str, Any]) -> None:
+        record = {"created_at": datetime.now(tz=UTC).isoformat(), "event": event, **data}
+        with suppress(OSError, TypeError, ValueError):
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with path.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
+
+    return _write
 
 
 def _run_script(script: str, arguments: list[str], *, cwd: Path, timeout: float) -> None:
@@ -122,14 +207,25 @@ def localize_requirement(
     config: SemanticSearchConfig | None = None,
     refresh: bool = False,
     codegraph_command: str = "",
+    model_profile: ModelProfile | None = None,
+    client: Any | None = None,
+    session_id: str | None = None,
+    parent_session_id: str | None = None,
+    session_dir: Path | None = None,
 ) -> LocalizationResult:
     """Run or reuse localization for one requirement.
 
     ``requirement`` is kept in a private artifact prompt file.  The generated
     report only contains repository-relative locations and never absolute
     machine paths.
+
+    The deterministic stages run as subprocesses; the search itself runs here,
+    through *model_profile*, so it obeys the same model policy as every other
+    Chrys model call. Without a profile — or when the model lock rejects it —
+    the run degrades to the deterministic ranking and says so in ``warnings``.
     """
     cfg = config or SemanticSearchConfig()
+    warnings: list[str] = []
     if cfg.mode is SemanticSearchMode.OFF:
         raise SemanticSearchError("semantic localization is disabled")
     root = _resolve_repo(repo)
@@ -176,6 +272,18 @@ def localize_requirement(
             codegraph_args.extend(["--codegraph-cmd", selected_codegraph_command])
         with suppress(SemanticSearchError):
             _run_script("codegraph_perception.py", codegraph_args, cwd=root, timeout=cfg.timeout_seconds)
+    agent_locations = _run_in_process_localization(
+        requirement,
+        root=root,
+        artifacts=artifacts,
+        cfg=cfg,
+        model_profile=model_profile,
+        client=client,
+        session_id=session_id,
+        parent_session_id=parent_session_id,
+        session_dir=session_dir,
+        warnings=warnings,
+    )
     arguments = [
         "--repo",
         str(root),
@@ -204,6 +312,12 @@ def localize_requirement(
     ]
     if cfg.model_profile:
         arguments.extend(["--model-profile", cfg.model_profile])
+    if agent_locations is not None:
+        arguments.extend(["--locations", str(agent_locations)])
+    elif cfg.mode is SemanticSearchMode.LLM:
+        # ``llm`` means the model result is the deliverable; a deterministic
+        # ranking silently substituted for it would be a different answer.
+        raise SemanticSearchError("semantic localization requires a model, and none produced a result")
     if artifacts.codegraph_json is not None and artifacts.codegraph_json.is_file():
         arguments.extend(["--codegraph-perception", str(artifacts.codegraph_json)])
     try:
@@ -229,7 +343,7 @@ def localize_requirement(
         artifacts=artifacts,
         mode=cfg.mode.value,
     )
-    return LocalizationResult(payload=payload, artifacts=artifacts)
+    return LocalizationResult(payload=payload, artifacts=artifacts, warnings=warnings)
 
 
 __all__ = ["SemanticSearchError", "localize_requirement"]

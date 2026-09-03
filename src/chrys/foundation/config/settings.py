@@ -615,6 +615,9 @@ _LABEL_SESSION_TITLE_AUTO = msg("settings.session.title.auto.label", fallback="A
 _LABEL_CONTEXT_WARN_THRESHOLD_PCT = msg(
     "settings.context.warn_threshold_pct.label", fallback="Context warning threshold"
 )
+_LABEL_SEMANTIC_SEARCH_MODEL_PROFILE = msg(
+    "settings.semantic_search.model_profile.label", fallback="Code localization model"
+)
 _LABEL_PACT_VERIFY_COMMAND = msg("settings.pact.verify_command.label", fallback="PACT verify command")
 _LABEL_ROUTING_MODE = msg("settings.routing.mode.label", fallback="Long-horizon routing")
 _LABEL_ROUTING_TIEBREAKER_MODEL_PROFILE = msg(
@@ -1293,6 +1296,25 @@ class Settings:
             # Where a user's sessions live is not a repository's business.
             project_merge=ProjectMerge.DENY,
             risk=Risk.CAUTION,
+        ),
+    )
+
+    # ── Semantic search ───────────────────────────────────────────
+    # Model used for the code-localization search. Empty means the session's
+    # active model, which is also what makes CHRYS_MODEL_LOCK apply with no
+    # extra plumbing. The search is a bounded walk over a pre-built graph, so
+    # naming a cheaper profile here is the cost lever. Not project-settable:
+    # a repository must not choose which model a user's machine calls.
+    semantic_search_model_profile: str = field(
+        default="",
+        metadata=spec(
+            key="semantic_search.model_profile",
+            label=_LABEL_SEMANTIC_SEARCH_MODEL_PROFILE,
+            env="CHRYS_SEMANTIC_SEARCH_MODEL_PROFILE",
+            coerce=text_coercer(),
+            apply=Apply.LIVE,
+            group="semantic_search",
+            kind=Kind.TEXT,
         ),
     )
 

@@ -396,6 +396,7 @@ DEFERRED_KEYS: frozenset[str] = frozenset(
         "pact.verify_command",
         "routing.mode",
         "routing.tiebreaker_model_profile",
+        "semantic_search.model_profile",
         "memory.writeback.idle_seconds",
         "memory.writeback.on_session_end",
         # Low-frequency keys with a natural home, held back until asked for.

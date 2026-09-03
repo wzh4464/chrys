@@ -94,14 +94,18 @@ def load_inputs(args: argparse.Namespace) -> tuple[Path, Path, Path, Path, Path,
     index_path = ensure_allowed_path(args.index, allowed_roots=[repo, artifact_dir], purpose="index")
     out = ensure_allowed_path(out, allowed_roots=[repo, artifact_dir, out.parent], purpose="output")
     markdown = resolve_path(args.markdown or out.with_suffix(".md"))
-    markdown = ensure_allowed_path(markdown, allowed_roots=[repo, artifact_dir, markdown.parent], purpose="markdown-output")
+    markdown = ensure_allowed_path(
+        markdown, allowed_roots=[repo, artifact_dir, markdown.parent], purpose="markdown-output"
+    )
     index = load_json(index_path)
     if index.get("format") != FORMAT_INDEX:
         raise ScriptError(f"unsupported index format: {index.get('format')}")
     external_graph = None
     external_value = args.external_graph_json.strip()
     if external_value:
-        external_path = ensure_allowed_path(external_value, allowed_roots=[repo, artifact_dir], purpose="external-graph-json")
+        external_path = ensure_allowed_path(
+            external_value, allowed_roots=[repo, artifact_dir], purpose="external-graph-json"
+        )
         external_graph = load_json(external_path)
     return repo, index_path, out, markdown, artifact_dir, index, external_graph
 
@@ -167,7 +171,9 @@ def module_clusters(files: list[dict[str, Any]], limit: int) -> list[dict[str, A
                 "file_count": len(records),
                 "kind_counts": dict(kind_counts),
                 "language_counts": dict(language_counts),
-                "representative_files": [record["path"] for record in sorted(records, key=representative_sort_key)[:10]],
+                "representative_files": [
+                    record["path"] for record in sorted(records, key=representative_sort_key)[:10]
+                ],
                 "representative_symbols": symbols[:18],
             }
         )
@@ -277,9 +283,13 @@ def topology(files: list[dict[str, Any]]) -> dict[str, Any]:
 def source_of_truth_hints(files: list[dict[str, Any]]) -> list[dict[str, Any]]:
     hints = []
     for record in files:
-        terms = set(str(term).lower() for term in record.get("terms", []))
+        terms = {str(term).lower() for term in record.get("terms", [])}
         path_terms = set(tokenize(record.get("path", "")))
-        if not (terms & SOURCE_OF_TRUTH_TERMS or path_terms & SOURCE_OF_TRUTH_TERMS or record.get("language") in {"grammar", "schema"}):
+        if not (
+            terms & SOURCE_OF_TRUTH_TERMS
+            or path_terms & SOURCE_OF_TRUTH_TERMS
+            or record.get("language") in {"grammar", "schema"}
+        ):
             continue
         hints.append(
             {
@@ -299,7 +309,7 @@ def external_graph_summary(external_graph: dict[str, Any] | None) -> dict[str, A
             "present": False,
             "note": "No external CodeGraph/GitNexus JSON was provided; using builtin global perception.",
         }
-    keys = sorted(str(key) for key in external_graph.keys())[:40]
+    keys = sorted(str(key) for key in external_graph)[:40]
     counts = {}
     samples = {}
     for key, value in external_graph.items():
@@ -381,7 +391,9 @@ def render_markdown(perception: dict[str, Any]) -> str:
     lines.append(f"- Build files: {overview_data.get('build_count', 0)}")
     lines.extend(["", "## Module Clusters", ""])
     for cluster in perception.get("module_clusters", [])[:24]:
-        lines.append(f"- `{cluster.get('name')}`: {cluster.get('file_count')} files, kinds={cluster.get('kind_counts')}")
+        lines.append(
+            f"- `{cluster.get('name')}`: {cluster.get('file_count')} files, kinds={cluster.get('kind_counts')}"
+        )
         reps = ", ".join(f"`{item}`" for item in cluster.get("representative_files", [])[:5])
         if reps:
             lines.append(f"  Representative files: {reps}")
@@ -409,7 +421,11 @@ def render_markdown(perception: dict[str, Any]) -> str:
     lines.extend(["", "### Build Files"])
     lines.extend(bullet_lines([f"`{item}`" for item in topology_data.get("build_files", [])[:40]]))
     lines.extend(["", "### Test Roots"])
-    lines.extend(bullet_lines([f"`{item.get('root')}` ({item.get('files')} files)" for item in topology_data.get("test_roots", [])[:40]]))
+    lines.extend(
+        bullet_lines(
+            [f"`{item.get('root')}` ({item.get('files')} files)" for item in topology_data.get("test_roots", [])[:40]]
+        )
+    )
     lines.extend(["", "## Source-of-truth Hints", ""])
     lines.extend(
         bullet_lines(

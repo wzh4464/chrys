@@ -38,7 +38,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def load_inputs(args: argparse.Namespace) -> tuple[Path, Path, Path, Path, dict[str, Any], dict[str, Any] | None, dict[str, Any] | None]:
+def load_inputs(
+    args: argparse.Namespace,
+) -> tuple[Path, Path, Path, Path, dict[str, Any], dict[str, Any] | None, dict[str, Any] | None]:
     repo = resolve_path(args.repo)
     if not repo.is_dir():
         raise ScriptError(f"repo path does not exist: {repo}")
@@ -47,19 +49,25 @@ def load_inputs(args: argparse.Namespace) -> tuple[Path, Path, Path, Path, dict[
     index_path = ensure_allowed_path(args.index, allowed_roots=[repo, artifact_dir], purpose="index")
     out = ensure_allowed_path(out, allowed_roots=[repo, artifact_dir, out.parent], purpose="output")
     markdown = resolve_path(args.markdown or out.with_suffix(".md"))
-    markdown = ensure_allowed_path(markdown, allowed_roots=[repo, artifact_dir, markdown.parent], purpose="markdown-output")
+    markdown = ensure_allowed_path(
+        markdown, allowed_roots=[repo, artifact_dir, markdown.parent], purpose="markdown-output"
+    )
     index = load_json(index_path)
     if index.get("format") != FORMAT_INDEX:
         raise ScriptError(f"unsupported index format: {index.get('format')}")
     global_perception = None
     if args.global_perception:
-        global_path = ensure_allowed_path(args.global_perception, allowed_roots=[repo, artifact_dir], purpose="global-perception")
+        global_path = ensure_allowed_path(
+            args.global_perception, allowed_roots=[repo, artifact_dir], purpose="global-perception"
+        )
         global_perception = load_json(global_path)
         if global_perception.get("format") != FORMAT_GLOBAL:
             raise ScriptError(f"unsupported global perception format: {global_perception.get('format')}")
     codegraph_perception = None
     if args.codegraph_perception:
-        codegraph_path = ensure_allowed_path(args.codegraph_perception, allowed_roots=[repo, artifact_dir], purpose="codegraph-perception")
+        codegraph_path = ensure_allowed_path(
+            args.codegraph_perception, allowed_roots=[repo, artifact_dir], purpose="codegraph-perception"
+        )
         codegraph_perception = load_json(codegraph_path)
         if codegraph_perception.get("format") != FORMAT_CODEGRAPH:
             raise ScriptError(f"unsupported CodeGraph perception format: {codegraph_perception.get('format')}")
@@ -117,7 +125,14 @@ def build_repo_map(files: list[dict[str, Any]], index: dict[str, Any]) -> dict[s
         language = record.get("language") or "text"
         bucket["kinds"][kind] = bucket["kinds"].get(kind, 0) + 1
         bucket["languages"][language] = bucket["languages"].get(language, 0) + 1
-        if len(bucket["representative_files"]) < 10 and kind in {"source", "test", "build", "config", "docs", "generated"}:
+        if len(bucket["representative_files"]) < 10 and kind in {
+            "source",
+            "test",
+            "build",
+            "config",
+            "docs",
+            "generated",
+        }:
             bucket["representative_files"].append(record.get("path", ""))
         if kind == "docs":
             docs.append(record.get("path", ""))
@@ -206,7 +221,9 @@ def validation_surface(global_summary: dict[str, Any], repo_map: dict[str, Any])
     }
 
 
-def repository_risks(repo_map: dict[str, Any], global_summary: dict[str, Any], codegraph_summary: dict[str, Any]) -> list[dict[str, str]]:
+def repository_risks(
+    repo_map: dict[str, Any], global_summary: dict[str, Any], codegraph_summary: dict[str, Any]
+) -> list[dict[str, str]]:
     risks: list[dict[str, str]] = []
     if not codegraph_summary.get("available"):
         risks.append(
@@ -252,10 +269,16 @@ def render_markdown(payload: dict[str, Any]) -> str:
     stats = overview.get("stats", {})
     lines.append(f"- Files indexed: {stats.get('file_count', 0)}")
     lines.append(f"- Symbols indexed: {stats.get('symbol_count', 0)}")
-    lines.append(f"- Source/test/generated/build counts: {overview.get('source_count', 0)}/{overview.get('test_count', 0)}/{overview.get('generated_count', 0)}/{overview.get('build_count', 0)}")
+    lines.append(
+        f"- Source/test/generated/build counts: {overview.get('source_count', 0)}/{overview.get('test_count', 0)}/{overview.get('generated_count', 0)}/{overview.get('build_count', 0)}"
+    )
     lines.extend(["", "## Architecture and Module Map", ""])
-    for name, values in sorted(payload.get("module_map", {}).items(), key=lambda item: (-item[1].get("file_count", 0), item[0]))[:30]:
-        lines.append(f"- `{name}`: {values.get('file_count', 0)} files, kinds={values.get('kinds', {})}, languages={values.get('languages', {})}")
+    for name, values in sorted(
+        payload.get("module_map", {}).items(), key=lambda item: (-item[1].get("file_count", 0), item[0])
+    )[:30]:
+        lines.append(
+            f"- `{name}`: {values.get('file_count', 0)} files, kinds={values.get('kinds', {})}, languages={values.get('languages', {})}"
+        )
         reps = ", ".join(f"`{item}`" for item in values.get("representative_files", [])[:6])
         if reps:
             lines.append(f"  Representative files: {reps}")
@@ -287,7 +310,9 @@ def render_markdown(payload: dict[str, Any]) -> str:
         lines.append(f"- {key}: {value}")
     lines.extend(["", "### CodeGraph Query Evidence"])
     for item in codegraph.get("query_evidence", [])[:8]:
-        lines.append(f"- Query: `{markdown_escape_line(item.get('query', ''))}` ok={item.get('ok')} rc={item.get('returncode')}")
+        lines.append(
+            f"- Query: `{markdown_escape_line(item.get('query', ''))}` ok={item.get('ok')} rc={item.get('returncode')}"
+        )
         output = item.get("stdout") or item.get("stderr") or ""
         if output:
             lines.extend(["", "```text", output[:1600].rstrip(), "```", ""])
@@ -299,14 +324,25 @@ def render_markdown(payload: dict[str, Any]) -> str:
             lines.append(f"  - {key}: ok={result.get('ok')} rc={result.get('returncode')}")
     source = payload.get("source_of_truth", {})
     lines.extend(["", "## Source-of-truth and Generated/Build Chain", ""])
-    lines.extend(bullet_lines([f"`{item.get('path', '')}` ({item.get('kind', '')}/{item.get('language', '')}): {item.get('why', '')}" for item in source.get("hints", [])[:40]]))
+    lines.extend(
+        bullet_lines(
+            [
+                f"`{item.get('path', '')}` ({item.get('kind', '')}/{item.get('language', '')}): {item.get('why', '')}"
+                for item in source.get("hints", [])[:40]
+            ]
+        )
+    )
     lines.extend(["", "### Generated-looking Files"])
     lines.extend(bullet_lines([f"`{item}`" for item in source.get("generated_files", [])[:40]]))
     lines.extend(["", "### Build Files"])
     lines.extend(bullet_lines([f"`{item}`" for item in source.get("build_files", [])[:40]]))
     validation = payload.get("validation_surface", {})
     lines.extend(["", "## Validation Surface", ""])
-    lines.extend(bullet_lines([f"`{item.get('root')}` ({item.get('files')} files)" for item in validation.get("test_roots", [])[:40]]))
+    lines.extend(
+        bullet_lines(
+            [f"`{item.get('root')}` ({item.get('files')} files)" for item in validation.get("test_roots", [])[:40]]
+        )
+    )
     lines.extend(["", "## Repository Risks for Requirement Augmentation", ""])
     for risk in payload.get("risks", []):
         lines.append(f"- Claim: {risk.get('claim', '')}")

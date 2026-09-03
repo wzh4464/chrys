@@ -69,3 +69,21 @@ def test_repo_fingerprint_ignores_dependency_and_build_trees(tmp_path: Path) -> 
     (tmp_path / "parser.py").write_text("VALUE = 2\n", encoding="utf-8")
 
     assert repo_fingerprint(tmp_path) != before
+
+
+def test_the_skill_scripts_resolve_through_the_package_not_the_checkout() -> None:
+    """An installed wheel has no repository layout to walk up into.
+
+    The previous ``parents[4]`` walk only found the scripts from a source
+    checkout, so every localization on an installed Chrys failed with
+    "semantic-search script is missing".
+    """
+    from chrys.service import semantic_search
+    from chrys.service.semantic_search.pipeline import _SKILL_SCRIPT_DIR
+
+    package_root = Path(semantic_search.__file__).parent
+
+    assert _SKILL_SCRIPT_DIR.is_relative_to(package_root)
+    assert (_SKILL_SCRIPT_DIR / "build_index.py").is_file()
+    assert (_SKILL_SCRIPT_DIR / "localize_task.py").is_file()
+    assert (package_root / "skill" / "schemas" / "code-localization.schema.json").is_file()

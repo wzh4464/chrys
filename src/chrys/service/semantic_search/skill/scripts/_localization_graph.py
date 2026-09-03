@@ -502,6 +502,7 @@ class LocalizationGraph:
                     capture_output=True,
                     timeout=timeout,
                     check=False,
+                    stdin=subprocess.DEVNULL,
                 )
                 output = str(proc.stdout or proc.stderr or "")[:max_chars]
                 result = {"argv": argv, "returncode": proc.returncode, "ok": proc.returncode == 0, "output": output}

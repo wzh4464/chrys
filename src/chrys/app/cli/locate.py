@@ -9,8 +9,12 @@ import json
 import sys
 from pathlib import Path
 
+from chrys.foundation.config.settings import Settings
 from chrys.foundation.config.warnings import settings_warning_events
 from chrys.orchestration.startup import bootstrap_runtime
+from chrys.service.profiles.models.registry import ModelProfileRegistry
+from chrys.service.profiles.models.resolver import resolve_profile_selector
+from chrys.service.profiles.models.schema import ModelProfile
 from chrys.service.semantic_search import SemanticSearchConfig, SemanticSearchMode, localize_requirement
 
 
@@ -36,11 +40,26 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _prepare_runtime() -> None:
+def _prepare_runtime() -> Settings:
     """Load .env, sanitize proxies, and install settings before localizing."""
     bootstrap = bootstrap_runtime(dotenv_override=True, configure_stdio=True, setup_telemetry=False)
     for warning in (*bootstrap.warnings, *settings_warning_events(bootstrap.loaded)):
         sys.stderr.write(f"Warning: {warning.message}\n")
+    return bootstrap.settings
+
+
+def _resolve_model(settings: Settings, selector: str) -> ModelProfile | None:
+    """Resolve the localization model: the flag, then the setting, then the active model."""
+    registry = ModelProfileRegistry()
+    registry.load_all()
+    for candidate in (selector.strip(), settings.semantic_search_model_profile.strip(), settings.model_profile.strip()):
+        if not candidate:
+            continue
+        resolved = resolve_profile_selector(registry, candidate)
+        if resolved is not None:
+            return resolved
+        sys.stderr.write(f"Warning: model profile not found: {candidate}\n")
+    return None
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -48,7 +67,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if (args.requirement is None) == (args.task is None):
         parser.error("provide either REQUIREMENT or --task FILE, not both")
-    _prepare_runtime()
+    settings = _prepare_runtime()
+    model_profile = _resolve_model(settings, args.model_profile)
     try:
         task_path = Path(args.task).expanduser().resolve() if args.task else None
         requirement = task_path.read_text(encoding="utf-8") if task_path else args.requirement
@@ -61,10 +81,11 @@ def main(argv: list[str] | None = None) -> int:
                 max_iterations=args.max_iterations,
                 top_locations=args.top_locations,
                 timeout_seconds=args.timeout,
-                model_profile=args.model_profile,
+                model_profile=model_profile.id if model_profile is not None else "",
             ),
             refresh=args.refresh,
             codegraph_command=args.codegraph_command,
+            model_profile=model_profile,
         )
     except (OSError, ValueError, RuntimeError) as exc:
         sys.stderr.write(f"Error: {exc}\n")
@@ -84,6 +105,8 @@ def main(argv: list[str] | None = None) -> int:
         sys.stdout.write(f"Wrote code localization: {result.artifacts.report_markdown}\n")
         if result.reused:
             sys.stdout.write("Reused matching localization cache.\n")
+        for warning in result.warnings:
+            sys.stderr.write(f"Warning: {warning}\n")
     return 0
 
 

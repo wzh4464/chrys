@@ -73,9 +73,7 @@ def is_probably_text(path: Path, sample_size: int = 4096) -> bool:
         sample = path.read_bytes()[:sample_size]
     except OSError:
         return False
-    if b"\0" in sample:
-        return False
-    return True
+    return b"\x00" not in sample
 
 
 def file_preview(path: Path, max_bytes: int) -> tuple[str, list[str]]:
@@ -205,13 +203,19 @@ def build_index(repos: list[tuple[str, Path]], max_file_bytes: int, max_files: i
                 "top_level": classification["top_level"],
                 "size": path.stat().st_size,
                 "sha1": sha1_path(path),
-                "terms": stable_unique([*path_tokens(relative), *content_terms[:160], *tokenize(" ".join(symbol_terms))])[:260],
+                "terms": stable_unique(
+                    [*path_tokens(relative), *content_terms[:160], *tokenize(" ".join(symbol_terms))]
+                )[:260],
                 "symbols": file_symbols[:80],
                 "preview": preview,
             }
             files.append(record)
-            symbols.extend({**symbol, "repo": repo_name, "language": classification["language"]} for symbol in file_symbols)
-            language_counts[classification["language"] or "text"] = language_counts.get(classification["language"] or "text", 0) + 1
+            symbols.extend(
+                {**symbol, "repo": repo_name, "language": classification["language"]} for symbol in file_symbols
+            )
+            language_counts[classification["language"] or "text"] = (
+                language_counts.get(classification["language"] or "text", 0) + 1
+            )
             kind_counts[classification["kind"]] = kind_counts.get(classification["kind"], 0) + 1
     return {
         "format": FORMAT_INDEX,
