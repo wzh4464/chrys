@@ -222,3 +222,33 @@ def _async_return(value: Any):
         return value
 
     return _run
+
+
+def test_a_dangling_symlink_does_not_take_the_index_down(tmp_path: Path) -> None:
+    """`chrys locate` on a repo with a broken symlink used to die on `stat`.
+
+    Benchmark checkouts and vendored trees carry them routinely, and the whole
+    pipeline runs through this script.
+    """
+    import subprocess
+    import sys
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "a.py").write_text("x = 1\n", encoding="utf-8")
+    (repo / "dangling.py").symlink_to(tmp_path / "nonexistent")
+    script = Path(__file__).resolve().parents[3] / "src/chrys/service/semantic_search/skill/scripts/build_index.py"
+    out = tmp_path / "index.json"
+
+    completed = subprocess.run(
+        [sys.executable, str(script), "--repo", str(repo), "--out", str(out)],
+        capture_output=True,
+        text=True,
+        check=False,
+        stdin=subprocess.DEVNULL,
+        timeout=120,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    indexed = json.loads(out.read_text(encoding="utf-8"))
+    assert [entry["path"] for entry in indexed["files"]] == ["a.py"]

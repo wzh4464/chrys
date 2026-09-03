@@ -146,18 +146,27 @@ def _checkout_workspace(
         metadata.get("repository_url") or task.get("repository_url") or task.get("repo_url") or ""
     ).strip()
     existing = _repo_for(task, repo_root)
-    if existing != repo_root and (existing / ".git").exists():
-        workspace = existing
-    elif not (workspace / ".git").exists():
-        if not clone:
-            raise RuntimeError(f"no repository workspace for {task.get('task_id')} at {workspace}")
-        if not repository_url:
-            raise RuntimeError(f"task {task.get('task_id')} does not declare repository_url")
+    if not (workspace / ".git").exists():
         workspace.parent.mkdir(parents=True, exist_ok=True)
-        result = _run_git(["clone", repository_url, str(workspace)], timeout=3_600.0)
-        if result.returncode:
-            detail = (result.stderr or result.stdout).strip()[-3_000:]
-            raise RuntimeError(f"git clone failed for {task.get('task_id')}: {detail}")
+        if existing != repo_root and (existing / ".git").exists():
+            # A --repo-root clone belongs to the user, not to this runner, and
+            # the reset below would `git clean -fdx` their .env, virtualenv and
+            # uncommitted edits away.  Clone from it instead: git hardlinks the
+            # objects, so this costs no network and no meaningful disk, and the
+            # workspace this runner then owns is genuinely its own.
+            result = _run_git(["clone", str(existing), str(workspace)], timeout=3_600.0)
+            if result.returncode:
+                detail = (result.stderr or result.stdout).strip()[-3_000:]
+                raise RuntimeError(f"could not clone {existing} for {task.get('task_id')}: {detail}")
+        else:
+            if not clone:
+                raise RuntimeError(f"no repository workspace for {task.get('task_id')} at {workspace}")
+            if not repository_url:
+                raise RuntimeError(f"task {task.get('task_id')} does not declare repository_url")
+            result = _run_git(["clone", repository_url, str(workspace)], timeout=3_600.0)
+            if result.returncode:
+                detail = (result.stderr or result.stdout).strip()[-3_000:]
+                raise RuntimeError(f"git clone failed for {task.get('task_id')}: {detail}")
     if base_commit:
         # Workspaces are owned by this runner.  Remove any untracked files
         # left by an interrupted/retried agent before restoring the pinned
@@ -281,7 +290,14 @@ def _timeout_output(value: str | bytes | None) -> str:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset", required=True, help="DeepSWE checkout, tasks directory, or legacy JSON/JSONL file")
-    parser.add_argument("--repo-root", default="", help="Optional directory containing pre-cloned task repositories")
+    parser.add_argument(
+        "--repo-root",
+        default="",
+        help=(
+            "Optional directory of pre-cloned task repositories to clone FROM. "
+            "They are never modified: each task gets its own workspace cloned from them."
+        ),
+    )
     parser.add_argument("--output-dir", required=True, help="Directory for per-task artifacts and workspaces")
     parser.add_argument("--chrys", default="", help="Chrys executable; default runs this checkout as a Python module")
     parser.add_argument("--chrys-python", default=sys.executable, help="Python executable used for the Chrys module")

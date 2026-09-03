@@ -189,6 +189,13 @@ def build_index(repos: list[tuple[str, Path]], max_file_bytes: int, max_files: i
     for repo_name, root in repos:
         for path in discover_files(root, max_files):
             relative = path.relative_to(root).as_posix()
+            try:
+                size = path.stat().st_size
+            except OSError:
+                # A dangling symlink, a vanished file, an unreadable mount: an
+                # entry that cannot be stat'd is not indexable, and one of them
+                # must not take the whole index -- and so `chrys locate` -- down.
+                continue
             classification = classify_file(path, relative)
             preview, content_terms = file_preview(path, max_file_bytes)
             file_symbols = extract_symbols(relative, path, classification["language"], max_file_bytes)
@@ -201,7 +208,7 @@ def build_index(repos: list[tuple[str, Path]], max_file_bytes: int, max_files: i
                 "is_test": classification["is_test"],
                 "is_generated": classification["is_generated"],
                 "top_level": classification["top_level"],
-                "size": path.stat().st_size,
+                "size": size,
                 "sha1": sha1_path(path),
                 "terms": stable_unique(
                     [*path_tokens(relative), *content_terms[:160], *tokenize(" ".join(symbol_terms))]
