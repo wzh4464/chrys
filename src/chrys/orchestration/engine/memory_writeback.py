@@ -14,7 +14,6 @@ import asyncio
 import logging
 import time
 from collections.abc import Awaitable, Callable
-from contextlib import suppress
 
 logger = logging.getLogger(__name__)
 
@@ -76,10 +75,16 @@ class MemoryWritebackWatcher:
     async def stop(self, *, flush: bool, reason: str) -> None:
         """Cancel the timer and optionally take one last pass. Safe to repeat."""
         if self.task is not None:
-            self.task.cancel()
-            with suppress(asyncio.CancelledError):
-                await self.task
-            self.task = None
+            task, self.task = self.task, None
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+            except Exception:
+                # Shutdown must not be aborted by a background timer that
+                # already died; awaiting a failed task re-raises its error.
+                logger.warning("memory writeback watcher ended with an error", exc_info=True)
         if flush:
             await self.flush(reason)
 

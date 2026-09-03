@@ -7,8 +7,11 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+import pytest
+
 from chrys.service.routing.readiness import (
     WorkspaceReadiness,
+    probe_git_dirty,
     probe_workspace_readiness,
     workspace_fingerprint,
 )
@@ -39,24 +42,32 @@ def test_a_test_suffixed_file_also_counts(tmp_path: Path) -> None:
 
 
 def test_git_dirtiness_is_none_outside_a_repository(tmp_path: Path) -> None:
-    assert _probe(tmp_path).git_dirty is None
+    assert probe_git_dirty(str(tmp_path)) is None
 
 
 def test_git_dirtiness_is_reported_inside_a_repository(tmp_path: Path) -> None:
     subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True, stdin=subprocess.DEVNULL)
 
-    assert _probe(tmp_path).git_dirty is False
+    assert probe_git_dirty(str(tmp_path)) is False
 
     (tmp_path / "new.py").write_text("x = 1\n", encoding="utf-8")
 
-    assert _probe(tmp_path).git_dirty is True
+    assert probe_git_dirty(str(tmp_path)) is True
+
+
+def test_the_per_turn_probe_spawns_no_subprocess(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """It runs inside message admission; a `git status` there delays every turn."""
+
+    def explode(*args: object, **kwargs: object) -> None:
+        raise AssertionError("probe_workspace_readiness must not spawn a subprocess")
+
+    monkeypatch.setattr(subprocess, "run", explode)
+
+    assert _probe(tmp_path).has_tests is False
 
 
 def test_a_missing_directory_probes_as_unready(tmp_path: Path) -> None:
-    readiness = _probe(tmp_path / "absent")
-
-    assert readiness.has_tests is False
-    assert readiness.git_dirty is None
+    assert _probe(tmp_path / "absent").has_tests is False
 
 
 # --------------------------------------------------------------------------

@@ -30,7 +30,11 @@ from chrys.service.routing.classifier import (
 )
 from chrys.service.routing.guard import TiebreakerGuard
 from chrys.service.routing.llm import LlmRouteClassifier, TiebreakerVerdict
-from chrys.service.routing.readiness import probe_workspace_readiness, workspace_fingerprint
+from chrys.service.routing.readiness import (
+    WorkspaceReadiness,
+    probe_workspace_readiness,
+    workspace_fingerprint,
+)
 
 if TYPE_CHECKING:
     from chrys.foundation.config.settings import Settings
@@ -93,11 +97,22 @@ class TurnRouter:
         config = host._agent_profile.routing if host._agent_profile is not None else RoutingConfig()
         signals = extract_prompt_signals(text)
         score, heuristic_reason = prompt_score(signals)
-        readiness = probe_workspace_readiness(
-            self._cwd,
-            verify_command=host._settings.pact_verify_command,
-            pact_tool_available=self._pact_tool_available(config),
-        )
+        probed: WorkspaceReadiness | None = None
+
+        def readiness() -> WorkspaceReadiness:
+            """Probe the workspace at most once, and only if a branch asks.
+
+            Most turns are standard, and readiness vetoes only the campaign, so
+            the common path must not pay for a filesystem walk it will not read.
+            """
+            nonlocal probed
+            if probed is None:
+                probed = probe_workspace_readiness(
+                    self._cwd,
+                    verify_command=host._settings.pact_verify_command,
+                    pact_tool_available=self._pact_tool_available(config),
+                )
+            return probed
 
         def decide(
             track: RouteTrack,
@@ -109,17 +124,16 @@ class TurnRouter:
             inherited_from: int | None = None,
             tiebreaker_failure: str = "",
         ) -> RouteDecision:
-            effective_band, effective_reason = band, reason
-            if track is RouteTrack.LONG_HORIZON and band is RouteBand.STRONG_LONG_HORIZON and not readiness.pact_ready:
-                # Still worth the full clarification pass; only the campaign is
-                # impossible, and saying so is what makes the band explicable.
-                effective_band = RouteBand.LEAN_LONG_HORIZON
-                effective_reason = f"{reason}; pact_not_ready"
-            plan = (
-                plan_for(effective_band, config.long_horizon, readiness)
-                if track is RouteTrack.LONG_HORIZON
-                else TurnPlan()
-            )
+            effective_band, effective_reason, plan = band, reason, TurnPlan()
+            if track is RouteTrack.LONG_HORIZON:
+                # Only this branch reads readiness, so only this branch pays
+                # for the probe -- the standard track is the common case.
+                if band is RouteBand.STRONG_LONG_HORIZON and not readiness().pact_ready:
+                    # Still worth the full clarification pass; only the campaign
+                    # is impossible, and saying so makes the band explicable.
+                    effective_band = RouteBand.LEAN_LONG_HORIZON
+                    effective_reason = f"{reason}; pact_not_ready"
+                plan = plan_for(effective_band, config.long_horizon, readiness())
             return RouteDecision(
                 track=track,
                 band=effective_band,

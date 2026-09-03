@@ -107,6 +107,63 @@ def ready_workspace(tmp_path: Path) -> Path:
 
 
 # --------------------------------------------------------------------------
+# the probe is lazy: this runs on the admission path
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("prompt", "settings", "profile"),
+    [
+        (_STRONG, Settings(routing_mode="off"), None),
+        (_TRIVIAL, Settings(pact_verify_command="uv run pytest"), None),
+        (_STRONG, Settings(pact_verify_command="uv run pytest"), {"mode": "off"}),
+    ],
+    ids=["routing_off", "trivial_follow_up", "profile_off"],
+)
+async def test_a_standard_decision_never_probes_the_workspace(
+    ready_workspace: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    prompt: str,
+    settings: Settings,
+    profile: dict[str, Any] | None,
+) -> None:
+    """Readiness vetoes only the campaign, and this runs before the turn starts."""
+
+    def explode(*args: object, **kwargs: object) -> None:
+        raise AssertionError("a standard-track decision must not probe the workspace")
+
+    monkeypatch.setattr("chrys.orchestration.engine.run.routing.probe_workspace_readiness", explode)
+    host = _Host(_agent_profile=_profile(**(profile or {})), settings=settings)
+
+    decision = await _router(host, cwd=ready_workspace).decide(prompt, turn=1)
+
+    assert decision.track is RouteTrack.STANDARD
+
+
+async def test_a_long_horizon_decision_probes_exactly_once(
+    ready_workspace: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The demotion check and the plan both need it; one probe answers both."""
+    from chrys.service.routing import readiness as readiness_module
+
+    calls = 0
+    real = readiness_module.probe_workspace_readiness
+
+    def counted(*args: Any, **kwargs: Any) -> Any:
+        nonlocal calls
+        calls += 1
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr("chrys.orchestration.engine.run.routing.probe_workspace_readiness", counted)
+    host = _Host(_agent_profile=_profile(mode="always"))
+
+    decision = await _router(host, cwd=ready_workspace).decide(_STRONG, turn=1)
+
+    assert decision.track is RouteTrack.LONG_HORIZON
+    assert calls == 1
+
+
+# --------------------------------------------------------------------------
 # guards and overrides come first
 # --------------------------------------------------------------------------
 

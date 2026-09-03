@@ -45,8 +45,6 @@ class WorkspaceReadiness:
     verify_command_configured: bool
     has_tests: bool
     pact_tool_available: bool
-    git_dirty: bool | None
-    """``None`` when the workspace is not a git repository."""
 
     @property
     def pact_ready(self) -> bool:
@@ -60,13 +58,16 @@ class WorkspaceReadiness:
 
 
 def probe_workspace_readiness(cwd: str, *, verify_command: str, pact_tool_available: bool) -> WorkspaceReadiness:
-    """Inspect *cwd* cheaply enough to run before every routed turn."""
-    root = Path(cwd)
+    """Inspect *cwd* cheaply enough to run before every routed turn.
+
+    One ``scandir`` and a settings read. Nothing here spawns a subprocess:
+    this runs inside message admission, so anything slower would delay the
+    turn the user just started.
+    """
     return WorkspaceReadiness(
         verify_command_configured=bool(verify_command.strip()),
-        has_tests=_has_tests(root),
+        has_tests=_has_tests(Path(cwd)),
         pact_tool_available=pact_tool_available,
-        git_dirty=_git_dirty(root),
     )
 
 
@@ -84,8 +85,14 @@ def _has_tests(root: Path) -> bool:
     return False
 
 
-def _git_dirty(root: Path) -> bool | None:
-    """Return whether the tree has uncommitted changes, or ``None`` if not a repo."""
+def probe_git_dirty(cwd: str) -> bool | None:
+    """Return whether the tree has uncommitted changes, or ``None`` if not a repo.
+
+    Diagnostic only, and deliberately NOT part of ``probe_workspace_readiness``:
+    a dirty tree vetoes nothing, and ``git status`` on a large repository is far
+    too slow to run on the admission path for a value no decision reads.
+    """
+    root = Path(cwd)
     if not (root / ".git").exists():
         return None
     try:

@@ -25,7 +25,7 @@ from chrys.service.routing.classifier import (
     plan_for,
     prompt_score,
 )
-from chrys.service.routing.readiness import probe_workspace_readiness, workspace_fingerprint
+from chrys.service.routing.readiness import probe_git_dirty, probe_workspace_readiness, workspace_fingerprint
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -100,7 +100,7 @@ def main(argv: list[str] | None = None) -> int:
         "readiness": {
             "verify_command_configured": readiness.verify_command_configured,
             "has_tests": readiness.has_tests,
-            "git_dirty": readiness.git_dirty,
+            "git_dirty": probe_git_dirty(cwd),
             "pact_ready": readiness.pact_ready,
             "note": "pact_tool_available is assumed; no agent is built for a dry run",
         },

@@ -9838,7 +9838,7 @@
       "primitive": "sleep",
       "qualname": "MemoryWritebackWatcher._run",
       "source_column": 12,
-      "source_line": 88,
+      "source_line": 93,
       "wrapper_target": null
     },
     {
@@ -9858,7 +9858,7 @@
       "primitive": "wrapper",
       "qualname": "MemoryWritebackWatcher._run",
       "source_column": 16,
-      "source_line": 92,
+      "source_line": 97,
       "wrapper_target": "chrys.orchestration.engine.memory_writeback.MemoryWritebackWatcher.flush"
     },
     {
@@ -9878,7 +9878,7 @@
       "primitive": "sync_primitive",
       "qualname": "MemoryWritebackWatcher.flush",
       "source_column": 19,
-      "source_line": 66,
+      "source_line": 65,
       "wrapper_target": null
     },
     {
@@ -9898,7 +9898,7 @@
       "primitive": "awaitable",
       "qualname": "MemoryWritebackWatcher.flush",
       "source_column": 16,
-      "source_line": 70,
+      "source_line": 69,
       "wrapper_target": null
     },
     {
@@ -9911,7 +9911,7 @@
           "when": "all_paths"
         }
       ],
-      "expression": "await self.task",
+      "expression": "await task",
       "identity": "chrys.orchestration.engine.memory_writeback:MemoryWritebackWatcher.stop:1",
       "module": "chrys.orchestration.engine.memory_writeback",
       "ordinal": 1,
@@ -9938,7 +9938,7 @@
       "primitive": "wrapper",
       "qualname": "MemoryWritebackWatcher.stop",
       "source_column": 12,
-      "source_line": 84,
+      "source_line": 89,
       "wrapper_target": "chrys.orchestration.engine.memory_writeback.MemoryWritebackWatcher.flush"
     },
     {
@@ -16518,7 +16518,7 @@
       "primitive": "awaitable",
       "qualname": "TurnRouter._verdict",
       "source_column": 19,
-      "source_line": 312,
+      "source_line": 326,
       "wrapper_target": null
     },
     {
@@ -16538,7 +16538,7 @@
       "primitive": "awaitable",
       "qualname": "TurnRouter._verdict",
       "source_column": 15,
-      "source_line": 317,
+      "source_line": 331,
       "wrapper_target": null
     },
     {
@@ -16558,7 +16558,7 @@
       "primitive": "awaitable",
       "qualname": "TurnRouter.apply",
       "source_column": 47,
-      "source_line": 254,
+      "source_line": 268,
       "wrapper_target": null
     },
     {
@@ -16578,7 +16578,7 @@
       "primitive": "awaitable",
       "qualname": "TurnRouter.apply",
       "source_column": 12,
-      "source_line": 255,
+      "source_line": 269,
       "wrapper_target": null
     },
     {
@@ -16598,7 +16598,7 @@
       "primitive": "wrapper",
       "qualname": "TurnRouter.decide",
       "source_column": 18,
-      "source_line": 210,
+      "source_line": 224,
       "wrapper_target": "chrys.orchestration.engine.run.routing.TurnRouter._verdict"
     },
     {
@@ -16618,7 +16618,7 @@
       "primitive": "awaitable",
       "qualname": "TurnRouter.publish",
       "source_column": 8,
-      "source_line": 270,
+      "source_line": 284,
       "wrapper_target": null
     },
     {

@@ -79,8 +79,8 @@ def test_band_edges_are_half_open_upwards() -> None:
 
 def test_plan_grades_by_band_and_readiness_only_vetoes_pact() -> None:
     config = LongHorizonConfig()
-    ready = WorkspaceReadiness(True, True, True, False)
-    not_ready = WorkspaceReadiness(False, True, True, False)
+    ready = WorkspaceReadiness(True, True, True)
+    not_ready = WorkspaceReadiness(False, True, True)
 
     assert plan_for(RouteBand.STRONG_STANDARD, config, ready) == TurnPlan()
     assert plan_for(RouteBand.LEAN_STANDARD, config, ready) == TurnPlan()
@@ -91,7 +91,7 @@ def test_plan_grades_by_band_and_readiness_only_vetoes_pact() -> None:
 
 
 def test_the_profile_can_switch_off_either_long_horizon_stage() -> None:
-    ready = WorkspaceReadiness(True, True, True, False)
+    ready = WorkspaceReadiness(True, True, True)
 
     plan = plan_for(RouteBand.STRONG_LONG_HORIZON, LongHorizonConfig(localization=False), ready)
     assert plan == TurnPlan(False, True, True)
@@ -102,7 +102,7 @@ def test_the_profile_can_switch_off_either_long_horizon_stage() -> None:
 
 def test_an_unavailable_pact_tool_also_vetoes_delegation() -> None:
     config = LongHorizonConfig()
-    no_tool = WorkspaceReadiness(True, True, False, False)
+    no_tool = WorkspaceReadiness(True, True, False)
 
     assert plan_for(RouteBand.STRONG_LONG_HORIZON, config, no_tool).pact is False
 

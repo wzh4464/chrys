@@ -164,3 +164,23 @@ async def test_stop_is_safe_before_start_and_twice() -> None:
     await watcher.stop(flush=True, reason="session_end")
 
     assert flushed == ["session_end"]
+
+
+async def test_a_watcher_that_died_does_not_abort_shutdown() -> None:
+    """Awaiting a failed task re-raises it; session end must survive that."""
+    flushed: list[str] = []
+
+    async def _flush(reason: str) -> None:
+        flushed.append(reason)
+
+    def _busy() -> bool:
+        raise RuntimeError("host went away")
+
+    watcher = MemoryWritebackWatcher(idle_seconds=1, on_flush=_flush, is_busy=_busy, poll_seconds=_POLL)
+    watcher.start()
+    watcher.touch()
+    await wait_for(lambda: watcher.task is not None and watcher.task.done(), description="watcher task to die")
+
+    await watcher.stop(flush=False, reason="session_end")
+
+    assert watcher.task is None
