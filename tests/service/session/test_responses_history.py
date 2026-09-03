@@ -463,7 +463,7 @@ async def test_post_run_clears_in_memory_service_session_after_failed_turn() -> 
         def remove_awaiting_sub_agents_marker(self) -> None:
             pass
 
-        def insert_turn_marker(self) -> None:
+        def insert_turn_marker(self, extra=None) -> None:
             pass
 
     executor = SimpleNamespace(
@@ -480,6 +480,8 @@ async def test_post_run_clears_in_memory_service_session_after_failed_turn() -> 
         saved_service_ids.append(executor.service_session_id)
 
     host = SimpleNamespace(
+        _last_route=None,
+        _long_horizon_campaign=None,
         _turn_state=TurnRuntimeState(),
         _executor=executor,
         _history=_History(),
@@ -547,6 +549,8 @@ async def test_post_run_uses_phase3_pre_output_floor_for_metadata_and_backfill()
         saved = True
 
     host = SimpleNamespace(
+        _last_route=None,
+        _long_horizon_campaign=None,
         _turn_state=TurnRuntimeState(history_start_index=99),
         _executor=executor,
         _history=history,
@@ -630,6 +634,8 @@ async def test_post_run_uses_refreshed_floor_after_force_compress_rewrites_phase
         saved = True
 
     host = SimpleNamespace(
+        _last_route=None,
+        _long_horizon_campaign=None,
         _turn_state=TurnRuntimeState(history_start_index=99),
         _executor=executor,
         _history=history,

@@ -319,6 +319,7 @@ class AgentEngine:
         self._route_fingerprint: str = ""
         self._tiebreaker_guard = TiebreakerGuard()
         self._side_call_clients = SideCallClientCache()
+        self._long_horizon_campaign: dict[str, Any] | None = None
         self._turn_number: int = 0
         self._active_session_guard = ActiveSessionGuard(state_store)
         self._tool_names: list[str] = []

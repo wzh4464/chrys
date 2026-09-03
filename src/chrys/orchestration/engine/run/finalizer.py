@@ -21,6 +21,7 @@ from chrys.orchestration.engine.run.turn_hooks import TurnHookDispatcher
 from chrys.orchestration.engine.run.turn_state import CurrentRunScope
 from chrys.orchestration.engine.state.machine import Trigger
 from chrys.service.context.providers.history import PRE_OUTPUT_HISTORY_LEN_STATE_KEY
+from chrys.service.routing.classifier import RouteDecision
 from chrys.service.trajectory.preparation import PreparationOutcome
 
 if TYPE_CHECKING:
@@ -55,6 +56,32 @@ class PostRunOutcome:
     completed_scope: CurrentRunScope | None
 
 
+def _route_marker(host: Any, *, failed: bool, interrupted: bool) -> dict[str, Any] | None:
+    """Describe how this turn was routed, for later deposition and review.
+
+    ``baseline`` says what the workspace actually holds, and ``campaign`` is
+    the campaign's own reported status -- never inferred, because only the
+    campaign knows whether it completed.
+    """
+    decision = host._last_route
+    if decision is None:
+        return None
+    campaign = host._long_horizon_campaign
+    baseline = "none" if interrupted or failed else ("p1" if decision.plan.clarification else "none")
+    if campaign is not None:
+        baseline = "p1"
+    return {
+        "_chrys_route": {
+            "track": decision.track.value,
+            "band": decision.band.value,
+            "source": decision.source,
+            "reason": decision.reason[:400],
+            "baseline": baseline,
+            "campaign": campaign,
+        }
+    }
+
+
 class TurnFinalizerHost(Protocol):
     """Engine host contract needed for post-run finalization."""
 
@@ -78,6 +105,8 @@ class TurnFinalizerHost(Protocol):
     _agent_profile: AgentProfile | None
     _workspace: Workspace | None
     _turn_number: int
+    _last_route: RouteDecision | None
+    _long_horizon_campaign: dict[str, Any] | None
     _on_successful_turn: Callable[[], None]
     _persistence: SessionPersistence
     _trajectory_recorder: TrajectoryRecorder
@@ -323,7 +352,7 @@ class TurnFinalizer:
             host._history.remove_all_status_markers()
             host._fsm.try_transition(Trigger.RUN_COMPLETED)
 
-        host._history.insert_turn_marker()
+        host._history.insert_turn_marker(_route_marker(host, failed=failed, interrupted=interrupted))
         if host._mutation_tracker is not None:
             host._mutation_tracker.cleanup_unused_snapshots()
 

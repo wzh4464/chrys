@@ -94,7 +94,7 @@ class _History:
     def remove_all_status_markers(self) -> None:
         self._order.append("remove_all_status_markers")
 
-    def insert_turn_marker(self) -> None:
+    def insert_turn_marker(self, extra=None) -> None:
         self._order.append("insert_turn_marker")
 
 
@@ -122,6 +122,7 @@ class _Fsm:
 class _Host:
     # TurnRunnerHost contract: no routing decision by default.
     _last_route = None
+    _long_horizon_campaign = None
 
     def __init__(self, order: list[str], *, save_result: bool = True) -> None:
         self._turn_state = TurnRuntimeState(history_start_index=7)

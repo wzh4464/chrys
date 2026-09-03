@@ -215,7 +215,7 @@ class _History:
     def remove_all_status_markers(self) -> None:
         return None
 
-    def insert_turn_marker(self) -> None:
+    def insert_turn_marker(self, extra=None) -> None:
         return None
 
 
@@ -285,6 +285,7 @@ class _RunnerTrajectoryRecorder:
 class _Host:
     # TurnRunnerHost contract: no routing decision by default.
     _last_route = None
+    _long_horizon_campaign = None
 
     def __init__(self, tmp_path: Path, *, vision: bool) -> None:
         self._bus = _Bus()

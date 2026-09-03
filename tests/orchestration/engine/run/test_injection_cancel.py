@@ -192,6 +192,7 @@ class _Reminder:
 class _Host:
     # TurnRunnerHost contract: no routing decision by default.
     _last_route = None
+    _long_horizon_campaign = None
 
     def __init__(self, *, executor_running: bool = False) -> None:
         self._agent_loading = False

@@ -16,7 +16,7 @@ from __future__ import annotations
 import copy
 import json
 import logging
-from collections.abc import Hashable
+from collections.abc import Hashable, Mapping
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Protocol, cast
 
@@ -354,15 +354,15 @@ class SessionHistoryManager:
     # Marker operations
     # ------------------------------------------------------------------
 
-    def insert_turn_marker(self) -> None:
-        """Insert a turn marker at the end of history."""
+    def insert_turn_marker(self, extra: Mapping[str, Any] | None = None) -> None:
+        """Insert a turn marker at the end of history, optionally annotated."""
         state = self._state
         if state is None or not state.get("messages"):
             return
         from chrys.service.context.providers.history import CompressibleHistoryProvider
 
         turn_counter = state.get("turn_counter", 0) + 1
-        CompressibleHistoryProvider.insert_marker(state, turn_counter)
+        CompressibleHistoryProvider.insert_marker(state, turn_counter, extra)
 
     def insert_interrupted_marker(
         self,

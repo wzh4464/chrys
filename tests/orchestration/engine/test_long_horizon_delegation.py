@@ -25,6 +25,7 @@ from chrys.service.routing.classifier import RouteBand, RouteDecision, RouteTrac
 @dataclass
 class _Executor:
     adopted: list[str] = field(default_factory=list)
+    history_state: dict[str, Any] = field(default_factory=dict)
 
     def adopt_fallback_success(self, text: str) -> None:
         self.adopted.append(text)

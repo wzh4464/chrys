@@ -96,6 +96,7 @@ class TurnRunnerHost(Protocol):
     _on_turn_started: Callable[[], None]
     _requirement_clarification_workflow: Any | None
     _last_route: RouteDecision | None
+    _long_horizon_campaign: dict[str, Any] | None
 
     def _accumulate_side_call_usage(self, usage_details: Mapping[str, Any]) -> None: ...
 

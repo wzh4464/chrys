@@ -876,7 +876,7 @@ class TestRetryLifecycleApprovalContext:
         def remove_all_status_markers(self) -> None:
             return None
 
-        def insert_turn_marker(self) -> None:
+        def insert_turn_marker(self, extra=None) -> None:
             return None
 
     class _RuntimeMeta:
@@ -902,6 +902,7 @@ class TestRetryLifecycleApprovalContext:
     class _Host:
         # TurnRunnerHost contract: no routing decision by default.
         _last_route = None
+        _long_horizon_campaign = None
 
         def __init__(self, messages: list[Message]) -> None:
             self._turn_state = TurnRuntimeState()
@@ -1177,6 +1178,7 @@ async def test_pending_retry_dispatch_strips_trailing_markers_before_task() -> N
     class _Host:
         # TurnRunnerHost contract: no routing decision by default.
         _last_route = None
+        _long_horizon_campaign = None
 
         def __init__(self) -> None:
             self._turn_state = TurnRuntimeState()
@@ -1282,7 +1284,7 @@ async def test_later_retry_after_interrupted_finalization_preserves_last_words_a
         def remove_all_status_markers(self) -> None:
             return None
 
-        def insert_turn_marker(self) -> None:
+        def insert_turn_marker(self, extra=None) -> None:
             return None
 
         def remove_trailing_markers(self) -> None:
@@ -1302,6 +1304,7 @@ async def test_later_retry_after_interrupted_finalization_preserves_last_words_a
     class _Host:
         # TurnRunnerHost contract: no routing decision by default.
         _last_route = None
+        _long_horizon_campaign = None
 
         def __init__(self) -> None:
             self._agent_loading = False

@@ -11,7 +11,9 @@ to the repair that is supposed to correct them.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -19,7 +21,16 @@ from uuid import uuid4
 
 from chrys.foundation.events.types import LongHorizonPhaseChanged, Warning
 from chrys.foundation.platform import safe_getcwd
+from chrys.kernel.exchanges import (
+    EmptyIdPolicy,
+    LiveAccessor,
+    NoneIdPolicy,
+    PairingPolicy,
+    iter_exchanges,
+    pair_results,
+)
 from chrys.orchestration.engine.run.workflow_extensions import RepairOutcome
+from chrys.service.llm.json_extract import json_object_candidates, repair_json_object_candidate
 from chrys.service.profiles.models.registry import ModelProfileRegistry
 from chrys.service.routing.delegation import (
     PactRunRequest,
@@ -224,11 +235,49 @@ class LongHorizonExtensions:
             # answered; a failed hand-off must not discard it.
             await self._degrade_delegation(f"delegation pass failed: {exc}", outcome)
             return
+        campaign = self._campaign_result()
+        self._host._long_horizon_campaign = campaign
+        if campaign is None and self._require_pact():
+            # The reminder asked for one call and the model made none. Say so
+            # rather than reporting the turn as a governed campaign.
+            await self._host._bus.publish(
+                Warning(
+                    code="long_horizon_delegation_skipped",
+                    message="the delegation pass finished without calling the campaign tool",
+                    session_id=self._host._session_id,
+                )
+            )
         await self._phase(
             LongHorizonPhase.COMPLETED,
             f"delegated request {request.request_id}",
             terminal=True,
         )
+
+    def _require_pact(self) -> bool:
+        profile = self._host._agent_profile
+        return profile is not None and profile.routing.long_horizon.require_pact
+
+    def _campaign_result(self) -> dict[str, Any] | None:
+        """Read the campaign's own reported outcome from the delegation pass.
+
+        Parsed from the tool result rather than inferred: only the campaign
+        knows whether it completed, and reporting anything else as completed is
+        exactly the failure the governance layer exists to prevent.
+        """
+        executor = self._host._executor
+        messages = executor.history_state.get("messages") if executor.history_state else None
+        if not isinstance(messages, list):
+            return None
+        tool_name = self._pact_tool()
+        for text in reversed(list(_tool_results(messages, tool_name))):
+            payload = _loads(text)
+            if payload is not None and isinstance(payload.get("status"), str):
+                return {
+                    "status": payload["status"],
+                    "campaign_id": str(payload.get("campaign_id") or ""),
+                    "artifact": str(payload.get("artifact") or ""),
+                }
+        return None
 
     def _can_delegate(self, outcome: RepairOutcome) -> bool:
         """Whether there is both an accepted PACT pair and a plan that wants one."""
@@ -371,3 +420,44 @@ def _primary_view_root(snapshot: WorkspaceSnapshot) -> Path | None:
         if root.is_primary:
             return Path(root.view_root)
     return Path(snapshot.roots[0].view_root) if snapshot.roots else None
+
+
+_PAIRING_POLICY = PairingPolicy(
+    call_types=LiveAccessor().call_types(),
+    include_informational_calls=False,
+    result_types=LiveAccessor().result_types(),
+    none_id=NoneIdPolicy.POSITIONAL,
+    empty_id=EmptyIdPolicy.POSITIONAL,
+    malformed_id="stringify",
+)
+
+
+def _tool_results(messages: list[Any], tool_name: str) -> Iterator[str]:
+    """Yield the text of every result answering a call to *tool_name*.
+
+    Walks the canonical exchange grammar rather than scanning for call ids:
+    ids repeat across exchanges, so a global scan pairs the wrong ones.
+    """
+    accessor = LiveAccessor()
+    for exchange in iter_exchanges(messages, accessor):
+        pairing = pair_results(messages, exchange, accessor, _PAIRING_POLICY)
+        for assignments in (*pairing.truthy_assignments.values(), *pairing.falsy_assignments.values()):
+            for call_occurrence, result_occurrence in assignments:
+                if result_occurrence is None:
+                    continue
+                call = accessor.contents(messages[call_occurrence.message_index])[call_occurrence.content_index]
+                if getattr(call, "name", "") != tool_name:
+                    continue
+                result = accessor.contents(messages[result_occurrence.message_index])[result_occurrence.content_index]
+                yield str(getattr(result, "result", "") or "")
+
+
+def _loads(text: str) -> dict[str, Any] | None:
+    for candidate in json_object_candidates(text):
+        try:
+            payload = json.loads(repair_json_object_candidate(candidate))
+        except ValueError, RecursionError:
+            continue
+        if isinstance(payload, dict):
+            return payload
+    return None

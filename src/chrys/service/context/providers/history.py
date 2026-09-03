@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import copy
 import uuid
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -497,18 +498,23 @@ class CompressibleHistoryProvider(HistoryProvider):
     # ---- Marker operations (static, operate on session state) ----
 
     @staticmethod
-    def insert_marker(state: dict[str, Any], turn_index: int) -> str:
+    def insert_marker(state: dict[str, Any], turn_index: int, extra: Mapping[str, Any] | None = None) -> str:
         """Insert a turn marker at the end of message history.
 
         Args:
             state: The provider-scoped state dict (``session.state[source_id]``).
             turn_index: Sequential turn number.
+            extra: Additional marker properties. Reserved keys are never
+                overwritten, so a caller cannot corrupt turn identity.
 
         Returns:
             The ``marker_id`` for this marker.
         """
         marker_id = f"turn_{turn_index}"
         msg = Message("assistant", [""])
+        if extra:
+            reserved = {HistoryMarkerKind.KEY, _TURN_ID_KEY, _TURN_KEY}
+            msg.additional_properties.update({k: v for k, v in extra.items() if k not in reserved})
         msg.additional_properties[HistoryMarkerKind.KEY] = HistoryMarkerKind.TURN
         msg.additional_properties[_TURN_ID_KEY] = marker_id
         msg.additional_properties[_TURN_KEY] = turn_index
