@@ -38,6 +38,7 @@ from chrys.foundation.events.types import (
     ModelProfileSwitched,
     ProfileSwitched,
     RollbackResult,
+    RouteOverride,
     SetApprovalMode,
     SetModelProfile,
     SettingsReload,
@@ -765,6 +766,18 @@ class AcpSessionManager:
         # UserInject (not UserMessage) never starts a turn, so even if the turn ends
         # between the guard above and event delivery, this cannot spawn a stray run.
         await session.host.event_bus.publish(UserInject(text=text, session_id=session.host.session_id))
+
+    async def route_override(self, session_id: str, *, track: str, reroute: bool) -> None:
+        """Queue a one-shot routing override for this session's next message.
+
+        Unlike ``inject`` this is valid with no turn running: it is about the
+        message the client is *going* to send. During a long-horizon turn's
+        preparation the engine also reads it as a downgrade request.
+        """
+        session = self.get(session_id)
+        await session.host.event_bus.publish(
+            RouteOverride(track=track, reroute=reroute, session_id=session.host.session_id)
+        )
 
     async def rollback(
         self,

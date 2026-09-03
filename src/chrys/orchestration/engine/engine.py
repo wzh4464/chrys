@@ -512,6 +512,11 @@ class AgentEngine:
         return self._session_id
 
     @property
+    def last_route(self) -> RouteDecision | None:
+        """Latest routing decision, or ``None`` before the first classified turn."""
+        return self._last_route
+
+    @property
     def runtime_details(self) -> AgentRuntimeDetails:
         """Runtime details for the currently built agent."""
         return self._runtime_details

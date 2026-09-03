@@ -45,6 +45,7 @@ from chrys.foundation.events.types import (
     ContextPressure,
     Error,
     Event,
+    LongHorizonPhaseChanged,
     ProfileSwitched,
     QuestionToUser,
     RollbackResult,
@@ -65,6 +66,7 @@ from chrys.foundation.events.types import (
     SubAgentToolCallResult,
     SubAgentToolCallStart,
     ToolCompacted,
+    TurnRouted,
     UsageUpdate,
     UserInjectResult,
     Warning,
@@ -576,6 +578,17 @@ class ChrysAcpServer:
             except Exception as exc:
                 raise _request_error(exc) from exc
             return {}
+        if method == "session/route_override":
+            session_id = _string_param(params, "sessionId") or _string_param(params, "session_id")
+            track = _optional_string_param(params, "track") or ""
+            reroute = _bool_param(params, "reroute", default=False)
+            if track not in {"", "standard", "long_horizon"}:
+                raise RequestError.invalid_params({"details": "track must be 'standard', 'long_horizon', or omitted."})
+            try:
+                await self._manager.route_override(session_id, track=track, reroute=reroute)
+            except Exception as exc:
+                raise _request_error(exc) from exc
+            return {}
         if method == "session/switch_agent":
             session_id = _string_param(params, "sessionId") or _string_param(params, "session_id")
             profile_name = _string_param(params, "agentProfile") or _string_param(params, "profileName")
@@ -757,6 +770,39 @@ class ChrysAcpServer:
     async def _handle_chrys_extension_event(self, session_id: str, event: Event) -> bool:
         client = self._client_or_error()
         event_session_id = _event_session_id(event, session_id)
+        if isinstance(event, TurnRouted):
+            await client.ext_notification(
+                "chrys/turn_routed",
+                {
+                    "sessionId": event_session_id,
+                    "turn": event.turn,
+                    "track": event.track,
+                    "band": event.band,
+                    "reason": event.reason,
+                    "confidence": event.confidence,
+                    "source": event.source,
+                    "inherited": event.inherited,
+                    "planLocalization": event.plan_localization,
+                    "planClarification": event.plan_clarification,
+                    "planPact": event.plan_pact,
+                    "tiebreakerFailure": event.tiebreaker_failure,
+                    "switchedTo": event.switched_to,
+                    "canDowngrade": event.can_downgrade,
+                },
+            )
+            return True
+        if isinstance(event, LongHorizonPhaseChanged):
+            await client.ext_notification(
+                "chrys/long_horizon_phase",
+                {
+                    "sessionId": event_session_id,
+                    "workflowId": event.workflow_id,
+                    "phase": event.phase,
+                    "detail": event.detail,
+                    "terminal": event.terminal,
+                },
+            )
+            return True
         if isinstance(event, AgentLoadStarted):
             await client.ext_notification(
                 "chrys/agent_load_started",
@@ -1236,6 +1282,7 @@ class ChrysAcpServer:
             "calibrationRatio": usage.calibration_ratio,
             "systemOverheadTokens": usage.system_overhead_tokens,
             "runtimeDetails": jsonable_dataclass(details),
+            "route": _route_payload(engine),
         }
 
     async def _refresh_mutation_attribution(self, session_id: str) -> None:
@@ -1631,6 +1678,29 @@ def _rollback_result_payload(event: RollbackResult) -> dict[str, Any]:
         "exclusions": [{"path": path, "reason": reason} for path, reason in event.exclusions],
         # Advisory repo-level notices (plan warnings), plain strings.
         "warnings": list(event.warnings),
+    }
+
+
+def _route_payload(engine: Any) -> dict[str, Any]:
+    """Describe how this session is routing turns.
+
+    ``last`` is ``None`` until a message has been classified, so a client can
+    tell "not routed yet" from "routed to standard".
+    """
+    decision = engine.last_route
+    return {
+        "mode": engine.settings.routing_mode,
+        "last": None
+        if decision is None
+        else {
+            "track": decision.track.value,
+            "band": decision.band.value,
+            "reason": decision.reason,
+            "confidence": decision.confidence,
+            "source": decision.source,
+            "inherited": decision.source == "inherited",
+            "canDowngrade": decision.track.value == "long_horizon",
+        },
     }
 
 

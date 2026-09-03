@@ -123,12 +123,16 @@ All routed through `ext_method`.
 | `session/inject` | `sessionId`, `text` | Inject a prompt into the active turn. Rejected when no turn is running (use `session/prompt` to start one). |
 | `session/rollback` | `sessionId`, `targetTurn`, `revertChanges?`, `selectedPaths?` | Roll back; replays history + emits `chrys/rollback_result`. Response/notification carry `rolledBackUserText` (first discarded user prompt, for restoring the composer), `exclusions` (`[{path, reason}]`, reason = `RollbackExclusionReason` value like `"unrestorable"` / `"move_poisoned"`) for files the plan dropped, and advisory `warnings` (strings). |
 | `session/switch_agent` | `sessionId`, `agentProfile` | Switch active agent profile in-session. Unknown profile → immediate error; switching to the active profile is a no-op (no 60s wait) whose response still carries the live runtime (model/tools/skills), so it won't blank client state. |
+| `session/route_override` | `sessionId`, `track?`, `reroute?` | Force the **next** message onto a track. `track` is `"standard"`, `"long_horizon"`, or omitted; `reroute: true` drops the inherited decision so the next message is classified from scratch. Valid with no turn running — it is about the message the client is going to send — and during a long-horizon turn's preparation `"standard"` also downgrades that turn. |
 | `session/set_workspace` | `sessionId`, `primaryCwd` | Change primary workspace cwd. `primaryCwd` is validated strictly (must exist + be a directory, resolved absolutely) like `new`/`load`. Soft-restarts the agent, then pushes `chrys/runtime_update` (skills/MCP/memory/context may change). |
 | `session/skip_sleep` | `sessionId`, `callId` | Finish an active `sleep` tool call early. |
 | `session/set_config_option` | `sessionId`, `key`, `value` | Persist a supported config key to the user settings document + awaited reload, then push `chrys/runtime_update` (global default; see below). `key` accepts the logical name or its legacy `CHRYS_*` spelling; the response carries all three names (`key` echoed, `envKey`, `settingKey`). The session must be active — it is validated *before* the document write, so a failed request never leaves persisted config mutated. |
 
 Approval mode and model switching are **not** here — they use standard ACP
 `set_session_mode` / `set_session_model` (see *Standard ACP*).
+
+`chrys/session_runtime` additionally returns `route`:
+`{mode, last}` where `mode` is the global routing mode and `last` is `null` until a message has been classified, then `{track, band, reason, confidence, source, inherited, canDowngrade}`. `null` is meaningful: it distinguishes "not classified yet" from "classified as standard".
 
 ### Read-only queries
 
@@ -205,6 +209,10 @@ One-way `ext_notification` pushes, bridged from `EventBus`:
   `chrys/context_pressure`, `chrys/tool_compacted`,
   `chrys/compaction_started`, `chrys/compaction_finished`.
 - Edits / turns: `chrys/rollback_result`, `chrys/user_inject_result`.
+- Routing: `chrys/turn_routed` (how a message was classified, including
+  `switchedTo` when the decision changed profile and `canDowngrade` while
+  `session/route_override` can still pull the turn back), and
+  `chrys/long_horizon_phase` for progress through the long-horizon track.
 - Sub-agent lifecycle: `chrys/sub_agent_invocation_start`,
   `chrys/sub_agent_tool_call_start`, `chrys/sub_agent_tool_call_result`,
   `chrys/sub_agent_progress`, `chrys/sub_agent_retry_attempt`,

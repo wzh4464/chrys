@@ -18,6 +18,7 @@ from chrys.app.acp import server as server_module
 from chrys.app.acp.bridge import AcpEventBridge
 from chrys.app.acp.server import ChrysAcpServer
 from chrys.app.acp.session_manager import AcpSessionError
+from chrys.foundation.config.settings import Settings
 from chrys.foundation.events.bus import EventBus
 from chrys.foundation.events.types import (
     AgentLoadProgress,
@@ -68,6 +69,7 @@ from chrys.service.mutations.types import (
     RestoreResult,
     TurnMutations,
 )
+from chrys.service.routing.classifier import RouteDecision
 from chrys.service.todos.tracker import TodoTracker
 
 
@@ -158,6 +160,9 @@ class _FakeEngine:
     rollback_turns: list[int] = field(default_factory=list)
     approval_mode: ApprovalMode = ApprovalMode.MANUAL
     todo_tracker: TodoTracker | None = None
+    # The runtime payload reports routing; nothing here has been classified.
+    last_route: RouteDecision | None = None
+    settings: Settings = field(default_factory=Settings)
 
     def make_usage_event(self, *, session_id: str | None = None) -> UsageUpdate:
         return UsageUpdate(
