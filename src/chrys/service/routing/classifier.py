@@ -108,7 +108,18 @@ class RouteDecision:
 # vocabulary
 # ---------------------------------------------------------------------------
 
-_SCOPE_WORDS_EN = ("all", "every", "across", "entire", "whole", "end-to-end", "end to end", "throughout")
+_SCOPE_WORDS_EN = (
+    "all",
+    "every",
+    "everything",
+    "everywhere",
+    "across",
+    "entire",
+    "whole",
+    "end-to-end",
+    "end to end",
+    "throughout",
+)
 _SCOPE_WORDS_ZH = ("整个", "所有", "全部", "全量", "跨", "端到端", "整体")
 
 # Whole-word matching only: "implementation" is a noun, and reading it as
@@ -125,7 +136,13 @@ _CHANGE_VERBS_EN = (
     "restructure",
     "consolidate",
     "extract",
+    "modernize",
+    "unify",
+    "standardize",
 )
+# Multi-word verbs, matched as substrings: a word-boundary pattern per
+# inflection would be more machinery than "clean up" is worth.
+_CHANGE_PHRASES_EN = ("clean up", "cleans up", "cleaned up", "cleaning up", "tidy up", "sort out")
 # Chinese has no word boundaries, so the list holds whole words and never bare
 # characters: matching "出" would read 导出 ("export") as a change verb.
 _CHANGE_VERBS_ZH = (
@@ -141,6 +158,9 @@ _CHANGE_VERBS_ZH = (
     "重做",
     "拆分",
     "统一",
+    "清理",
+    "整理",
+    "规范化",
 )
 
 _ACCEPTANCE_EN = ("acceptance criteria", "acceptance test", "must pass", "definition of done", "success criteria")
@@ -293,6 +313,7 @@ def _word_count(text: str) -> int:
 
 def _change_verb_hits(text: str, lowered: str) -> tuple[str, ...]:
     hits = [verb for verb in _CHANGE_VERBS_EN if re.search(rf"\b{verb}(?:s|ed|ing)?\b", lowered)]
+    hits.extend(phrase for phrase in _CHANGE_PHRASES_EN if phrase in lowered)
     hits.extend(verb for verb in _CHANGE_VERBS_ZH if verb in text)
     return tuple(hits)
 

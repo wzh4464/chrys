@@ -1,0 +1,6 @@
+{
+  "precision_min": 0.9,
+  "recall_min": 0.5,
+  "strong_false_positives_max": 0,
+  "note": "Mis-promoting a turn costs a whole PACT campaign; missing one costs an ordinary turn. The uncertain band is not a miss -- it is the LLM tiebreaker's job -- so it is excluded from the recall denominator."
+}

@@ -1,0 +1,60 @@
+{"prompt": "what does TurnCoordinator do?", "expected": "standard", "rationale": "pure question"}
+{"prompt": "why is the build failing on windows", "expected": "standard", "rationale": "diagnosis question"}
+{"prompt": "explain the retry budget", "expected": "standard", "rationale": "explanation request"}
+{"prompt": "where is the approval policy resolved", "expected": "standard", "rationale": "location question"}
+{"prompt": "show me the current settings schema", "expected": "standard", "rationale": "read request"}
+{"prompt": "fix the typo in README", "expected": "standard", "rationale": "one-word edit"}
+{"prompt": "rename parse_value to parse_number", "expected": "standard", "rationale": "single rename"}
+{"prompt": "add a docstring to TurnRouter.decide", "expected": "standard", "rationale": "one docstring"}
+{"prompt": "bump ruff to 0.16.5 in pyproject.toml", "expected": "standard", "rationale": "one dependency"}
+{"prompt": "delete the unused import in coordinator.py", "expected": "standard", "rationale": "one import"}
+{"prompt": "make the error message mention the file name", "expected": "standard", "rationale": "one message"}
+{"prompt": "add a test for the empty-input case", "expected": "standard", "rationale": "one test"}
+{"prompt": "format the new file", "expected": "standard", "rationale": "formatting"}
+{"prompt": "revert my last change", "expected": "standard", "rationale": "revert"}
+{"prompt": "thanks", "expected": "standard", "rationale": "acknowledgement"}
+{"prompt": "ok", "expected": "standard", "rationale": "acknowledgement"}
+{"prompt": "continue", "expected": "standard", "rationale": "acknowledgement"}
+{"prompt": "run the tests", "expected": "standard", "rationale": "single command"}
+{"prompt": "TurnCoordinator 是做什么的？", "expected": "standard", "rationale": "pure question"}
+{"prompt": "为什么 Windows 上构建会失败", "expected": "standard", "rationale": "diagnosis question"}
+{"prompt": "解释一下重试预算是怎么算的", "expected": "standard", "rationale": "explanation request"}
+{"prompt": "审批策略在哪里解析的", "expected": "standard", "rationale": "location question"}
+{"prompt": "看一下当前的配置结构", "expected": "standard", "rationale": "read request"}
+{"prompt": "修一下 README 里的错别字", "expected": "standard", "rationale": "one-word edit"}
+{"prompt": "把 parse_value 改名成 parse_number", "expected": "standard", "rationale": "single rename"}
+{"prompt": "给 TurnRouter.decide 补个 docstring", "expected": "standard", "rationale": "one docstring"}
+{"prompt": "把 ruff 升到 0.16.5", "expected": "standard", "rationale": "one dependency"}
+{"prompt": "删掉 coordinator.py 里没用的 import", "expected": "standard", "rationale": "one import"}
+{"prompt": "让报错信息带上文件名", "expected": "standard", "rationale": "one message"}
+{"prompt": "给空输入的情况补个测试", "expected": "standard", "rationale": "one test"}
+{"prompt": "把新文件格式化一下", "expected": "standard", "rationale": "formatting"}
+{"prompt": "回滚我刚才的改动", "expected": "standard", "rationale": "revert"}
+{"prompt": "谢谢", "expected": "standard", "rationale": "acknowledgement"}
+{"prompt": "好的", "expected": "standard", "rationale": "acknowledgement"}
+{"prompt": "继续", "expected": "standard", "rationale": "acknowledgement"}
+{"prompt": "跑一下测试", "expected": "standard", "rationale": "single command"}
+{"prompt": "Implement end-to-end OAuth login: add the provider abstraction, migrate the user table, update the API, and write integration tests. Acceptance criteria: 1) existing sessions keep working 2) new users can sign up with Google 3) all tests pass. Touch src/auth/provider.py, src/api/routes.py and web/src/login.tsx.", "expected": "strong_long_horizon", "rationale": "scope + steps + acceptance + paths"}
+{"prompt": "Migrate the entire persistence layer from SQLite to Postgres. 1) add the connection pool 2) port every repository in src/db/, src/models/ and src/migrations/ 3) then backfill the existing data. Acceptance criteria: no query regressions and all tests pass.", "expected": "strong_long_horizon", "rationale": "scope + steps + acceptance + paths"}
+{"prompt": "Refactor all of the tool-approval code across service/approval/, service/tools/ and orchestration/engine/ into one policy module. First extract the resolver, then migrate each caller, and finally delete the old paths. Acceptance criteria: identical decisions for every existing test case.", "expected": "strong_long_horizon", "rationale": "scope + steps + acceptance + paths"}
+{"prompt": "Rewrite the whole streaming pipeline to support partial tool results end-to-end. Update kernel/loop.py, kernel/client.py and service/agent_middleware/, add integration tests, and document the new contract. Acceptance criteria: existing transcripts replay byte-identically.", "expected": "strong_long_horizon", "rationale": "scope + steps + acceptance + paths"}
+{"prompt": "Replace every synchronous filesystem call across the codebase with the async wrappers. Work through foundation/io/, service/state/ and service/skills/ in that order, then update the tests. Acceptance criteria: no blocking call remains on the event loop and all tests pass.", "expected": "strong_long_horizon", "rationale": "scope + steps + acceptance + paths"}
+{"prompt": "重构整个支付模块，迁移到新的事件总线，涉及 orders、billing、notifications 三个子系统，并补齐回归测试。验收标准：1）现有订单流程不受影响 2）所有测试通过 3）新总线覆盖全部支付路径。需要改动 src/orders/service.py、src/billing/ledger.py 与 src/notifications/dispatch.py。", "expected": "strong_long_horizon", "rationale": "scope + steps + acceptance + paths"}
+{"prompt": "把所有的鉴权逻辑统一到一个中间件里。先抽出解析器，然后迁移 api/、web/ 和 worker/ 三处调用，最后删掉旧实现。验收标准：现有权限判定结果完全一致，所有测试通过。涉及 src/auth/middleware.py、src/api/guard.py、src/worker/auth.py。", "expected": "strong_long_horizon", "rationale": "scope + steps + acceptance + paths"}
+{"prompt": "实现端到端的多租户支持：先加租户模型，再迁移全部数据表，然后改造 src/api/routes.py、src/db/session.py 和 src/web/context.ts，最后补集成测试。验收标准：单租户行为不变，跨租户数据完全隔离，所有测试通过。", "expected": "strong_long_horizon", "rationale": "scope + steps + acceptance + paths"}
+{"prompt": "重写整个缓存层以支持分层失效。首先设计键空间，然后替换 src/cache/store.py、src/cache/policy.py 与 src/api/middleware.py 的全部调用，再补齐压测。验收标准：命中率不下降，所有测试通过。", "expected": "strong_long_horizon", "rationale": "scope + steps + acceptance + paths"}
+{"prompt": "把全部日志迁移到结构化输出。先统一字段，然后改造 foundation/observability/、service/hooks/ 和 app/cli/ 三处，最后更新文档。验收标准：现有日志字段全部保留，所有测试通过。", "expected": "strong_long_horizon", "rationale": "scope + steps + acceptance + paths"}
+{"prompt": "refactor the entire auth system", "expected": "lean_long_horizon", "rationale": "scope without a plan"}
+{"prompt": "rewrite all of the tests", "expected": "lean_long_horizon", "rationale": "scope without a plan"}
+{"prompt": "migrate everything to the new API", "expected": "lean_long_horizon", "rationale": "scope without a plan"}
+{"prompt": "clean up the whole codebase", "expected": "lean_long_horizon", "rationale": "scope without a plan"}
+{"prompt": "把整个鉴权系统重构一下", "expected": "lean_long_horizon", "rationale": "scope without a plan"}
+{"prompt": "把所有测试重写一遍", "expected": "lean_long_horizon", "rationale": "scope without a plan"}
+{"prompt": "把全部接口迁移到新版本", "expected": "lean_long_horizon", "rationale": "scope without a plan"}
+{"prompt": "整体清理一下这个项目", "expected": "lean_long_horizon", "rationale": "scope without a plan"}
+{"prompt": "explain everything about the entire auth system", "expected": "standard", "rationale": "scope word, no change"}
+{"prompt": "list all the files that import the router", "expected": "standard", "rationale": "scope word, no change"}
+{"prompt": "把结果导出到 CSV", "expected": "standard", "rationale": "verb-lookalike"}
+{"prompt": "输出全部日志到文件", "expected": "standard", "rationale": "scope word, no change verb"}
+{"prompt": "describe the entire implementation of the parser", "expected": "standard", "rationale": "noun, not a verb"}
+{"prompt": "show me every test that touches approvals", "expected": "standard", "rationale": "scope word, no change"}

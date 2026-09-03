@@ -82,6 +82,7 @@ def build_parser() -> argparse.ArgumentParser:
             "  pact-agent  Run the external PACT Campaign ACP agent\n"
             f"  serve       Host the {APP_DISPLAY_NAME} TUI in a browser\n"
             "  memory      Inspect, sweep, or provision ContextGraph memory\n"
+            "  debug       Diagnostics: 'debug router' dry-runs turn classification\n"
             "  trajectory  Export recorded trajectory analytics (perfetto/json/csv)\n"
             f"  install     Install {APP_DISPLAY_NAME} to PATH\n\n"
             "Default: 'chrys' launches the TUI. Run 'chrys <command> --help' for command options."
@@ -155,6 +156,13 @@ def main() -> int:
         return _run_acp(argv[1:])
     if argv and argv[0] == "pact-agent":
         return _run_pact_agent(argv[1:])
+    if argv and argv[0] == "debug":
+        if len(argv) < 2 or argv[1] != "router":
+            sys.stderr.write('Usage: chrys debug router "<prompt>"\n')
+            return 2
+        from chrys.app.cli.debug_router import main as debug_router_main
+
+        return debug_router_main(argv[2:])
     if argv and argv[0] == "memory":
         from chrys.app.cli.memory import main as memory_main
 
