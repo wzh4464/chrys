@@ -547,26 +547,26 @@ msgstr "无法回滚 {requested_turns} 轮；会话当前有 {current_turns} 轮
 
 #. English: Agent run timed out.
 #. chrys-meta={"fingerprint":"18a94dffc4256d5aa72665048a05efb6b5f832b8b21fe30f3e50fde6d829b906","multiline":false,"placeholders":[]}
-#: src/chrys/app/cli/run.py:69
+#: src/chrys/app/cli/run.py:70
 msgid "run.headless_timeout"
 msgstr "智能体运行超时。"
 
 #. English: Interrupted by user.
 #. chrys-meta={"fingerprint":"845eff8792714c3ab468de4d09284285d0a0aaf8370791a6bd69e39ebd393cbd","multiline":false,"placeholders":[]}
-#: src/chrys/app/cli/run.py:73
+#: src/chrys/app/cli/run.py:74
 msgid "run.interrupted"
 msgstr "用户已中断运行。"
 
 #. English: Model profile not found: {model}
 #. chrys-meta={"fingerprint":"36742cb32841c5f905e4cfef473fb7552af09b202f63d92e4cd1e6545aa596c1","multiline":false,"placeholders":["model"]}
-#: src/chrys/app/cli/run.py:77
+#: src/chrys/app/cli/run.py:78
 msgid "run.model_profile_not_found"
 msgstr "未找到模型配置：{model}"
 
 #. English: Model profile not found: {model}. Available model profiles:
 #. {available}
 #. chrys-meta={"fingerprint":"51380a50a39ac81deb7457add89ee4e91aea3ce112b974c767e096e3693ba507","multiline":false,"placeholders":["available","model"]}
-#: src/chrys/app/cli/run.py:81
+#: src/chrys/app/cli/run.py:82
 msgid "run.model_profile_not_found_with_available"
 msgstr "未找到模型配置：{model}。可用模型配置：{available}"
 
@@ -669,14 +669,14 @@ msgstr "捕获原始 HTTP 流量"
 #. English: CHRYS_MAX_TRANSIENT_RETRIES={value} exceeds the limit of {limit};
 #. clamping to {limit}.
 #. chrys-meta={"fingerprint":"40ccbdfd71769da5f313a64f2bf0892f59632d8b1c9c750d1ac8650fbca3af91","multiline":false,"placeholders":["limit","value"]}
-#: src/chrys/app/cli/run.py:65
+#: src/chrys/app/cli/run.py:66
 msgid "settings.max_transient_retries_clamped"
 msgstr "CHRYS_MAX_TRANSIENT_RETRIES={value} 超过上限 {limit}，已限制为 {limit}。"
 
 #. English: Ignoring invalid CHRYS_MAX_TRANSIENT_RETRIES={raw}; expected a
 #. non-negative integer and will use the frontend default.
 #. chrys-meta={"fingerprint":"5020af70c5a34b70b338533df2eb41a0df55f8b80eddb8901a47c51d09a1ff2f","multiline":false,"placeholders":["raw"]}
-#: src/chrys/app/cli/run.py:58
+#: src/chrys/app/cli/run.py:59
 msgid "settings.max_transient_retries_invalid"
 msgstr "已忽略无效的 CHRYS_MAX_TRANSIENT_RETRIES={raw}；应为非负整数，将使用前端默认值。"
 

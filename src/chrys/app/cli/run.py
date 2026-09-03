@@ -27,7 +27,7 @@ from chrys.foundation.config.settings import (
 from chrys.foundation.config.settings_store import LoadedSettings, SettingsWarning
 from chrys.foundation.config.spec import ENV_SOURCES, Source
 from chrys.foundation.config.warnings import settings_warning_events
-from chrys.foundation.events.types import Warning
+from chrys.foundation.events.types import RouteOverride, Warning
 from chrys.foundation.i18n import DisplaySequence, Localizer, MessageRef, msg
 from chrys.foundation.i18n.formatting import format_message, sanitize_legacy_scalar
 from chrys.foundation.text.encoding import decode_bytes
@@ -47,6 +47,7 @@ from chrys.service.profiles.models.resolver import (
     loaded_with_active_model_profile,
     resolve_profile_selector,
 )
+from chrys.service.routing.classifier import RouteDecision
 from chrys.service.semantic_search import (
     SemanticSearchConfig,
     SemanticSearchError,
@@ -141,6 +142,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Working directory for the run",
     )
     parser.add_argument("--json", action="store_true", help="Emit JSON output")
+    parser.add_argument(
+        "--route",
+        choices=("auto", "long-horizon", "standard"),
+        default="auto",
+        help="Force this run's track instead of letting the router classify it",
+    )
     parser.add_argument(
         "--semantic-localization",
         choices=[mode.value for mode in SemanticSearchMode],
@@ -290,19 +297,43 @@ def _configure_logging() -> None:
     logging.basicConfig(handlers=[logging.NullHandler()])
 
 
-def _write_result(result: HeadlessRunResult, *, as_json: bool, duration: float) -> None:
+def _write_result(
+    result: HeadlessRunResult,
+    *,
+    as_json: bool,
+    duration: float,
+    route: dict[str, object] | None = None,
+) -> None:
     if as_json:
         payload = {
             "session_id": result.session_id,
             "result": result.text,
             "duration": round(duration, 3),
         }
+        if route is not None:
+            payload["route"] = route
         sys.stdout.write(json.dumps(payload, ensure_ascii=False))
         sys.stdout.write("\n")
         return
     sys.stdout.write(result.text)
     if not result.text.endswith("\n"):
         sys.stdout.write("\n")
+
+
+def _route_payload(decision: RouteDecision | None) -> dict[str, object] | None:
+    """Report how the run was classified, or ``None`` when it never was."""
+    if decision is None:
+        return None
+    return {
+        "track": decision.track.value,
+        "band": decision.band.value,
+        "source": decision.source,
+        "reason": decision.reason,
+        "confidence": decision.confidence,
+        "localization": decision.plan.localization,
+        "clarification": decision.plan.clarification,
+        "pact": decision.plan.pact,
+    }
 
 
 def _write_error(message: str, *, as_json: bool, code: str = "error", session_id: str | None = None) -> None:
@@ -520,8 +551,22 @@ async def run_command(args: argparse.Namespace, holder: PreparedRuntimeHolder) -
                 prepared.localizer,
                 as_json=args.json,
             )
+        if args.route != "auto":
+            # Published before the prompt so it is waiting when the message is
+            # admitted; the engine consumes it for exactly that one turn.
+            await host.event_bus.publish(
+                RouteOverride(
+                    track="long_horizon" if args.route == "long-horizon" else "standard",
+                    session_id=host.session_id,
+                )
+            )
         result = await host.run_until_final(prompt)
-        _write_result(result, as_json=args.json, duration=time.monotonic() - started)
+        _write_result(
+            result,
+            as_json=args.json,
+            duration=time.monotonic() - started,
+            route=_route_payload(host.engine.last_route),
+        )
         return 0
     finally:
         await host.shutdown()

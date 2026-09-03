@@ -47,6 +47,7 @@ class FakeHost:
 
     instances: ClassVar[list[FakeHost]] = []
     restored_loaded: ClassVar[LoadedSettings | None] = None
+    route_decision: ClassVar[object | None] = None
 
     def __init__(self, **kwargs) -> None:
         self.kwargs = kwargs
@@ -54,11 +55,17 @@ class FakeHost:
         self.started = False
         self.session_id = "session-1"
         self.model_profile_pinned = False
+        self.published: list[object] = []
+        self.event_bus = SimpleNamespace(publish=self._publish)
         self.engine = SimpleNamespace(
             pin_model_profile=lambda: setattr(self, "model_profile_pinned", True),
             loaded_settings=type(self).restored_loaded or LoadedSettings(settings=Settings(), provenance={}),
+            last_route=type(self).route_decision,
         )
         FakeHost.instances.append(self)
+
+    async def _publish(self, event: object) -> None:
+        self.published.append(event)
 
     async def start(self) -> None:
         self.started = True
@@ -1595,3 +1602,69 @@ def test_missing_model_selection_without_available_profiles_binds_short_display_
     assert run_cli._exception_message(excinfo.value) == "Model profile not found: Missing"
     assert excinfo.value.display_message is not None
     assert excinfo.value.display_message.definition is run_cli._MODEL_PROFILE_NOT_FOUND
+
+
+# ── --route ──────────────────────────────────────────────────────────
+
+
+def _route_decision():
+    from chrys.service.routing.classifier import RouteBand, RouteDecision, RouteTrack, TurnPlan
+
+    return RouteDecision(
+        track=RouteTrack.LONG_HORIZON,
+        band=RouteBand.STRONG_LONG_HORIZON,
+        plan=TurnPlan(True, True, True),
+        reason="scope=entire",
+        confidence=0.9,
+        source="override",
+    )
+
+
+def test_route_auto_publishes_no_override(monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_runtime(monkeypatch)
+
+    rc = run_cli.main(["hello", "--agent", "Headless"])
+
+    assert rc == 0
+    assert FakeHost.instances[-1].published == []
+
+
+@pytest.mark.parametrize(
+    ("flag", "expected"),
+    [("long-horizon", "long_horizon"), ("standard", "standard")],
+)
+def test_route_flag_publishes_a_one_shot_override(monkeypatch: pytest.MonkeyPatch, flag: str, expected: str) -> None:
+    from chrys.foundation.events.types import RouteOverride
+
+    _patch_runtime(monkeypatch)
+
+    rc = run_cli.main(["hello", "--agent", "Headless", "--route", flag])
+
+    assert rc == 0
+    (published,) = FakeHost.instances[-1].published
+    assert isinstance(published, RouteOverride)
+    assert published.track == expected
+    assert published.one_shot is True
+
+
+def test_json_output_reports_the_route_when_one_was_decided(monkeypatch: pytest.MonkeyPatch, capsys) -> None:
+    FakeHost.route_decision = _route_decision()
+    try:
+        _patch_runtime(monkeypatch)
+        rc = run_cli.main(["hello", "--agent", "Headless", "--json", "--route", "long-horizon"])
+    finally:
+        FakeHost.route_decision = None
+
+    assert rc == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["route"]["track"] == "long_horizon"
+    assert payload["route"]["pact"] is True
+
+
+def test_json_output_omits_the_route_when_nothing_was_classified(monkeypatch: pytest.MonkeyPatch, capsys) -> None:
+    _patch_runtime(monkeypatch)
+
+    rc = run_cli.main(["hello", "--agent", "Headless", "--json"])
+
+    assert rc == 0
+    assert "route" not in json.loads(capsys.readouterr().out)
