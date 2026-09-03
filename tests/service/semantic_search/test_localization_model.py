@@ -252,3 +252,27 @@ def test_a_dangling_symlink_does_not_take_the_index_down(tmp_path: Path) -> None
     assert completed.returncode == 0, completed.stderr
     indexed = json.loads(out.read_text(encoding="utf-8"))
     assert [entry["path"] for entry in indexed["files"]] == ["a.py"]
+
+
+def test_the_fingerprint_ignores_the_run_own_artifacts(tmp_path: Path) -> None:
+    """`chrys locate --artifact-dir` documents putting it inside the repository.
+
+    The manifest is written last, so the next call's fingerprint sees a file
+    the stored one could not — leaving the cache permanently invalid and
+    re-running the full index and LLM search every time.
+    """
+    from chrys.service.semantic_search.output import repo_fingerprint
+
+    repo = tmp_path / "repo"
+    artifacts = repo / "artifacts"
+    artifacts.mkdir(parents=True)
+    (repo / "a.py").write_text("x = 1\n", encoding="utf-8")
+
+    before = repo_fingerprint(repo, exclude=artifacts)
+    (artifacts / "manifest.json").write_text('{"mode": "llm"}', encoding="utf-8")
+
+    assert repo_fingerprint(repo, exclude=artifacts) == before
+
+    (repo / "b.py").write_text("y = 2\n", encoding="utf-8")
+
+    assert repo_fingerprint(repo, exclude=artifacts) != before

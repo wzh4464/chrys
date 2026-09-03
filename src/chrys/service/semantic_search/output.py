@@ -26,9 +26,32 @@ _FINGERPRINT_EXCLUDED_DIRS: frozenset[str] = DEFAULT_EXCLUDES | {
 }
 
 
-def repo_fingerprint(repo: Path) -> str:
-    """Fingerprint repository source metadata for cache invalidation."""
+def _is_within(candidate: Path, root: Path) -> bool:
+    """Whether *candidate* is *root* or lives under it, resolving symlinks."""
+    try:
+        resolved = candidate.resolve()
+    except OSError:
+        return False
+    return resolved == root or root in resolved.parents
+
+
+def repo_fingerprint(repo: Path, *, exclude: Path | None = None) -> str:
+    """Fingerprint repository source metadata for cache invalidation.
+
+    *exclude* is a directory whose contents must not count -- the artifact
+    directory. `chrys locate --artifact-dir` documents putting it inside the
+    repository, and the run's own outputs land there: the manifest is written
+    last, so the next call's fingerprint sees a file the stored one could not,
+    and the cache is invalid forever. The run's own results are not repository
+    source, so they cannot invalidate a result about it.
+    """
     digest = hashlib.sha256()
+    skip = None
+    if exclude is not None:
+        try:
+            skip = exclude.resolve()
+        except OSError:
+            skip = None
     try:
         stat = repo.stat()
         digest.update(f"{repo}:{stat.st_mtime_ns}:{stat.st_size}".encode())
@@ -46,6 +69,10 @@ def repo_fingerprint(repo: Path) -> str:
             # trees are not source, so their mtimes cannot invalidate a
             # localization cache anyway.
             dirnames[:] = sorted(name for name in dirnames if name not in _FINGERPRINT_EXCLUDED_DIRS)
+            if skip is not None:
+                dirnames[:] = [name for name in dirnames if not _is_within(Path(directory) / name, skip)]
+                if _is_within(Path(directory), skip):
+                    continue
             for name in sorted(filenames):
                 path = Path(directory) / name
                 try:
@@ -85,7 +112,7 @@ def write_manifest(
         "format": "semantic-search-manifest",
         "schema_version": "semantic-search-manifest.v1",
         "requirement_sha256": requirement_hash(requirement),
-        "repo_fingerprint": repo_fingerprint(repo),
+        "repo_fingerprint": repo_fingerprint(repo, exclude=path.parent),
         "mode": mode,
         "artifacts": {
             "index": artifacts.index_json.name,

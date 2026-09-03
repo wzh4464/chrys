@@ -170,7 +170,7 @@ def _cache_valid(artifacts, *, repo: Path, requirement: str, mode: str) -> bool:
         return False
     return (
         manifest.get("requirement_sha256") == requirement_hash(requirement)
-        and manifest.get("repo_fingerprint") == repo_fingerprint(repo)
+        and manifest.get("repo_fingerprint") == repo_fingerprint(repo, exclude=artifacts.manifest_json.parent)
         and manifest.get("mode") == mode
     )
 
