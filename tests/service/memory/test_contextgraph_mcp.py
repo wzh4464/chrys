@@ -10,8 +10,6 @@ from pathlib import Path
 import pytest
 from neo4j import READ_ACCESS
 
-from chrys.service.hooks.events import HookEvent
-from chrys.service.hooks.loader import load_hooks_file
 from chrys.service.memory import contextgraph_mcp as memory
 from chrys.service.profiles.agents.loader import load_profile_from_yaml
 
@@ -238,15 +236,21 @@ def test_example_profile_loads_with_dynamic_memory_tools() -> None:
     assert profile.approval.overrides["team_memory_record"] == "require"
 
 
-def test_example_dynamic_hook_is_durable_after_turn() -> None:
-    hook_path = Path(__file__).parents[3] / "examples" / "contextgraph-memory" / "hooks" / "hooks.yaml"
+def test_instructions_leave_recall_to_the_model() -> None:
+    text = memory.MEMORY_INSTRUCTIONS
 
-    hooks = load_hooks_file(hook_path)
+    # The model decides when a lookup is worth it, so the guidance has to name
+    # the tool and the two moments that pay off, not mandate a call.
+    assert "team_memory_query" in text
+    assert "untrusted" in text.lower()
+    # Deposition is the engine's job now; a model-issued record would duplicate it.
+    assert "team_memory_record" in text
+    assert "No prior ContextGraph memory found." in text
 
-    assert len(hooks.hooks) == 1
-    hook = hooks.hooks[0]
-    assert hook.event is HookEvent.AFTER_TURN
-    assert hook.match.profile == "Memory"
-    assert hook.run.argv == ["python", "-m", "chrys.service.memory.contextgraph_deposit"]
-    assert hook.execution.mode == "async"
-    assert hook.execution.delivery == "durable"
+
+def test_the_static_deposit_hook_example_is_gone() -> None:
+    example = Path(__file__).parents[3] / "examples" / "contextgraph-memory"
+
+    # Writeback is owned by the engine's idle watcher, not a hooks.yaml the
+    # user has to install into exactly one layer.
+    assert not (example / "hooks").exists()

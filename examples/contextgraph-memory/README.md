@@ -30,10 +30,13 @@ terminal controls, and framed as untrusted advisory data.
 
 Dynamic deposition has two entry points:
 
-1. The recommended durable `after_turn` hook reads the already-persisted
-   `session.json`, resolves the turn with Chrys's canonical turn grammar, pairs tool
-   calls/results with the canonical exchange grammar, and submits only turns with
-   at least one completed non-memory tool call.
+1. The engine's own writeback: after a session has been idle for
+   `memory.writeback.idle_seconds` (default one hour), and again when the session
+   ends, Chrys reads the already-persisted `session.json`, resolves each turn with
+   its canonical turn grammar, pairs tool calls/results with the canonical exchange
+   grammar, and submits only turns with at least one completed non-memory tool
+   call. No `hooks.yaml` is involved, and a deposit watermark in the session's
+   runtime metadata keeps replays idempotent.
 2. `team_memory_record` submits a deliberately curated action/observation list and
    requires approval in the example profile.
 
@@ -58,26 +61,28 @@ query service. The checkout is required only for the repository-owned write path
 
 ## Install
 
+Retrieval needs no profile at all: once `CONTEXTGRAPH_NEO4J_URI` is configured,
+`memory.mcp.enabled` (default true) attaches the memory MCP server to **every**
+agent build — main agent, native sub-agents, and PACT role hosts alike — and the
+server's own `instructions` tell the model when a lookup is worth it. The `Memory`
+profile below is therefore only a demonstration of gating `team_memory_record`
+behind approval.
+
 1. Copy the relevant values from `env.example` into `~/.chrys/.env`. Set
    `CONTEXTGRAPH_DYNAMIC_DEPOSIT=1` to opt into automatic writes.
-2. Copy `Memory.yaml` to `~/.chrys/agents/Memory.yaml`. If its `python` command does
-   not resolve to the Chrys environment, replace it with that interpreter's
-   absolute path.
-3. Install `hooks/hooks.yaml` in exactly one hook layer: merge it into
-   `~/.chrys/hooks/hooks.yaml`, or place it at
-   `<project>/.chrys/hooks/hooks.yaml`.
-4. Launch `chrys -a Memory`, or run headless with
-   `chrys run "..." --agent Memory`.
+2. Optionally copy `Memory.yaml` to `~/.chrys/agents/Memory.yaml`. If its `python`
+   command does not resolve to the Chrys environment, replace it with that
+   interpreter's absolute path.
+3. Launch `chrys`, or run headless with `chrys run "..."`.
 
-Do not install the same hook ID globally and per project. If sessions live under a
-custom storage root that the hook subprocess cannot resolve, set
-`CONTEXTGRAPH_SESSION_ROOT_DIR` to the root containing `sessions/`.
+If sessions live under a custom storage root that the deposition subprocess cannot
+resolve, set `CONTEXTGRAPH_SESSION_ROOT_DIR` to the root containing `sessions/`.
 
 ## Safety model
 
 - Canonical-rule retrieval is read-only from Chrys.
-- Automatic deposition is explicit opt-in and restricted to the `Memory` profile.
-- A normal `after_turn` status is runtime completion, not verifier-confirmed task
+- Automatic deposition is explicit opt-in via `CONTEXTGRAPH_DYNAMIC_DEPOSIT=1`.
+- A deposited turn's status is runtime completion, not verifier-confirmed task
   correctness; it is stored as ContextGraph trajectory success/failure, not promoted
   directly into `CanonicalRule`.
 - Memory MCP calls are excluded from extracted steps, preventing recursive
