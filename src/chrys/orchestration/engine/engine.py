@@ -26,6 +26,7 @@ from chrys.foundation.events.types import (
     AgentProfileSwitch,
     AgentRuntimeDetails,
     Error,
+    MemoryWritebackCompleted,
     ProfileSwitched,
     SessionClear,
     SessionDelete,
@@ -60,6 +61,7 @@ from chrys.orchestration.engine import rollback as rollback_controller
 from chrys.orchestration.engine import trajectory as trajectory_recorder
 from chrys.orchestration.engine.build import construction as agent_lifecycle
 from chrys.orchestration.engine.build.builder import build_agent
+from chrys.orchestration.engine.memory_writeback import MemoryWritebackWatcher
 from chrys.orchestration.engine.run import sub_agent_coordination
 from chrys.orchestration.engine.run.coordinator import TurnCoordinator
 from chrys.orchestration.engine.run.turn_state import (
@@ -77,7 +79,8 @@ from chrys.service.approval.policy import ApprovalMode
 from chrys.service.approval.turn_context import TurnContextHolder
 from chrys.service.context.compaction.spill import SpillQuota
 from chrys.service.mcp.cache import MCPConnectionCache
-from chrys.service.memory.overlay import apply_memory_overlay
+from chrys.service.memory.overlay import apply_memory_overlay, memory_mcp_server_config
+from chrys.service.memory.writeback import deposit_pending_turns
 from chrys.service.mutations.coordination import MutationCoordinator
 from chrys.service.mutations.tracker import MutationTracker
 from chrys.service.mutations.workspace_changes import WorkspaceChangeTracker
@@ -89,6 +92,7 @@ from chrys.service.session.persistence import SessionPersistence, has_real_messa
 from chrys.service.session.runtime_metadata import SessionRuntimeMetadata
 from chrys.service.state.locks import ActiveSessionGuard
 from chrys.service.state.store import (
+    SESSION_FILE_NAME,
     SESSION_WRITE_LOCK_TIMEOUT_SECONDS,
     SessionForkError,
     SessionNotFoundError,
@@ -305,6 +309,7 @@ class AgentEngine:
         self._active_session_transition_permit_task: asyncio.Task[Any] | None = None
         self._active_session_transition_committed = False
         self._runtime_meta = SessionRuntimeMetadata()
+        self._memory_watcher: MemoryWritebackWatcher | None = None
         self._turn_number: int = 0
         self._active_session_guard = ActiveSessionGuard(state_store)
         self._tool_names: list[str] = []
@@ -1058,6 +1063,7 @@ class AgentEngine:
         # Every session (fresh, restored, reset) starts here: re-arm the
         # once-per-session ``session_end`` hook fired by shutdown/delete.
         self._session_end_fired = False
+        self._start_memory_watcher()
         await agent_lifecycle.start(
             self,
             profile,
@@ -1309,6 +1315,13 @@ class AgentEngine:
             # the next ``start()`` to reload config and create a fresh
             # manager instead of carrying a closed no-op instance forward.
             self._hook_manager = None
+        # Same boundary as ``session_end``: a session that ends normally gets
+        # one last deposit, so a short-lived host (a PACT role, `chrys run`)
+        # never has to wait out an idle window that will not arrive. The
+        # watcher itself flushes only when there is something pending.
+        if self._memory_watcher is not None:
+            watcher, self._memory_watcher = self._memory_watcher, None
+            await watcher.stop(flush=self._settings.memory_writeback_on_session_end, reason="session_end")
         # Auto-save before shutdown
         restore_suppress_save = False
         if suppress_trailing_save and not self._suppress_save:
@@ -1861,6 +1874,52 @@ class AgentEngine:
     async def _post_run(self) -> None:
         """Unified post-execution fixup for both run and retry paths."""
         await self._turns.finalize_current_run()
+        if self._memory_watcher is not None:
+            self._memory_watcher.touch()
+
+    def _start_memory_watcher(self) -> None:
+        """Arm the idle writeback timer, unless memory is unconfigured or off."""
+        if self._memory_watcher is not None or not self._memory_configured():
+            return
+        watcher = MemoryWritebackWatcher(
+            idle_seconds=self._settings.memory_writeback_idle_seconds,
+            on_flush=self._flush_memory_writeback,
+            is_busy=lambda: self.is_turn_lifecycle_active,
+        )
+        watcher.start()
+        self._memory_watcher = watcher
+
+    def _memory_configured(self) -> bool:
+        """Return whether this machine has a reachable graph configured at all."""
+        return memory_mcp_server_config(self._settings) is not None
+
+    async def _flush_memory_writeback(self, reason: str) -> None:
+        """Deposit every turn past the watermark and persist the new mark."""
+        session_dir, session_id = self._session_dir, self._session_id
+        if session_dir is None or session_id is None:
+            return
+        # Deposit reads the persisted session, so it has to be current first.
+        await self._save_current_session()
+        repo = Path(self._workspace.primary_cwd).name if self._workspace is not None else "general"
+        outcome = await asyncio.to_thread(
+            deposit_pending_turns,
+            session_dir / SESSION_FILE_NAME,
+            watermark=self._runtime_meta.memory_deposit_watermark,
+            repo=repo,
+            source_prefix=f"chrys-session:{session_id}",
+        )
+        if outcome.watermark != self._runtime_meta.memory_deposit_watermark:
+            self._runtime_meta.memory_deposit_watermark = outcome.watermark
+            await self._save_current_session()
+        await self._bus.publish(
+            MemoryWritebackCompleted(
+                session_id=session_id,
+                reason=reason,
+                deposited=len(outcome.deposited),
+                failed_turn=outcome.failed,
+                watermark=outcome.watermark,
+            )
+        )
 
     async def _on_user_interrupt(self, _event: UserInterrupt) -> None:
         """Handle user interrupt.

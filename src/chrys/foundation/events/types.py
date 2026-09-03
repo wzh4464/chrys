@@ -1380,3 +1380,20 @@ class SettingsReloaded(Event):
     """
 
     runtime_details: AgentRuntimeDetails = field(default_factory=AgentRuntimeDetails)
+
+
+@dataclass
+class MemoryWritebackCompleted(Event):
+    """One ContextGraph writeback pass finished (backend → frontend).
+
+    Emitted for every pass the engine actually attempts, including one that
+    deposited nothing, so a frontend or a test can see the watermark advance
+    without inspecting the session file.
+    """
+
+    reason: str = ""
+    """What triggered the pass: ``idle`` or ``session_end``."""
+    deposited: int = 0
+    failed_turn: int | None = None
+    """First turn whose deposit failed; the watermark stops just before it."""
+    watermark: int = 0
