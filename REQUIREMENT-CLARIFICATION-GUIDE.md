@@ -33,6 +33,7 @@ requirement_clarification:
 requirement_clarification:
   enabled: true
   reuse_workspace_as_p0: false
+  clarification_only: false
   clarification_timeout_seconds: 1800
   initial_timeout_seconds: 5400
   repair_timeout_seconds: 5400
@@ -42,6 +43,7 @@ requirement_clarification:
 | --- | ---: | --- |
 | `enabled` | `false` | 是否对 fresh turn 启用需求澄清 workflow |
 | `reuse_workspace_as_p0` | `false` | 为 `true` 时跳过 initial trial，把当前 workspace 当作 P0 |
+| `clarification_only` | `false` | 为 `true` 时落盘澄清与 PACT 后以 P0 收尾，不启动 repair |
 | `clarification_timeout_seconds` | `1800` | clarification 和 PACT 生成各自使用的 side-phase 超时 |
 | `initial_timeout_seconds` | `5400` | P0 initial trial 超时 |
 | `repair_timeout_seconds` | `5400` | P1 repair 超时 |
@@ -61,7 +63,7 @@ chrys run "<requirement>" --agent <profile-name>
 
 ```text
 [MAIN]  主 Chrys Agent / Executor，可使用 profile 配置的 tools 和 skills
-[SIDE]  内部 fresh headless Agent + active LLM，只读、structured output
+[SIDE]  内部 fresh headless Agent + active LLM，只读；调查为普通文本，定稿为 structured output
 [RULE]  确定性 Python 规则，不调用 LLM
 [SNAP]  WorkspaceSnapshotter
 [WRITE] owner-only 原子落盘
@@ -141,12 +143,12 @@ chrys run "<requirement>" --agent <profile-name>
 | 工作 | 执行者 | LLM | Skills | 工具权限 |
 | --- | --- | ---: | ---: | --- |
 | P0 initial trial | `[MAIN]` Executor | 是 | 当前 profile skills | 当前 profile tools |
-| 三个 proposals | `[SIDE]` fresh Agent | 是 | 不加载 | `filesystem.read`, `search` |
-| selector | `[SIDE]` fresh Agent | 是 | 不加载 | `filesystem.read`, `search` |
+| 三个 proposals | `[SIDE]` fresh Agent | 是 | 不加载 | 同一 session 先调查再定稿；调查至少成功 `grep` + `read_file`，不合格可反馈续跑一次 |
+| selector | `[SIDE]` fresh Agent | 是 | 不加载 | 对每个封闭 candidate ID 逐项记录 select/reject 和私有理由，不能改写或新增陈述；首轮全拒会带反馈复核一次 |
 | Goal Contract | `[SIDE]` fresh Agent | 是 | 不加载 | read/search；prompt 限定用户 authority |
 | Initial Plan | `[SIDE]` fresh Agent | 是 | 不加载 | `filesystem.read`, `search` |
 | selection 清洗、delta、需求单 | `[RULE]` | 否 | 否 | 无模型工具调用 |
-| PACT shape/coverage/DAG 校验 | `[RULE]` | 否 | 否 | 无模型工具调用 |
+| PACT shape/coverage/DAG 校验 | `[RULE]` | 否 | 否 | 无模型工具调用；模型重试后仅对漏覆盖 AC 追加复述 Goal Contract 的确定性 mission |
 | P1 repair | `[MAIN]` Executor | 是 | 当前 profile skills | 当前 profile tools |
 | hash、manifest、落盘 | `[RULE]` | 否 | 否 | owner-only filesystem write |
 
@@ -193,6 +195,10 @@ turn_<n>/
 │   │   ├── proposal-1.private.json
 │   │   ├── proposal-2.private.json
 │   │   └── proposal-3.private.json
+│   ├── investigations/
+│   │   ├── proposal-1.private.json
+│   │   ├── proposal-2.private.json
+│   │   └── proposal-3.private.json
 │   ├── decision/
 │   │   └── selection.private.json
 │   ├── sources/
@@ -224,7 +230,7 @@ turn_<n>/
 | `workflow.json` | `[RULE]` phase 状态机 | workflow、phase、revision、terminal、S0/P0 引用 | 仅监控/恢复 |
 | `h0.private.json` | `[RULE]` serializer | P0 前的完整 history checkpoint | 否 |
 | `initial_implementation.private.json` | `[RULE]` serializer | 兼容旧恢复逻辑的 P0 transcript | 否 |
-| `clarification.private.json` | `[RULE]` aggregate | proposals、selection、delta、usage、warnings 的旧聚合格式 | 仅旧 evaluation |
+| `clarification.private.json` | `[RULE]` aggregate | status、empty reason、investigations、proposals、selection、delta、usage、warnings | 仅审计/evaluation |
 | `summary.json` | `[RULE]` | `05-outcome/summary.json` 的根目录兼容副本 | 兼容 consumer 可读 |
 | `s0/` | `[SNAP]` | 实现前 workspace 的冻结恢复/澄清视图 | 否；正常结束删除 |
 | `p0/` | `[SNAP]` | baseline workspace 恢复点 | 否；正常结束删除 |
@@ -249,7 +255,8 @@ turn_<n>/
 | 文件 | 意义 |
 | --- | --- |
 | `candidates/proposal-*.private.json` | 三个 proposal；含 confidence、basis、risk、evidence |
-| `decision/selection.private.json` | selector 的 raw 输出与确定性清洗后的 cleaned 输出 |
+| `investigations/proposal-*.private.json` | 每个 proposer 的工具轨迹、调查/定稿次数、验证错误与 completed/failed 状态 |
+| `decision/selection.private.json` | selector 对每个 candidate ID 的 raw 逐项审查（select/reject、私有理由）与服务端物化后的 cleaned 输出；confidence 沿用 proposal；可以合法地拒绝全部候选 |
 | `sources/delta.md` | 实际准备注入 repair 的 `Repository implementation guidance` |
 | `deliverable/clarified-requirement.md` | 唯一完整澄清需求单：原始需求 + amendments + delta |
 | `deliverable/manifest.json` | revision、计数、引用、warnings 和需求单 SHA-256 |
@@ -273,7 +280,8 @@ turn_<n>/
 | `clarified-requirement-delta.md` | 只包含第一条原始需求 + delta，明确排除 amendments | baseline/clarified 对比实验 |
 | `summary.json` | outcome、fallback 原因、上述路径及内容 hash | 自动化索引和完整性检查 |
 
-如果没有产生 delta，两个需求单仍会生成，并写明 `No clarification delta was produced.`。
+如果没有产生 delta，两个需求单仍会生成。合法空澄清会说明需求已完整或候选被拒绝；澄清失败则明确写明
+`degraded`，不会伪装成“需求已完整”。
 
 ### 5.7 `06-pact-input/`：静默生成的 PACT 输入
 
@@ -281,10 +289,13 @@ turn_<n>/
 | --- | --- |
 | `goal-contract.json` | closed-shape `pact-runtime/goal-contract/v1`：goal、hard AC、non-goals |
 | `initial-plan.json` | closed-shape `pact-runtime/initial-plan/v1`：constraints、missions、AC mapping、DAG |
-| `generation.private.json` | `generated/failed` 状态、revision、usage、warnings 和两个文件 hash |
+| `generation.private.json` | `generated/failed/skipped` 状态、revision、usage、warnings 和两个文件 hash；澄清 degraded 时为 `skipped` |
 
-PACT 生成失败不会使 repair 失败。失败时 `generation.private.json` 仍会落盘，但两个 canonical JSON 可能不
-存在或不应消费。Chrys 只生成这些输入，不自动运行 PACT。
+PACT Initial Plan 首次未通过 coverage/reference/DAG 校验时会携带确定性错误反馈重试一次。如果第二次
+输出唯一的问题仍是漏覆盖 acceptance criterion，RULE 会为每个漏项追加一个直接复述 Goal Contract 的
+mission；它不引入新的完成义务。未知引用、重复 ID、环或其他非法结构仍会失败。最终生成失败
+仍不会使 repair 失败；`generation.private.json` 会落盘，但两个 canonical JSON 可能不存在或不应消费。
+Chrys 只生成这些输入，不自动运行 PACT。
 
 ## 6. 下游 AI 应该读取哪个文件
 

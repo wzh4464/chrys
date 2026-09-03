@@ -12,12 +12,17 @@ from chrys.service.requirement_clarification.types import (
     ClarificationProposal,
     ClarificationResult,
     ClarificationSelection,
+    ClarificationSelectorDecision,
+    EvidenceAnchor,
     PactAcceptanceCriterion,
     PactGoalContract,
     PactInitialPlan,
     PactMission,
     PactRuntimeInput,
+    ProposalGuidancePoint,
+    ProposalInvestigation,
     SelectedGuidancePoint,
+    SelectorCandidateReview,
 )
 
 
@@ -34,10 +39,38 @@ def _selection(statement: str) -> ClarificationSelection:
     )
 
 
+def _proposal(statement: str) -> ClarificationProposal:
+    return ClarificationProposal(
+        verdict="clarification_needed",
+        rationale="The repository exposes a runtime integration seam.",
+        evidence=[EvidenceAnchor(kind="current_repo", anchor="src/runtime.py:10")],
+        guidance_points=[
+            ProposalGuidancePoint(
+                category="integration",
+                statement=statement,
+                confidence=0.8,
+                basis="current_repo",
+                contract_cell="transport_integration",
+                decision_impact="The value otherwise does not reach its consumer.",
+                evidence=[EvidenceAnchor(kind="current_repo", anchor="src/runtime.py:10")],
+                risk="Confirm the consumer before accepting the candidate.",
+            )
+        ],
+    )
+
+
 def test_store_writes_phase_oriented_outputs_and_legacy_artifacts(tmp_path: Path) -> None:
     store = ClarificationArtifactStore(tmp_path / "session", 2)
     requirement_messages = ("Original requirement.", "Preserve compatibility.")
-    raw_selection = _selection("raw guidance")
+    raw_selection = ClarificationSelectorDecision(
+        reviews=[
+            SelectorCandidateReview(
+                candidate_id="p1-g1",
+                decision="select",
+                rationale="This is the strongest necessary repository mapping.",
+            )
+        ]
+    )
     cleaned_selection = _selection("cleaned guidance")
     result = ClarificationResult(
         strategy_version="test-v1",
@@ -66,7 +99,16 @@ def test_store_writes_phase_oriented_outputs_and_legacy_artifacts(tmp_path: Path
                 ],
             ),
         ),
-        proposals=(ClarificationProposal(), ClarificationProposal(), ClarificationProposal()),
+        proposals=(_proposal("candidate one"), _proposal("candidate two"), _proposal("candidate three")),
+        investigations=tuple(
+            ProposalInvestigation(
+                sample_index=index,
+                status="completed",
+                investigation_attempts=1,
+                synthesis_attempts=1,
+            )
+            for index in range(1, 4)
+        ),
         elapsed_seconds=1.5,
     )
 
@@ -102,6 +144,7 @@ def test_store_writes_phase_oriented_outputs_and_legacy_artifacts(tmp_path: Path
     assert (store.root / "02-initial-trial/response.json").is_file()
     assert (store.root / "02-initial-trial/transcript.private.json").is_file()
     assert len(list((store.root / "03-clarification/candidates").glob("proposal-*.private.json"))) == 3
+    assert len(list((store.root / "03-clarification/investigations").glob("proposal-*.private.json"))) == 3
     assert (store.root / "03-clarification/sources/delta.md").read_text(encoding="utf-8").endswith("\n")
     assert (store.root / "04-repair/attempts/revision-3/response.json").is_file()
     goal_contract = json.loads((store.root / "06-pact-input/goal-contract.json").read_text(encoding="utf-8"))
@@ -123,7 +166,8 @@ def test_store_writes_phase_oriented_outputs_and_legacy_artifacts(tmp_path: Path
     selection = json.loads(
         (store.root / "03-clarification/decision/selection.private.json").read_text(encoding="utf-8")
     )
-    assert selection["raw"]["guidance_points"][0]["statement"] == "raw guidance"
+    assert selection["raw"]["reviews"][0]["candidate_id"] == "p1-g1"
+    assert selection["raw"]["reviews"][0]["decision"] == "select"
     assert selection["cleaned"]["guidance_points"][0]["statement"] == "cleaned guidance"
     deliverable = (store.root / "03-clarification/deliverable/clarified-requirement.md").read_text(encoding="utf-8")
     outcome_requirement = (store.root / "05-outcome/clarified-requirement.md").read_text(encoding="utf-8")
@@ -139,3 +183,35 @@ def test_store_writes_phase_oriented_outputs_and_legacy_artifacts(tmp_path: Path
     summary = json.loads((store.root / "05-outcome/summary.json").read_text(encoding="utf-8"))
     assert summary["schema"] == "chrys/requirement-clarification/final-summary/v1"
     assert summary["accepted_phase"] == "repair"
+
+
+def test_store_distinguishes_degraded_clarification_from_legitimate_empty(tmp_path: Path) -> None:
+    store = ClarificationArtifactStore(tmp_path / "session", 1)
+    result = ClarificationResult(
+        strategy_version="test-v7",
+        revision=1,
+        delta="",
+        selection=ClarificationSelection(),
+        status="degraded",
+        empty_reason="insufficient_valid_proposals",
+        investigations=(
+            ProposalInvestigation(
+                sample_index=1,
+                status="failed",
+                investigation_attempts=2,
+                synthesis_attempts=0,
+                validation_errors=["investigation has no successful read_file"],
+            ),
+        ),
+    )
+
+    store.save_result(result, requirement_messages=("Original requirement.",))
+    store.save_pact_generation(result)
+
+    private = json.loads((store.root / "clarification.private.json").read_text(encoding="utf-8"))
+    assert private["status"] == "degraded"
+    assert private["empty_reason"] == "insufficient_valid_proposals"
+    clarified = (store.root / "03-clarification/deliverable/clarified-requirement.md").read_text(encoding="utf-8")
+    assert "failed or degraded" in clarified
+    generation = json.loads((store.root / "06-pact-input/generation.private.json").read_text(encoding="utf-8"))
+    assert generation["status"] == "skipped"

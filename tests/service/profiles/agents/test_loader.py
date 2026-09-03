@@ -88,6 +88,18 @@ def test_load_requirement_clarification_reuses_workspace_as_p0(tmp_path: Path) -
     assert profile.requirement_clarification.reuse_workspace_as_p0 is True
 
 
+def test_load_requirement_clarification_only_mode(tmp_path: Path) -> None:
+    path = tmp_path / "clarification-only.yaml"
+    path.write_text(
+        "name: clarification\nrequirement_clarification:\n  enabled: true\n  clarification_only: true\n",
+        encoding="utf-8",
+    )
+
+    profile = load_profile_from_yaml(path)
+
+    assert profile.requirement_clarification.clarification_only is True
+
+
 @pytest.mark.parametrize("value", ["0", "-1", "true", '"90"'])
 def test_load_requirement_clarification_rejects_invalid_phase_timeout(tmp_path: Path, value: str) -> None:
     path = tmp_path / "clarification-invalid.yaml"

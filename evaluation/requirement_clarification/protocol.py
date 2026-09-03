@@ -205,7 +205,12 @@ def render_fixed_p0_repair_profile(code_profile_path: Path, output_path: Path) -
     return output_path
 
 
-def render_imported_p0_clarification_profile(code_profile_path: Path, output_path: Path) -> Path:
+def render_imported_p0_clarification_profile(
+    code_profile_path: Path,
+    output_path: Path,
+    *,
+    clarification_only: bool = False,
+) -> Path:
     """Render the native clarification workflow with the existing workspace treated as P0."""
     source = yaml.safe_load(code_profile_path.read_text(encoding="utf-8"))
     if not isinstance(source, dict) or source.get("name") != "Code":
@@ -220,6 +225,7 @@ def render_imported_p0_clarification_profile(code_profile_path: Path, output_pat
             "requirement_clarification": {
                 "enabled": True,
                 "reuse_workspace_as_p0": True,
+                "clarification_only": clarification_only,
                 "clarification_timeout_seconds": CLARIFICATION_TIMEOUT_SECONDS,
                 "initial_timeout_seconds": CODING_PHASE_TIMEOUT_SECONDS,
                 "repair_timeout_seconds": CODING_PHASE_TIMEOUT_SECONDS,

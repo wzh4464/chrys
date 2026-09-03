@@ -13,6 +13,7 @@ from chrys.service.requirement_clarification.model import ClarificationModelRunn
 from chrys.service.requirement_clarification.prompts import (
     MAX_FINAL_CHARS,
     MAX_FINAL_POINTS,
+    MIN_VALID_PROPOSALS,
     PROPOSAL_COUNT,
     STRATEGY_VERSION,
     build_pact_goal_contract_prompt,
@@ -25,9 +26,14 @@ from chrys.service.requirement_clarification.types import (
     ClarificationProposal,
     ClarificationResult,
     ClarificationSelection,
+    ClarificationSelectorDecision,
     PactGoalContract,
     PactInitialPlan,
+    PactMission,
     PactRuntimeInput,
+    ProposalGuidancePoint,
+    ProposalInvestigation,
+    ProposalModelResult,
     RequirementRevision,
     SelectedGuidancePoint,
 )
@@ -61,24 +67,137 @@ class ClarificationService:
             )
             for sample_index in range(1, PROPOSAL_COUNT + 1)
         ]
-        proposal_results = await asyncio.gather(*proposal_calls)
-        proposals = [proposal for proposal, _usage in proposal_results]
-        if len(proposals) != PROPOSAL_COUNT or not all(isinstance(item, ClarificationProposal) for item in proposals):
-            raise ValueError(f"expected {PROPOSAL_COUNT} valid clarification proposals")
+        raw_proposal_results = await asyncio.gather(*proposal_calls, return_exceptions=True)
+        proposal_results: list[ClarificationProposal] = []
+        investigations: list[ProposalInvestigation] = []
+        usage: list[dict[str, object]] = []
+        warnings: list[str] = []
+        for sample_index, item in enumerate(raw_proposal_results, start=1):
+            if isinstance(item, BaseException):
+                detail = f"{type(item).__name__}: {item}"[:600]
+                warnings.append(f"clarification proposer {sample_index} failed: {detail}")
+                investigations.append(
+                    ProposalInvestigation(
+                        sample_index=sample_index,
+                        status="failed",
+                        investigation_attempts=1,
+                        synthesis_attempts=0,
+                        validation_errors=[detail],
+                    )
+                )
+                continue
+            if not isinstance(item, ProposalModelResult):
+                detail = "returned an invalid result type"
+                warnings.append(f"clarification proposer {sample_index} {detail}")
+                investigations.append(
+                    ProposalInvestigation(
+                        sample_index=sample_index,
+                        status="failed",
+                        investigation_attempts=1,
+                        synthesis_attempts=0,
+                        validation_errors=[detail],
+                    )
+                )
+                continue
+            investigations.append(item.investigation)
+            usage.extend(dict(details) for details in item.usage_details)
+            if item.proposal is None:
+                detail = item.error or "investigation or synthesis did not produce a valid proposal"
+                warnings.append(f"clarification proposer {sample_index} failed: {detail}"[:700])
+                continue
+            proposal_results.append(item.proposal)
+        proposals = proposal_results
+        if len(proposals) < MIN_VALID_PROPOSALS:
+            return ClarificationResult(
+                strategy_version=STRATEGY_VERSION,
+                revision=revision.number,
+                delta="",
+                selection=ClarificationSelection(),
+                status="degraded",
+                empty_reason="insufficient_valid_proposals",
+                proposals=tuple(proposals),
+                investigations=tuple(investigations),
+                elapsed_seconds=time.monotonic() - started,
+                usage_details=tuple(usage),
+                warnings=tuple(warnings),
+            )
+        candidate_map = _candidate_map(proposals)
+        if not candidate_map:
+            return ClarificationResult(
+                strategy_version=STRATEGY_VERSION,
+                revision=revision.number,
+                delta="",
+                selection=ClarificationSelection(),
+                status="completed",
+                empty_reason="requirement_complete",
+                proposals=tuple(proposals),
+                investigations=tuple(investigations),
+                elapsed_seconds=time.monotonic() - started,
+                usage_details=tuple(usage),
+                warnings=tuple(warnings),
+            )
         selection_prompt = build_selector_prompt(revision.rendered, background, base_evidence, proposals)
-        selection, selector_usage = await self._model.select(selection_prompt)
+        raw_selection: ClarificationSelectorDecision | None = None
+        selector_errors: list[str] = []
+        for selector_attempt in (1, 2):
+            prompt = selection_prompt
+            if selector_attempt == 2:
+                prompt += (
+                    "\n\nThe prior selection needs a second-pass audit: "
+                    + "; ".join(selector_errors)
+                    + ". Re-evaluate every candidate for concrete repository ownership, data-flow, lifecycle, or "
+                    "compatibility information that the observable requirement does not itself provide. Return exactly "
+                    "one review per unique id from the closed candidate packet. An all-reject result remains valid only "
+                    "if every candidate explicitly fails that repository-mapping test."
+                )
+            try:
+                decision, selector_usage = await self._model.select(prompt)
+                usage.append(dict(selector_usage))
+                selector_errors = _selector_errors(decision, candidate_map)
+                raw_selection = decision
+                if (
+                    not selector_errors
+                    and not any(review.decision == "select" for review in decision.reviews)
+                    and selector_attempt == 1
+                ):
+                    selector_errors = ["the first-pass selector rejected every candidate after review"]
+                    continue
+                if not selector_errors:
+                    break
+            except Exception as exc:
+                selector_errors = [f"{type(exc).__name__}: {exc}"[:600]]
+        if raw_selection is None or selector_errors:
+            warnings.append("clarification selector failed: " + "; ".join(selector_errors))
+            return ClarificationResult(
+                strategy_version=STRATEGY_VERSION,
+                revision=revision.number,
+                delta="",
+                selection=ClarificationSelection(),
+                raw_selection=raw_selection,
+                status="degraded",
+                empty_reason="selector_failed",
+                proposals=tuple(proposals),
+                investigations=tuple(investigations),
+                elapsed_seconds=time.monotonic() - started,
+                usage_details=tuple(usage),
+                warnings=tuple(warnings),
+            )
+        selection = _materialize_selection(raw_selection, candidate_map)
         cleaned = sanitize_selection(revision.rendered, selection)
         delta = render_delta(cleaned)
-        usage = [*(dict(item) for _proposal, item in proposal_results), dict(selector_usage)]
         return ClarificationResult(
             strategy_version=STRATEGY_VERSION,
             revision=revision.number,
             delta=delta,
             selection=cleaned,
-            raw_selection=selection,
+            raw_selection=raw_selection,
+            status="completed",
+            empty_reason=None if delta else "selector_rejected",
             proposals=tuple(proposals),
+            investigations=tuple(investigations),
             elapsed_seconds=time.monotonic() - started,
             usage_details=tuple(usage),
+            warnings=tuple(warnings),
         )
 
     async def generate_pact_input(
@@ -94,12 +213,37 @@ class ClarificationService:
             build_pact_goal_contract_prompt(revision.rendered, background)
         )
         base_evidence = collect_base_evidence(snapshot, revision.rendered)
-        initial_plan, plan_usage = await self._model.generate_pact_initial_plan(
-            build_pact_initial_plan_prompt(goal_contract, base_evidence, list(result.proposals), result.selection)
+        plan_prompt = build_pact_initial_plan_prompt(
+            goal_contract,
+            base_evidence,
+            list(result.proposals),
+            result.selection,
         )
-        validate_pact_runtime_input(goal_contract, initial_plan)
-        pact_input = PactRuntimeInput(goal_contract=goal_contract, initial_plan=initial_plan)
-        return pact_input, (dict(goal_usage), dict(plan_usage))
+        usage = [dict(goal_usage)]
+        validation_error = ""
+        initial_plan: PactInitialPlan | None = None
+        for plan_attempt in (1, 2):
+            prompt = plan_prompt
+            if plan_attempt == 2:
+                prompt += (
+                    "\n\nThe prior Initial Plan failed deterministic validation: "
+                    + validation_error
+                    + ". Regenerate the complete Initial Plan. Cover every Goal Contract acceptance criterion, "
+                    "reference only declared criterion and mission ids, and keep mission dependencies acyclic."
+                )
+            initial_plan, plan_usage = await self._model.generate_pact_initial_plan(prompt)
+            usage.append(dict(plan_usage))
+            try:
+                validate_pact_runtime_input(goal_contract, initial_plan)
+            except ValueError as exc:
+                validation_error = str(exc)
+                if plan_attempt == 1:
+                    continue
+                initial_plan = _complete_missing_pact_coverage(goal_contract, initial_plan)
+                validate_pact_runtime_input(goal_contract, initial_plan)
+            pact_input = PactRuntimeInput(goal_contract=goal_contract, initial_plan=initial_plan)
+            return pact_input, tuple(usage)
+        raise RuntimeError("PACT Initial Plan generation exhausted without a result")
 
 
 def validate_pact_runtime_input(goal_contract: PactGoalContract, initial_plan: PactInitialPlan) -> None:
@@ -141,7 +285,8 @@ def validate_pact_runtime_input(goal_contract: PactGoalContract, initial_plan: P
         for dependency in mission.dependencies:
             successors[dependency].append(mission.id)
     if covered_ac_ids != known_ac_ids:
-        raise ValueError("PACT Initial Plan does not cover every acceptance criterion")
+        missing = ", ".join(sorted(known_ac_ids - covered_ac_ids))
+        raise ValueError(f"PACT Initial Plan does not cover acceptance criteria: {missing}")
 
     frontier = [mission_id for mission_id, count in dependency_counts.items() if count == 0]
     visited = 0
@@ -158,6 +303,90 @@ def validate_pact_runtime_input(goal_contract: PactGoalContract, initial_plan: P
 
 def _normalized_words(text: str) -> list[str]:
     return re.findall(r"[a-z0-9_]+", text.casefold())
+
+
+def _candidate_map(proposals: list[ClarificationProposal]) -> dict[str, ProposalGuidancePoint]:
+    candidates: dict[str, ProposalGuidancePoint] = {}
+    for proposal_index, proposal in enumerate(proposals, start=1):
+        for guidance_index, point in enumerate(proposal.guidance_points, start=1):
+            candidates[f"p{proposal_index}-g{guidance_index}"] = point
+    return candidates
+
+
+def _selector_errors(
+    decision: ClarificationSelectorDecision,
+    candidates: dict[str, ProposalGuidancePoint],
+) -> list[str]:
+    ids = [review.candidate_id for review in decision.reviews]
+    errors: list[str] = []
+    unknown = sorted(set(ids) - set(candidates))
+    if unknown:
+        errors.append("unknown candidate ids: " + ", ".join(unknown))
+    if len(ids) != len(set(ids)):
+        errors.append("duplicate candidate ids are not allowed")
+    missing = sorted(set(candidates) - set(ids))
+    if missing:
+        errors.append("candidate ids were not reviewed: " + ", ".join(missing))
+    return errors
+
+
+def _materialize_selection(
+    decision: ClarificationSelectorDecision,
+    candidates: dict[str, ProposalGuidancePoint],
+) -> ClarificationSelection:
+    rows: list[SelectedGuidancePoint] = []
+    for review in decision.reviews:
+        if review.decision != "select":
+            continue
+        candidate = candidates[review.candidate_id]
+        rows.append(
+            SelectedGuidancePoint(
+                category=candidate.category,
+                statement=candidate.statement,
+                confidence=candidate.confidence,
+                basis=candidate.basis,
+            )
+        )
+    rows.sort(key=lambda item: (-item.confidence, item.category, item.statement))
+    return ClarificationSelection(guidance_points=rows[:MAX_FINAL_POINTS])
+
+
+def _complete_missing_pact_coverage(
+    goal_contract: PactGoalContract,
+    initial_plan: PactInitialPlan,
+) -> PactInitialPlan:
+    """Add authority-preserving missions only for acceptance criteria omitted by the model.
+
+    This is deliberately narrower than repairing arbitrary invalid plans: unknown references,
+    duplicate ids, and cycles still fail closed. The generated mission repeats the Goal Contract
+    criterion verbatim and therefore cannot introduce a new completion obligation.
+    """
+    covered = {ac_id for mission in initial_plan.missions for ac_id in mission.target_ac_ids}
+    existing_ids = {mission.id for mission in initial_plan.missions}
+    additions: list[PactMission] = []
+    for index, criterion in enumerate(goal_contract.acceptance_criteria, start=1):
+        if criterion.id in covered:
+            continue
+        base_id = f"cover-missing-ac-{index}"
+        mission_id = base_id
+        suffix = 2
+        while mission_id in existing_ids:
+            mission_id = f"{base_id}-{suffix}"
+            suffix += 1
+        existing_ids.add(mission_id)
+        additions.append(
+            PactMission(
+                id=mission_id,
+                objective=criterion.text,
+                target_ac_ids=[criterion.id],
+                dependencies=[],
+                verification_intent=(
+                    f"Collect observable evidence for Goal Contract acceptance criterion {criterion.id}: "
+                    f"{criterion.text}"
+                ),
+            )
+        )
+    return initial_plan.model_copy(update={"missions": [*initial_plan.missions, *additions]})
 
 
 def sanitize_selection(requirement: str, selection: ClarificationSelection) -> ClarificationSelection:

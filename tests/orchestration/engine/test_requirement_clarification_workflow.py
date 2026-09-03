@@ -53,6 +53,7 @@ class _Executor:
         self.workspace_file = workspace_file
         self.repair_fails = repair_fails
         self.repair_delay = repair_delay
+        self.run_calls = 0
         self.repair_started_from: list[str] = []
         self.published_finals: list[str] = []
 
@@ -73,6 +74,7 @@ class _Executor:
 
     async def run(self, contents: list[Any], created_at=None) -> None:
         _ = created_at
+        self.run_calls += 1
         if self.repair_delay:
             await asyncio.sleep(self.repair_delay)
         self.repair_started_from = [message.text for message in self.history_state["messages"]]
@@ -184,11 +186,13 @@ def test_history_background_uses_only_user_and_assistant_text() -> None:
 @pytest.mark.asyncio
 @pytest.mark.parametrize("repair_fails", [False, True, "timeout"])
 @pytest.mark.parametrize("reuse_workspace_as_p0", [False, True])
+@pytest.mark.parametrize("clarification_only", [False, True])
 async def test_workflow_orders_p0_before_delta_and_restores_p0_on_repair_failure(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     repair_fails: bool | str,
     reuse_workspace_as_p0: bool,
+    clarification_only: bool,
 ) -> None:
     async def _direct(function, /, *args, **kwargs):
         return function(*args, **kwargs)
@@ -242,6 +246,7 @@ async def test_workflow_orders_p0_before_delta_and_restores_p0_on_repair_failure
         host,
         runner,
         reuse_workspace_as_p0=reuse_workspace_as_p0,
+        clarification_only=clarification_only,
         repair_timeout_seconds=0.001 if repair_fails == "timeout" else 5400,
     )
     workflow._snapshotter = snapshotter
@@ -270,7 +275,6 @@ async def test_workflow_orders_p0_before_delta_and_restores_p0_on_repair_failure
     assert runner.imported_p0_prepared == int(reuse_workspace_as_p0)
     assert order == ["delta"]
     assert executor.repair_started_from == []
-    assert host._reminder_middleware.values[0].startswith("[REQUIREMENT_CLARIFICATION_REPAIR]")
     assert runner.finalized == 1
     artifact_root = host._session_dir / "requirement_clarification/turn_1"
     assert (artifact_root / "01-input/requirement.md").is_file()
@@ -279,10 +283,20 @@ async def test_workflow_orders_p0_before_delta_and_restores_p0_on_repair_failure
     assert (artifact_root / "03-clarification/deliverable/manifest.json").is_file()
     assert (artifact_root / "06-pact-input/generation.private.json").is_file()
     repair_response = artifact_root / "04-repair/attempts/revision-1/response.json"
-    assert repair_response.is_file()
     assert (artifact_root / "05-outcome/summary.json").is_file()
     assert (artifact_root / "05-outcome/clarified-requirement.md").is_file()
     assert (artifact_root / "05-outcome/clarified-requirement-delta.md").is_file()
+    if clarification_only:
+        assert executor.run_calls == 0
+        assert host._reminder_middleware.values == []
+        assert not repair_response.exists()
+        expected_p0_text = "Reused the existing workspace implementation as P0." if reuse_workspace_as_p0 else "P0"
+        assert executor.published_finals == [expected_p0_text]
+        assert phases[-1] == RequirementWorkflowPhase.COMPLETED
+        return
+    assert executor.run_calls == 1
+    assert host._reminder_middleware.values[0].startswith("[REQUIREMENT_CLARIFICATION_REPAIR]")
+    assert repair_response.is_file()
     if repair_fails:
         assert snapshotter.restored == 1
         expected_p0_text = "Reused the existing workspace implementation as P0." if reuse_workspace_as_p0 else "P0"

@@ -65,8 +65,9 @@ requirement_clarification:
   enabled: true
 ```
 
-首版只公开 `enabled`。proposal 数量、selector 数量、prompt、阈值和输出上限由代码及
-`STRATEGY_VERSION` 共同拥有，不允许不同 profile 静默改变实验语义。
+`reuse_workspace_as_p0` 可把当前 workspace 当作已有 P0；`clarification_only` 可在澄清与 PACT 落盘后
+直接以 P0 收尾而不启动 repair。proposal 数量、selector 数量、prompt、阈值和输出上限仍由代码及
+`STRATEGY_VERSION` 共同拥有，不允许不同 profile 静默改变澄清策略语义。
 
 ACP agent profile 当前不能开启该能力；loader 会直接拒绝这种配置。普通原生 profile 未开启时，
 `TurnRunner.run_fresh()` 完整走原有 `_run_fresh_standard()`，不进入任何新阶段。
@@ -131,10 +132,30 @@ P0 没有产生 diff 也仍然可以进入澄清。只有 P0 技术失败或被�
 2. 数据流、控制流、状态和消费者；
 3. 兼容性、错误、边界与集成陷阱。
 
+每个 proposer 使用独立 Agent，但在该 Agent 内复用同一个 `AgentSession` 执行两阶段协议：
+
+1. 调查 turn 不设置 `response_format`，首轮强制 `grep`，允许模型继续使用只读工具；
+2. 规则审计真实 function call/result，至少要求成功的 `grep` 和 `read_file`；不足时在同一 session 中反馈
+   缺口并续跑一次；
+3. 调查通过后以 `tool_choice=none` 单独请求结构化 proposal；占位内容或未引用已读取文件时反馈纠正一次；
+4. 两次仍不合格的 proposer 记为 failed，而不是当作合法空 proposal。
+
 三个 proposal 返回严格 Pydantic schema。每个候选携带 category、statement、confidence、basis、
 contract cell、decision impact、evidence 和 risk；这些属于私有选择材料，不直接给 repair agent。
+proposal 是候选生成器而不是裁决器。`verdict=clarification_needed` 必须带 1–6 条候选；
+`verdict=requirement_complete` 必须为空，且仍需通过调查审计。placeholder、TODO、PENDING、NA、
+“need to inspect”等未完成语义会在模型 schema 之外再被确定性拒绝。三个 proposer 独立容错：至少两个有效
+结果即可继续 selector，单个失败会进入 warnings；不足两个时返回并落盘 `degraded` 结果，而不是静默空澄清。
+实验 postflight 允许单题空 delta，但多题批次若全部为空会标记
+`invalid_all_empty` 并拒绝将该批次视为健康结果。
 
-proposal 完成后执行一个 selector。selector 最多选择 5 条 guidance point。确定性清洗还会移除：
+proposal 完成后，服务端为候选分配 `p<proposal>-g<guidance>` 稳定 ID。selector 必须对每个 ID 恰好返回
+一次逐项审查，包括 `select/reject` 和私有 rationale；candidate confidence 沿用 proposal，不要求
+selector 重估。selector 应优先选不超过五个，服务端还会按 confidence 与文本预算确定性裁剪；不能改写、
+合并或新增 statement。未知、重复或漏审 ID 会收到一次纠错反馈，仍无效则题目降级。候选非空但 selector
+首轮全拒时也会收到一次 repository-mapping 复核；复核后仍可合法拒绝全部候选，但不能用不透明空列表
+代替审查。
+服务端从原 proposal 物化陈述，最终 confidence 取 proposer 与 selector 的较小值。确定性清洗还会移除：
 
 - 空内容和重复内容；
 - 已经包含在用户原需求中的复述；
@@ -156,7 +177,7 @@ proposal 完成后执行一个 selector。selector 最多选择 5 条 guidance p
 - workspace 指向 S0 的冻结 view，而不是 live P0 workspace；
 - 只加载 `filesystem.read` 与 `search` 类别中的只读工具；
 - 不开放 shell、写文件、测试或网络工具；
-- 强制结构化响应；
+- 调查 turn 不使用 structured output；只有调查完成后的 proposal 定稿和 selector 使用结构化响应；
 - token usage 汇入主 workflow 的 side-call usage。
 
 因此，clarifier 无法通过正常 Chrys 能力看到或修改 P0。当前的全局 model lock 同样作用于这些
@@ -203,7 +224,7 @@ workflow 仅在 `clarification` 和 `repair` 阶段接受 requirement amendment�
 | P0 失败 | 不执行 ΔR，按失败状态 finalize |
 | P0 被中断 | 不执行 ΔR，按中断状态 finalize |
 | P0 transcript 或 P0 snapshot 无法保存 | 提升已经完成的 P0 |
-| proposal/selector/schema 失败 | 提升 P0 |
+| 少于两个有效 proposer 或 selector 两次无效 | 落盘 `degraded`、跳过 PACT/repair并提升 P0 |
 | 最终 ΔR 为空 | 提升 P0 |
 | repair 前 workspace 不再匹配 P0 | 不覆盖现场，标记 conflicted 并提升 P0 文本 |
 | repair 失败或被中断 | 恢复 P0 workspace/history，提升 P0 |
@@ -255,6 +276,10 @@ p0/
     proposal-1.private.json
     proposal-2.private.json
     proposal-3.private.json
+  investigations/
+    proposal-1.private.json
+    proposal-2.private.json
+    proposal-3.private.json
   decision/
     selection.private.json
   sources/
@@ -278,8 +303,8 @@ p0/
   generation.private.json
 ```
 
-`workflow.json` 原子记录 phase、terminal、revision、配置 fingerprints 和快照引用。proposal、selection、
-usage 和 ΔR 仍聚合保存在兼容文件 `clarification.private.json`，不会混入普通 session history。编号目录是
+`workflow.json` 原子记录 phase、terminal、revision、配置 fingerprints 和快照引用。status、empty reason、
+调查轨迹、proposal、selection、usage 和 ΔR 仍聚合保存在兼容文件 `clarification.private.json`，不会混入普通 session history。编号目录是
 按 phase 组织的审计视图：用户 authority 与 S0 metadata、P0 trial、三个 candidate proposal、selector 的
 raw/cleaned decision、实际注入 repair 的 delta、每个 revision 的 repair attempt，以及最终 outcome 分别
 保存。每个新 JSON 都带内部 schema 和 artifact version；私有 transcript、proposal 和 selection 继续使用
@@ -294,8 +319,11 @@ selector 完成后还会执行两个独立的结构化 side call：先从用户 
 Goal Contract v1，再结合 Goal Contract、S0 evidence、proposal 和 selection 生成 Initial Plan v1。Chrys
 在落盘前确定性验证 AC/Mission ID、coverage、引用和 dependency DAG。验证成功时，两个 closed-shape
 canonical JSON 静默写入 `06-pact-input/`；generation 状态、revision 和内容 hash 单独保存在
-`generation.private.json`。该阶段不调用 PACT、不等待用户输入，生成或写盘失败也不改变现有 ΔR/repair
-流程的结果。
+`generation.private.json`。Initial Plan 未通过 coverage/reference/DAG 校验时会携带确定性错误反馈重试
+一次；若第二次输出仅漏覆盖 AC，则确定性规则为漏项追加直接复述 Goal Contract 的 mission。其他非法
+引用、重复 ID 或环仍然失败。该阶段不调用 PACT、不等待用户输入，最终生成或写盘失败也不改变现有 ΔR/repair
+流程的结果。若澄清状态为 `degraded`，PACT 不会基于不可信 proposal 继续生成，
+`generation.private.json` 以 `status=skipped` 和明确原因落盘。
 
 根目录的 `h0.private.json`、`initial_implementation.private.json`、`clarification.private.json`、`s0/` 和
 `p0/` 暂时保留作为恢复和旧 evaluation consumer 的兼容边界。正常终态仍会销毁 S0/P0 的大体积恢复

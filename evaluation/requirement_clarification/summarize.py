@@ -101,11 +101,11 @@ def _float_agent_metric(result: dict[str, Any], key: str) -> float | None:
 
 
 def _clarification_artifacts(trial_dir: Path) -> tuple[str | None, str | None]:
-    summaries = sorted(trial_dir.glob("agent/chrys-sessions/*/requirement_clarification/turn_*/summary.json"))
+    summaries = sorted(trial_dir.glob("agent/chrys-sessions/**/requirement_clarification/turn_*/summary.json"))
     private_results = sorted(
-        trial_dir.glob("agent/chrys-sessions/*/requirement_clarification/turn_*/clarification.private.json")
+        trial_dir.glob("agent/chrys-sessions/**/requirement_clarification/turn_*/clarification.private.json")
     )
-    workflows = sorted(trial_dir.glob("agent/chrys-sessions/*/requirement_clarification/turn_*/workflow.json"))
+    workflows = sorted(trial_dir.glob("agent/chrys-sessions/**/requirement_clarification/turn_*/workflow.json"))
 
     outcome: str | None = None
     if summaries:

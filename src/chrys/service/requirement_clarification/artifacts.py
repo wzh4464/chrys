@@ -101,10 +101,13 @@ class ClarificationArtifactStore:
         private = {
             "strategy_version": result.strategy_version,
             "revision": result.revision,
+            "status": result.status,
+            "empty_reason": result.empty_reason,
             "elapsed_seconds": result.elapsed_seconds,
             "delta": result.delta,
             "selection": result.selection.model_dump(mode="json"),
             "proposals": [proposal.model_dump(mode="json") for proposal in result.proposals],
+            "investigations": [investigation.model_dump(mode="json") for investigation in result.investigations],
             "usage_details": list(result.usage_details),
             "warnings": list(result.warnings),
         }
@@ -117,7 +120,7 @@ class ClarificationArtifactStore:
             self._save_json(
                 proposals_dir / f"proposal-{index}.private.json",
                 {
-                    "schema": "chrys/requirement-clarification/proposal/v1",
+                    "schema": "chrys/requirement-clarification/proposal/v2",
                     "artifact_version": ARTIFACT_VERSION,
                     "strategy_version": result.strategy_version,
                     "revision": result.revision,
@@ -125,15 +128,29 @@ class ClarificationArtifactStore:
                     "proposal": proposal.model_dump(mode="json"),
                 },
             )
-        raw_selection = result.raw_selection or result.selection
+        investigations_dir = Path(CLARIFICATION_PHASE_DIR) / "investigations"
+        for investigation in result.investigations:
+            self._save_json(
+                investigations_dir / f"proposal-{investigation.sample_index}.private.json",
+                {
+                    "schema": "chrys/requirement-clarification/investigation/v1",
+                    "artifact_version": ARTIFACT_VERSION,
+                    "strategy_version": result.strategy_version,
+                    "revision": result.revision,
+                    "investigation": investigation.model_dump(mode="json"),
+                },
+            )
+        raw_selection = (
+            result.raw_selection.model_dump(mode="json") if result.raw_selection is not None else {"reviews": []}
+        )
         self._save_json(
             Path(CLARIFICATION_PHASE_DIR) / "decision" / "selection.private.json",
             {
-                "schema": "chrys/requirement-clarification/selection/v1",
+                "schema": "chrys/requirement-clarification/selection/v2",
                 "artifact_version": ARTIFACT_VERSION,
                 "strategy_version": result.strategy_version,
                 "revision": result.revision,
-                "raw": raw_selection.model_dump(mode="json"),
+                "raw": raw_selection,
                 "cleaned": result.selection.model_dump(mode="json"),
             },
         )
@@ -141,7 +158,12 @@ class ClarificationArtifactStore:
             Path(CLARIFICATION_PHASE_DIR) / "sources" / "delta.md",
             _ensure_trailing_newline(result.delta),
         )
-        clarified_requirement = _render_clarified_requirement(requirement_messages, result.delta)
+        clarified_requirement = _render_clarified_requirement(
+            requirement_messages,
+            result.delta,
+            status=result.status,
+            empty_reason=result.empty_reason,
+        )
         self._save_text(
             Path(CLARIFICATION_PHASE_DIR) / "deliverable" / "clarified-requirement.md",
             clarified_requirement,
@@ -154,12 +176,21 @@ class ClarificationArtifactStore:
                 "strategy_version": result.strategy_version,
                 "revision": result.revision,
                 "elapsed_seconds": result.elapsed_seconds,
+                "status": result.status,
+                "empty_reason": result.empty_reason,
                 "proposal_count": len(result.proposals),
+                "completed_investigation_count": sum(
+                    investigation.status == "completed" for investigation in result.investigations
+                ),
+                "failed_investigation_count": sum(
+                    investigation.status == "failed" for investigation in result.investigations
+                ),
                 "selected_guidance_count": len(result.selection.guidance_points),
                 "is_empty": result.is_empty,
                 "warnings": list(result.warnings),
                 "artifacts": {
                     "candidates": f"{CLARIFICATION_PHASE_DIR}/candidates/",
+                    "investigations": f"{CLARIFICATION_PHASE_DIR}/investigations/",
                     "selection": f"{CLARIFICATION_PHASE_DIR}/decision/selection.private.json",
                     "delta": f"{CLARIFICATION_PHASE_DIR}/sources/delta.md",
                     "clarified_requirement": (f"{CLARIFICATION_PHASE_DIR}/deliverable/clarified-requirement.md"),
@@ -225,6 +256,15 @@ class ClarificationArtifactStore:
             "usage_details": list(result.usage_details),
             "warnings": list(result.warnings),
         }
+        if result.status == "degraded":
+            metadata.update(
+                {
+                    "status": "skipped",
+                    "error": result.pact_generation_error or "clarification degraded before PACT generation",
+                }
+            )
+            self._save_json(Path(PACT_INPUT_PHASE_DIR) / "generation.private.json", metadata)
+            return
         if result.pact_input is None:
             metadata.update(
                 {
@@ -285,8 +325,21 @@ class ClarificationArtifactStore:
     ) -> None:
         """Persist the outcome plus immutable views of the requirement used by repair."""
         final_response = str(payload.get("final_response", ""))
-        clarified_requirement = _render_clarified_requirement(requirement_messages, delta)
-        clarified_requirement_delta = _render_clarified_requirement_delta(requirement_messages, delta)
+        clarification_status = str(payload.get("clarification_status", "completed"))
+        empty_reason = payload.get("clarification_empty_reason")
+        normalized_reason = str(empty_reason) if empty_reason is not None else None
+        clarified_requirement = _render_clarified_requirement(
+            requirement_messages,
+            delta,
+            status=clarification_status,
+            empty_reason=normalized_reason,
+        )
+        clarified_requirement_delta = _render_clarified_requirement_delta(
+            requirement_messages,
+            delta,
+            status=clarification_status,
+            empty_reason=normalized_reason,
+        )
         self._save_text(
             Path(OUTCOME_PHASE_DIR) / "final-response.md",
             _ensure_trailing_newline(final_response),
@@ -336,23 +389,45 @@ def _render_requirement_input(messages: tuple[str, ...]) -> str:
     return "\n\n".join(sections) + "\n"
 
 
-def _render_clarified_requirement(messages: tuple[str, ...], delta: str) -> str:
+def _empty_delta_text(*, status: str, empty_reason: str | None) -> str:
+    if status == "degraded":
+        return "Clarification failed or degraded; the original requirement is retained unchanged."
+    if empty_reason == "requirement_complete":
+        return "No additional repository-specific clarification was needed after investigation."
+    if empty_reason == "selector_rejected":
+        return "No candidate clarification passed selection and confidence checks."
+    return "No clarification delta was produced."
+
+
+def _render_clarified_requirement(
+    messages: tuple[str, ...],
+    delta: str,
+    *,
+    status: str = "completed",
+    empty_reason: str | None = None,
+) -> str:
     original = messages[0] if messages else "[No requirement message was recorded.]"
     sections = ["# Clarified Requirement", "## Original Requirement", original]
     if len(messages) > 1:
         sections.extend(("## Amendments", *_render_amendments(messages[1:])))
-    sections.extend(("## Clarification Delta", delta or "No clarification delta was produced."))
+    sections.extend(("## Clarification Delta", delta or _empty_delta_text(status=status, empty_reason=empty_reason)))
     return "\n\n".join(sections) + "\n"
 
 
-def _render_clarified_requirement_delta(messages: tuple[str, ...], delta: str) -> str:
+def _render_clarified_requirement_delta(
+    messages: tuple[str, ...],
+    delta: str,
+    *,
+    status: str = "completed",
+    empty_reason: str | None = None,
+) -> str:
     original = messages[0] if messages else "[No requirement message was recorded.]"
     sections = [
         "# Clarified Requirement Delta",
         "## Original Requirement",
         original,
         "## Clarification Delta",
-        delta or "No clarification delta was produced.",
+        delta or _empty_delta_text(status=status, empty_reason=empty_reason),
     ]
     return "\n\n".join(sections) + "\n"
 

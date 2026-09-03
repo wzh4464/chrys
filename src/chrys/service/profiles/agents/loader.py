@@ -562,6 +562,10 @@ def _parse_requirement_clarification(raw: object) -> RequirementClarificationCon
     if not isinstance(reuse_workspace_as_p0, bool):
         msg = "Agent profile field 'requirement_clarification.reuse_workspace_as_p0' must be a boolean"
         raise AgentProfileLoadError(msg)
+    clarification_only = raw_map.get("clarification_only", False)
+    if not isinstance(clarification_only, bool):
+        msg = "Agent profile field 'requirement_clarification.clarification_only' must be a boolean"
+        raise AgentProfileLoadError(msg)
     timeout_fields = ("clarification_timeout_seconds", "initial_timeout_seconds", "repair_timeout_seconds")
     timeouts: dict[str, float] = {}
     for field_name in timeout_fields:
@@ -571,13 +575,14 @@ def _parse_requirement_clarification(raw: object) -> RequirementClarificationCon
             msg = f"Agent profile field 'requirement_clarification.{field_name}' must be a positive number"
             raise AgentProfileLoadError(msg)
         timeouts[field_name] = float(value)
-    unknown = set(raw_map) - {"enabled", "reuse_workspace_as_p0", *timeout_fields}
+    unknown = set(raw_map) - {"enabled", "reuse_workspace_as_p0", "clarification_only", *timeout_fields}
     if unknown:
         msg = "Unknown agent profile requirement_clarification field(s): " + ", ".join(sorted(unknown))
         raise AgentProfileLoadError(msg)
     return RequirementClarificationConfig(
         enabled=enabled,
         reuse_workspace_as_p0=reuse_workspace_as_p0,
+        clarification_only=clarification_only,
         **timeouts,
     )
 

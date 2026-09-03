@@ -178,11 +178,12 @@ class ChrysHarborAgent(BaseAgent):
         # not a durable completion boundary.
         patch_command = f"git -C /app diff --binary HEAD > {_REMOTE_MODEL_PATCH}.tmp"
         if self._run_mode in {REPAIR_ARM, IMPORTED_P0_CLARIFICATION_ARM}:
+            allow_empty = " --allow-empty" if self._run_mode == IMPORTED_P0_CLARIFICATION_ARM else ""
             patch_command = (
                 f"python3 {shlex.quote(_REMOTE_PATCH_HELPER)} capture "
                 f"--workspace /app "
                 f"--base-file {shlex.quote(_REMOTE_BASE_REVISION)} "
-                f"--output {_REMOTE_MODEL_PATCH}.tmp > {_REMOTE_PATCH_LOG}.tmp 2>&1"
+                f"--output {_REMOTE_MODEL_PATCH}.tmp{allow_empty} > {_REMOTE_PATCH_LOG}.tmp 2>&1"
             )
         durable_command = (
             f"set +e; {command} > {_REMOTE_STDOUT}.tmp 2> {_REMOTE_STDERR}.tmp; "
