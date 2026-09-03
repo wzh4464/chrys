@@ -1,5 +1,5 @@
 {
-  "inventory_sha256": "a865c8d202167968b75821fd002bf40b637aac6dbc7678dd04e70917f9b2789c",
+  "inventory_sha256": "d55bf5b921813ead0a4ba41f808d1b566dc18f5a475a7c13062ad9beaa6895d0",
   "nodes": [
     {
       "cases": [
@@ -14298,7 +14298,7 @@
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow._degraded",
       "source_column": 8,
-      "source_line": 727,
+      "source_line": 738,
       "wrapper_target": null
     },
     {
@@ -14318,7 +14318,7 @@
       "primitive": "wrapper",
       "qualname": "RequirementClarificationWorkflow._degraded",
       "source_column": 8,
-      "source_line": 734,
+      "source_line": 745,
       "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._phase"
     },
     {
@@ -14338,7 +14338,7 @@
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow._deliver_p0",
       "source_column": 12,
-      "source_line": 679,
+      "source_line": 690,
       "wrapper_target": null
     },
     {
@@ -14358,7 +14358,7 @@
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow._deliver_p0",
       "source_column": 8,
-      "source_line": 686,
+      "source_line": 697,
       "wrapper_target": null
     },
     {
@@ -14378,7 +14378,7 @@
       "primitive": "wrapper",
       "qualname": "RequirementClarificationWorkflow._deliver_p0",
       "source_column": 8,
-      "source_line": 687,
+      "source_line": 698,
       "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._phase"
     },
     {
@@ -14398,7 +14398,7 @@
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow._deliver_p0",
       "source_column": 8,
-      "source_line": 688,
+      "source_line": 699,
       "wrapper_target": null
     },
     {
@@ -14418,7 +14418,7 @@
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow._deliver_p0",
       "source_column": 8,
-      "source_line": 696,
+      "source_line": 707,
       "wrapper_target": null
     },
     {
@@ -14438,8 +14438,28 @@
       "primitive": "wrapper",
       "qualname": "RequirementClarificationWorkflow._deliver_p0",
       "source_column": 8,
-      "source_line": 715,
+      "source_line": 726,
       "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._phase"
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await self._host._bus.publish(Error(code=code, message=f'Requirement clarification stopped: {detail}', recoverable=True, session_id=self._host._session_id))",
+      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow._end_turn_with_error:1",
+      "module": "chrys.orchestration.engine.run.requirement_clarification",
+      "ordinal": 1,
+      "primitive": "awaitable",
+      "qualname": "RequirementClarificationWorkflow._end_turn_with_error",
+      "source_column": 8,
+      "source_line": 758,
+      "wrapper_target": null
     },
     {
       "cases": [
@@ -14458,7 +14478,7 @@
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow._phase",
       "source_column": 8,
-      "source_line": 768,
+      "source_line": 799,
       "wrapper_target": null
     },
     {
@@ -14478,7 +14498,7 @@
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow.accept_amendment",
       "source_column": 12,
-      "source_line": 157,
+      "source_line": 162,
       "wrapper_target": null
     },
     {
@@ -14498,7 +14518,7 @@
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow.accept_amendment",
       "source_column": 8,
-      "source_line": 158,
+      "source_line": 163,
       "wrapper_target": null
     },
     {
@@ -14518,7 +14538,7 @@
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow.accept_amendment",
       "source_column": 8,
-      "source_line": 159,
+      "source_line": 164,
       "wrapper_target": null
     },
     {
@@ -14538,7 +14558,7 @@
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow.request_stop",
       "source_column": 8,
-      "source_line": 173,
+      "source_line": 178,
       "wrapper_target": null
     },
     {
@@ -14558,7 +14578,7 @@
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow.request_stop",
       "source_column": 12,
-      "source_line": 175,
+      "source_line": 180,
       "wrapper_target": null
     },
     {
@@ -14578,7 +14598,7 @@
       "primitive": "wrapper",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 12,
-      "source_line": 193,
+      "source_line": 198,
       "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._degraded"
     },
     {
@@ -14598,7 +14618,7 @@
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 12,
-      "source_line": 195,
+      "source_line": 200,
       "wrapper_target": null
     },
     {
@@ -14618,7 +14638,7 @@
       "primitive": "wrapper",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 12,
-      "source_line": 219,
+      "source_line": 224,
       "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._phase"
     },
     {
@@ -14638,7 +14658,7 @@
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 12,
-      "source_line": 222,
+      "source_line": 227,
       "wrapper_target": null
     },
     {
@@ -14658,7 +14678,7 @@
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 12,
-      "source_line": 230,
+      "source_line": 235,
       "wrapper_target": null
     },
     {
@@ -14678,7 +14698,7 @@
       "primitive": "thread_pool",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 17,
-      "source_line": 248,
+      "source_line": 253,
       "wrapper_target": null
     },
     {
@@ -14698,7 +14718,7 @@
       "primitive": "wrapper",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 12,
-      "source_line": 268,
+      "source_line": 273,
       "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._degraded"
     },
     {
@@ -14718,7 +14738,7 @@
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 12,
-      "source_line": 270,
+      "source_line": 275,
       "wrapper_target": null
     },
     {
@@ -14738,7 +14758,7 @@
       "primitive": "wrapper",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 12,
-      "source_line": 282,
+      "source_line": 287,
       "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._phase"
     },
     {
@@ -14758,7 +14778,7 @@
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 16,
-      "source_line": 285,
+      "source_line": 290,
       "wrapper_target": null
     },
     {
@@ -14778,7 +14798,7 @@
       "primitive": "timeout",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 31,
-      "source_line": 297,
+      "source_line": 302,
       "wrapper_target": null
     },
     {
@@ -14798,7 +14818,7 @@
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 24,
-      "source_line": 298,
+      "source_line": 303,
       "wrapper_target": null
     },
     {
@@ -14818,7 +14838,7 @@
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 24,
-      "source_line": 309,
+      "source_line": 314,
       "wrapper_target": null
     },
     {
@@ -14831,14 +14851,14 @@
           "when": "all_paths"
         }
       ],
-      "expression": "await self._phase(RequirementWorkflowPhase.INTERRUPTED, revision.number, detail=f'initial implementation exceeded {self._initial_timeout_seconds:g} seconds', terminal=True)",
+      "expression": "await self._phase(RequirementWorkflowPhase.INTERRUPTED, revision.number, detail=detail, terminal=True)",
       "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:14",
       "module": "chrys.orchestration.engine.run.requirement_clarification",
       "ordinal": 14,
       "primitive": "wrapper",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 20,
-      "source_line": 311,
+      "source_line": 317,
       "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._phase"
     },
     {
@@ -14851,14 +14871,34 @@
           "when": "all_paths"
         }
       ],
-      "expression": "await self._runner.finalize_current_run()",
+      "expression": "await self._end_turn_with_error('requirement_clarification_timeout', detail)",
       "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:15",
       "module": "chrys.orchestration.engine.run.requirement_clarification",
       "ordinal": 15,
+      "primitive": "wrapper",
+      "qualname": "RequirementClarificationWorkflow.run",
+      "source_column": 20,
+      "source_line": 323,
+      "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._end_turn_with_error"
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await self._runner.finalize_current_run()",
+      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:16",
+      "module": "chrys.orchestration.engine.run.requirement_clarification",
+      "ordinal": 16,
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 20,
-      "source_line": 317,
+      "source_line": 324,
       "wrapper_target": null
     },
     {
@@ -14872,13 +14912,13 @@
         }
       ],
       "expression": "await self._phase(RequirementWorkflowPhase.INTERRUPTED if executor.was_interrupted else RequirementWorkflowPhase.DEGRADED, revision.number, terminal=True)",
-      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:16",
+      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:17",
       "module": "chrys.orchestration.engine.run.requirement_clarification",
-      "ordinal": 16,
+      "ordinal": 17,
       "primitive": "wrapper",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 20,
-      "source_line": 321,
+      "source_line": 328,
       "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._phase"
     },
     {
@@ -14892,13 +14932,13 @@
         }
       ],
       "expression": "await self._runner.finalize_current_run()",
-      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:17",
+      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:18",
       "module": "chrys.orchestration.engine.run.requirement_clarification",
-      "ordinal": 17,
+      "ordinal": 18,
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 20,
-      "source_line": 328,
+      "source_line": 335,
       "wrapper_target": null
     },
     {
@@ -14912,13 +14952,13 @@
         }
       ],
       "expression": "await self._deliver_p0(p0_text, revision, detail=f'P0 transcript persistence failed: {exc}')",
-      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:18",
+      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:19",
       "module": "chrys.orchestration.engine.run.requirement_clarification",
-      "ordinal": 18,
+      "ordinal": 19,
       "primitive": "wrapper",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 16,
-      "source_line": 348,
+      "source_line": 355,
       "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._deliver_p0"
     },
     {
@@ -14932,13 +14972,13 @@
         }
       ],
       "expression": "await asyncio.to_thread(self._snapshotter.capture, workspace, artifacts.root / 'p0', snapshot_id=f'{self._workflow_id}-p0', include_git_history=False)",
-      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:19",
+      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:20",
       "module": "chrys.orchestration.engine.run.requirement_clarification",
-      "ordinal": 19,
+      "ordinal": 20,
       "primitive": "thread_pool",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 21,
-      "source_line": 351,
+      "source_line": 358,
       "wrapper_target": null
     },
     {
@@ -14952,13 +14992,13 @@
         }
       ],
       "expression": "await self._deliver_p0(p0_text, revision, detail=f'P0 checkpoint failed: {exc}')",
-      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:20",
+      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:21",
       "module": "chrys.orchestration.engine.run.requirement_clarification",
-      "ordinal": 20,
+      "ordinal": 21,
       "primitive": "wrapper",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 16,
-      "source_line": 372,
+      "source_line": 379,
       "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._deliver_p0"
     },
     {
@@ -14972,13 +15012,13 @@
         }
       ],
       "expression": "await self._phase(RequirementWorkflowPhase.CLARIFICATION, revision.number)",
-      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:21",
+      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:22",
       "module": "chrys.orchestration.engine.run.requirement_clarification",
-      "ordinal": 21,
+      "ordinal": 22,
       "primitive": "wrapper",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 16,
-      "source_line": 378,
+      "source_line": 385,
       "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._phase"
     },
     {
@@ -14992,13 +15032,13 @@
         }
       ],
       "expression": "async with asyncio.timeout(self._clarification_timeout_seconds)",
-      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:22",
+      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:23",
       "module": "chrys.orchestration.engine.run.requirement_clarification",
-      "ordinal": 22,
+      "ordinal": 23,
       "primitive": "timeout",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 31,
-      "source_line": 390,
+      "source_line": 397,
       "wrapper_target": null
     },
     {
@@ -15012,13 +15052,13 @@
         }
       ],
       "expression": "await asyncio.gather(clarification_service.clarify(revision=revision, background=history_background, snapshot=s0), self._extensions.on_clarification_start(revision, s0), return_exceptions=True)",
-      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:23",
+      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:24",
       "module": "chrys.orchestration.engine.run.requirement_clarification",
-      "ordinal": 23,
+      "ordinal": 24,
       "primitive": "gather",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 55,
-      "source_line": 391,
+      "source_line": 398,
       "wrapper_target": null
     },
     {
@@ -15032,13 +15072,13 @@
         }
       ],
       "expression": "await host._bus.publish(Warning(code='requirement_clarification_extension_failed', message=f'parallel clarification work failed: {extension_outcome}', session_id=host._session_id))",
-      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:24",
+      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:25",
       "module": "chrys.orchestration.engine.run.requirement_clarification",
-      "ordinal": 24,
+      "ordinal": 25,
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 24,
-      "source_line": 404,
+      "source_line": 411,
       "wrapper_target": null
     },
     {
@@ -15052,13 +15092,13 @@
         }
       ],
       "expression": "await self._deliver_p0(p0_text, revision, detail=f'clarification result persistence failed: {exc}')",
-      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:25",
+      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:26",
       "module": "chrys.orchestration.engine.run.requirement_clarification",
-      "ordinal": 25,
+      "ordinal": 26,
       "primitive": "wrapper",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 20,
-      "source_line": 439,
+      "source_line": 446,
       "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._deliver_p0"
     },
     {
@@ -15072,13 +15112,13 @@
         }
       ],
       "expression": "async with asyncio.timeout(self._clarification_timeout_seconds)",
-      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:26",
+      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:27",
       "module": "chrys.orchestration.engine.run.requirement_clarification",
-      "ordinal": 26,
+      "ordinal": 27,
       "primitive": "timeout",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 35,
-      "source_line": 456,
+      "source_line": 463,
       "wrapper_target": null
     },
     {
@@ -15092,13 +15132,13 @@
         }
       ],
       "expression": "await pact_service.generate_pact_input(result=result, revision=revision, background=history_background, snapshot=s0, localization_hints=self._extensions.pact_input_hints())",
-      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:27",
+      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:28",
       "module": "chrys.orchestration.engine.run.requirement_clarification",
-      "ordinal": 27,
+      "ordinal": 28,
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 53,
-      "source_line": 457,
+      "source_line": 464,
       "wrapper_target": null
     },
     {
@@ -15112,13 +15152,13 @@
         }
       ],
       "expression": "await self._deliver_p0(p0_text, revision, detail='workflow stopped after P0')",
-      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:28",
+      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:29",
       "module": "chrys.orchestration.engine.run.requirement_clarification",
-      "ordinal": 28,
+      "ordinal": 29,
       "primitive": "wrapper",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 20,
-      "source_line": 494,
+      "source_line": 501,
       "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._deliver_p0"
     },
     {
@@ -15132,13 +15172,13 @@
         }
       ],
       "expression": "await self._deliver_p0(p0_text, revision, detail='clarification-only mode completed; repair was not started' if result.status == 'completed' else 'clarification degraded; repair and PACT were not started', phase=RequirementWorkflowPhase.COMPLETED if result.status == 'completed' else RequirementWorkflowPhase.DEGRADED, warn=result.status == 'degraded')",
-      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:29",
+      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:30",
       "module": "chrys.orchestration.engine.run.requirement_clarification",
-      "ordinal": 29,
+      "ordinal": 30,
       "primitive": "wrapper",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 20,
-      "source_line": 497,
+      "source_line": 504,
       "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._deliver_p0"
     },
     {
@@ -15152,26 +15192,6 @@
         }
       ],
       "expression": "await self._deliver_p0(p0_text, revision, detail=f\"clarification degraded: {result.empty_reason or 'unknown reason'}\")",
-      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:30",
-      "module": "chrys.orchestration.engine.run.requirement_clarification",
-      "ordinal": 30,
-      "primitive": "wrapper",
-      "qualname": "RequirementClarificationWorkflow.run",
-      "source_column": 20,
-      "source_line": 514,
-      "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._deliver_p0"
-    },
-    {
-      "cases": [
-        {
-          "classification": "B",
-          "container_rule": "unresolved_outer_container",
-          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
-          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
-          "when": "all_paths"
-        }
-      ],
-      "expression": "await self._deliver_p0(p0_text, revision, detail='clarification produced no additional guidance')",
       "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:31",
       "module": "chrys.orchestration.engine.run.requirement_clarification",
       "ordinal": 31,
@@ -15191,30 +15211,10 @@
           "when": "all_paths"
         }
       ],
-      "expression": "await asyncio.to_thread(self._snapshotter.matches, p0)",
+      "expression": "await self._deliver_p0(p0_text, revision, detail='clarification produced no additional guidance')",
       "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:32",
       "module": "chrys.orchestration.engine.run.requirement_clarification",
       "ordinal": 32,
-      "primitive": "thread_pool",
-      "qualname": "RequirementClarificationWorkflow.run",
-      "source_column": 23,
-      "source_line": 527,
-      "wrapper_target": null
-    },
-    {
-      "cases": [
-        {
-          "classification": "B",
-          "container_rule": "unresolved_outer_container",
-          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
-          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
-          "when": "all_paths"
-        }
-      ],
-      "expression": "await self._deliver_p0(p0_text, revision, detail='workspace changed outside the workflow; repair was not started', phase=RequirementWorkflowPhase.CONFLICTED)",
-      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:33",
-      "module": "chrys.orchestration.engine.run.requirement_clarification",
-      "ordinal": 33,
       "primitive": "wrapper",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 20,
@@ -15231,14 +15231,54 @@
           "when": "all_paths"
         }
       ],
-      "expression": "await self._phase(RequirementWorkflowPhase.REPAIR, revision.number)",
+      "expression": "await asyncio.to_thread(self._snapshotter.matches, p0)",
+      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:33",
+      "module": "chrys.orchestration.engine.run.requirement_clarification",
+      "ordinal": 33,
+      "primitive": "thread_pool",
+      "qualname": "RequirementClarificationWorkflow.run",
+      "source_column": 23,
+      "source_line": 534,
+      "wrapper_target": null
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await self._deliver_p0(p0_text, revision, detail='workspace changed outside the workflow; repair was not started', phase=RequirementWorkflowPhase.CONFLICTED)",
       "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:34",
       "module": "chrys.orchestration.engine.run.requirement_clarification",
       "ordinal": 34,
       "primitive": "wrapper",
       "qualname": "RequirementClarificationWorkflow.run",
+      "source_column": 20,
+      "source_line": 535,
+      "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._deliver_p0"
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await self._phase(RequirementWorkflowPhase.REPAIR, revision.number)",
+      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:35",
+      "module": "chrys.orchestration.engine.run.requirement_clarification",
+      "ordinal": 35,
+      "primitive": "wrapper",
+      "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 16,
-      "source_line": 536,
+      "source_line": 543,
       "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._phase"
     },
     {
@@ -15252,13 +15292,13 @@
         }
       ],
       "expression": "async with asyncio.timeout(self._repair_timeout_seconds)",
-      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:35",
+      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:36",
       "module": "chrys.orchestration.engine.run.requirement_clarification",
-      "ordinal": 35,
+      "ordinal": 36,
       "primitive": "timeout",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 31,
-      "source_line": 548,
+      "source_line": 555,
       "wrapper_target": null
     },
     {
@@ -15272,13 +15312,13 @@
         }
       ],
       "expression": "await executor.run(contents, created_at=created_at)",
-      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:36",
+      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:37",
       "module": "chrys.orchestration.engine.run.requirement_clarification",
-      "ordinal": 36,
+      "ordinal": 37,
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 24,
-      "source_line": 549,
+      "source_line": 556,
       "wrapper_target": null
     },
     {
@@ -15292,73 +15332,13 @@
         }
       ],
       "expression": "await executor.interrupt()",
-      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:37",
-      "module": "chrys.orchestration.engine.run.requirement_clarification",
-      "ordinal": 37,
-      "primitive": "awaitable",
-      "qualname": "RequirementClarificationWorkflow.run",
-      "source_column": 24,
-      "source_line": 552,
-      "wrapper_target": null
-    },
-    {
-      "cases": [
-        {
-          "classification": "B",
-          "container_rule": "unresolved_outer_container",
-          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
-          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
-          "when": "all_paths"
-        }
-      ],
-      "expression": "await asyncio.to_thread(self._snapshotter.restore, p0)",
       "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:38",
       "module": "chrys.orchestration.engine.run.requirement_clarification",
       "ordinal": 38,
-      "primitive": "thread_pool",
-      "qualname": "RequirementClarificationWorkflow.run",
-      "source_column": 24,
-      "source_line": 578,
-      "wrapper_target": null
-    },
-    {
-      "cases": [
-        {
-          "classification": "B",
-          "container_rule": "unresolved_outer_container",
-          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
-          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
-          "when": "all_paths"
-        }
-      ],
-      "expression": "await self._phase(RequirementWorkflowPhase.CONFLICTED, self._revision.number, detail=f'amendment invalidated repair and P0 rollback failed: {exc}', terminal=True)",
-      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:39",
-      "module": "chrys.orchestration.engine.run.requirement_clarification",
-      "ordinal": 39,
-      "primitive": "wrapper",
-      "qualname": "RequirementClarificationWorkflow.run",
-      "source_column": 24,
-      "source_line": 581,
-      "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._phase"
-    },
-    {
-      "cases": [
-        {
-          "classification": "B",
-          "container_rule": "unresolved_outer_container",
-          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
-          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
-          "when": "all_paths"
-        }
-      ],
-      "expression": "await self._runner.finalize_current_run()",
-      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:40",
-      "module": "chrys.orchestration.engine.run.requirement_clarification",
-      "ordinal": 40,
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 24,
-      "source_line": 587,
+      "source_line": 559,
       "wrapper_target": null
     },
     {
@@ -15372,13 +15352,13 @@
         }
       ],
       "expression": "await asyncio.to_thread(self._snapshotter.restore, p0)",
-      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:41",
+      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:39",
       "module": "chrys.orchestration.engine.run.requirement_clarification",
-      "ordinal": 41,
+      "ordinal": 39,
       "primitive": "thread_pool",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 24,
-      "source_line": 595,
+      "source_line": 585,
       "wrapper_target": null
     },
     {
@@ -15391,14 +15371,14 @@
           "when": "all_paths"
         }
       ],
-      "expression": "await self._phase(RequirementWorkflowPhase.CONFLICTED, revision.number, detail=f'repair failed and P0 rollback failed: {exc}', terminal=True)",
-      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:42",
+      "expression": "await self._phase(RequirementWorkflowPhase.CONFLICTED, self._revision.number, detail=detail, terminal=True)",
+      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:40",
       "module": "chrys.orchestration.engine.run.requirement_clarification",
-      "ordinal": 42,
+      "ordinal": 40,
       "primitive": "wrapper",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 24,
-      "source_line": 598,
+      "source_line": 589,
       "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._phase"
     },
     {
@@ -15411,11 +15391,51 @@
           "when": "all_paths"
         }
       ],
+      "expression": "await self._end_turn_with_error('requirement_clarification_conflicted', detail)",
+      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:41",
+      "module": "chrys.orchestration.engine.run.requirement_clarification",
+      "ordinal": 41,
+      "primitive": "wrapper",
+      "qualname": "RequirementClarificationWorkflow.run",
+      "source_column": 24,
+      "source_line": 595,
+      "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._end_turn_with_error"
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
       "expression": "await self._runner.finalize_current_run()",
+      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:42",
+      "module": "chrys.orchestration.engine.run.requirement_clarification",
+      "ordinal": 42,
+      "primitive": "awaitable",
+      "qualname": "RequirementClarificationWorkflow.run",
+      "source_column": 24,
+      "source_line": 596,
+      "wrapper_target": null
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await asyncio.to_thread(self._snapshotter.restore, p0)",
       "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:43",
       "module": "chrys.orchestration.engine.run.requirement_clarification",
       "ordinal": 43,
-      "primitive": "awaitable",
+      "primitive": "thread_pool",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 24,
       "source_line": 604,
@@ -15431,14 +15451,74 @@
           "when": "all_paths"
         }
       ],
-      "expression": "await self._deliver_p0(p0_text, revision, detail=detail)",
+      "expression": "await self._phase(RequirementWorkflowPhase.CONFLICTED, revision.number, detail=detail, terminal=True)",
       "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:44",
       "module": "chrys.orchestration.engine.run.requirement_clarification",
       "ordinal": 44,
       "primitive": "wrapper",
       "qualname": "RequirementClarificationWorkflow.run",
+      "source_column": 24,
+      "source_line": 608,
+      "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._phase"
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await self._end_turn_with_error('requirement_clarification_conflicted', detail)",
+      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:45",
+      "module": "chrys.orchestration.engine.run.requirement_clarification",
+      "ordinal": 45,
+      "primitive": "wrapper",
+      "qualname": "RequirementClarificationWorkflow.run",
+      "source_column": 24,
+      "source_line": 614,
+      "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._end_turn_with_error"
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await self._runner.finalize_current_run()",
+      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:46",
+      "module": "chrys.orchestration.engine.run.requirement_clarification",
+      "ordinal": 46,
+      "primitive": "awaitable",
+      "qualname": "RequirementClarificationWorkflow.run",
+      "source_column": 24,
+      "source_line": 615,
+      "wrapper_target": null
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await self._deliver_p0(p0_text, revision, detail=detail)",
+      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:47",
+      "module": "chrys.orchestration.engine.run.requirement_clarification",
+      "ordinal": 47,
+      "primitive": "wrapper",
+      "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 20,
-      "source_line": 616,
+      "source_line": 627,
       "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._deliver_p0"
     },
     {
@@ -15452,13 +15532,13 @@
         }
       ],
       "expression": "await self._phase(RequirementWorkflowPhase.FINALIZING, revision.number)",
-      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:45",
+      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:48",
       "module": "chrys.orchestration.engine.run.requirement_clarification",
-      "ordinal": 45,
+      "ordinal": 48,
       "primitive": "wrapper",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 12,
-      "source_line": 622,
+      "source_line": 633,
       "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._phase"
     },
     {
@@ -15472,13 +15552,13 @@
         }
       ],
       "expression": "await self._extensions.after_repair(RepairOutcome(status='succeeded', final_text=executor.last_response_text, baseline='p1', pact_input_dir=self._pact_input_dir()))",
-      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:46",
+      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:49",
       "module": "chrys.orchestration.engine.run.requirement_clarification",
-      "ordinal": 46,
+      "ordinal": 49,
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 12,
-      "source_line": 626,
+      "source_line": 637,
       "wrapper_target": null
     },
     {
@@ -15492,13 +15572,13 @@
         }
       ],
       "expression": "await self._runner.finalize_current_run()",
-      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:47",
+      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:50",
       "module": "chrys.orchestration.engine.run.requirement_clarification",
-      "ordinal": 47,
+      "ordinal": 50,
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 12,
-      "source_line": 634,
+      "source_line": 645,
       "wrapper_target": null
     },
     {
@@ -15512,13 +15592,13 @@
         }
       ],
       "expression": "await self._phase(RequirementWorkflowPhase.COMPLETED, revision.number, terminal=True)",
-      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:48",
+      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:51",
       "module": "chrys.orchestration.engine.run.requirement_clarification",
-      "ordinal": 48,
+      "ordinal": 51,
       "primitive": "wrapper",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 12,
-      "source_line": 652,
+      "source_line": 663,
       "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._phase"
     },
     {
@@ -15532,13 +15612,13 @@
         }
       ],
       "expression": "await asyncio.to_thread(self._snapshotter.discard, s0)",
-      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:49",
+      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:52",
       "module": "chrys.orchestration.engine.run.requirement_clarification",
-      "ordinal": 49,
+      "ordinal": 52,
       "primitive": "thread_pool",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 16,
-      "source_line": 660,
+      "source_line": 671,
       "wrapper_target": null
     },
     {
@@ -15552,13 +15632,13 @@
         }
       ],
       "expression": "await asyncio.to_thread(self._snapshotter.discard, p0)",
-      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:50",
+      "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:53",
       "module": "chrys.orchestration.engine.run.requirement_clarification",
-      "ordinal": 50,
+      "ordinal": 53,
       "primitive": "thread_pool",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 16,
-      "source_line": 662,
+      "source_line": 673,
       "wrapper_target": null
     },
     {

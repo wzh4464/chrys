@@ -13,7 +13,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 from uuid import uuid4
 
-from chrys.foundation.events.types import RequirementClarificationPhaseChanged, UserInjectResult, Warning
+from chrys.foundation.events.types import (
+    Error,
+    RequirementClarificationPhaseChanged,
+    UserInjectResult,
+    Warning,
+)
 from chrys.foundation.trajectory.ids import new_analytics_id
 from chrys.kernel import Message
 from chrys.orchestration.engine.run.workflow_extensions import (
@@ -308,12 +313,14 @@ class RequirementClarificationWorkflow:
                     if executor.is_running:
                         await executor.interrupt()
                     executor.set_requirement_phase("")
+                    detail = f"initial implementation exceeded {self._initial_timeout_seconds:g} seconds"
                     await self._phase(
                         RequirementWorkflowPhase.INTERRUPTED,
                         revision.number,
-                        detail=f"initial implementation exceeded {self._initial_timeout_seconds:g} seconds",
+                        detail=detail,
                         terminal=True,
                     )
+                    await self._end_turn_with_error("requirement_clarification_timeout", detail)
                     await self._runner.finalize_current_run()
                     return
                 if executor.run_failed or executor.was_interrupted:
@@ -578,12 +585,14 @@ class RequirementClarificationWorkflow:
                         await asyncio.to_thread(self._snapshotter.restore, p0)
                     except Exception as exc:
                         logger.error("Requirement clarification amendment rollback failed", exc_info=True)
+                        detail = f"amendment invalidated repair and P0 rollback failed: {exc}"
                         await self._phase(
                             RequirementWorkflowPhase.CONFLICTED,
                             self._revision.number,
-                            detail=f"amendment invalidated repair and P0 rollback failed: {exc}",
+                            detail=detail,
                             terminal=True,
                         )
+                        await self._end_turn_with_error("requirement_clarification_conflicted", detail)
                         await self._runner.finalize_current_run()
                         return
                     executor.restore_history(p0_history)
@@ -595,12 +604,14 @@ class RequirementClarificationWorkflow:
                         await asyncio.to_thread(self._snapshotter.restore, p0)
                     except Exception as exc:
                         logger.error("Requirement clarification P0 rollback failed", exc_info=True)
+                        detail = f"repair failed and P0 rollback failed: {exc}"
                         await self._phase(
                             RequirementWorkflowPhase.CONFLICTED,
                             revision.number,
-                            detail=f"repair failed and P0 rollback failed: {exc}",
+                            detail=detail,
                             terminal=True,
                         )
+                        await self._end_turn_with_error("requirement_clarification_conflicted", detail)
                         await self._runner.finalize_current_run()
                         return
                     executor.restore_history(p0_history)
@@ -732,6 +743,26 @@ class RequirementClarificationWorkflow:
             )
         )
         await self._phase(RequirementWorkflowPhase.DEGRADED, 1, detail=detail, terminal=True)
+
+    async def _end_turn_with_error(self, code: str, detail: str) -> None:
+        """Publish the terminal an aborted workflow otherwise never delivers.
+
+        A phase event is progress, not an outcome: the TUI keeps a turn open
+        until a final answer, an ``Error``, or the user's own Stop arrives, and
+        headless ``chrys run`` decides its exit status the same way. These
+        paths end the turn with no answer at all -- a self-inflicted timeout,
+        or a rollback that failed and left the workspace half repaired -- so
+        without this the spinner runs forever, the input bar stays locked, and
+        a script exits 0 on a workspace nobody has told it is inconsistent.
+        """
+        await self._host._bus.publish(
+            Error(
+                code=code,
+                message=f"Requirement clarification stopped: {detail}",
+                recoverable=True,
+                session_id=self._host._session_id,
+            )
+        )
 
     async def _phase(
         self,
