@@ -57,6 +57,7 @@ _MAX_SKILL_DESCRIPTION_LENGTH = 1024
 _ENV_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _ACP_DEPTH_ENV = "CHRYS_ACP_SUBAGENT_DEPTH"
 _ACP_RESULT_MODES = frozenset({"last_segment", "transcript"})
+_REQUIREMENT_CLARIFICATION_STRATEGIES = frozenset({"legacy-v1-exact", "legacy-v1-stabilized"})
 
 
 def _coerce_bool(value: object, *, default: bool) -> bool:
@@ -558,9 +559,18 @@ def _parse_requirement_clarification(raw: object) -> RequirementClarificationCon
     if not isinstance(enabled, bool):
         msg = "Agent profile field 'requirement_clarification.enabled' must be a boolean"
         raise AgentProfileLoadError(msg)
+    strategy = raw_map.get("strategy", "legacy-v1-stabilized")
+    if not isinstance(strategy, str) or strategy not in _REQUIREMENT_CLARIFICATION_STRATEGIES:
+        allowed = ", ".join(sorted(_REQUIREMENT_CLARIFICATION_STRATEGIES))
+        msg = f"Agent profile field 'requirement_clarification.strategy' must be one of: {allowed}"
+        raise AgentProfileLoadError(msg)
     reuse_workspace_as_p0 = raw_map.get("reuse_workspace_as_p0", False)
     if not isinstance(reuse_workspace_as_p0, bool):
         msg = "Agent profile field 'requirement_clarification.reuse_workspace_as_p0' must be a boolean"
+        raise AgentProfileLoadError(msg)
+    clarification_only = raw_map.get("clarification_only", False)
+    if not isinstance(clarification_only, bool):
+        msg = "Agent profile field 'requirement_clarification.clarification_only' must be a boolean"
         raise AgentProfileLoadError(msg)
     timeout_fields = ("clarification_timeout_seconds", "initial_timeout_seconds", "repair_timeout_seconds")
     timeouts: dict[str, float] = {}
@@ -571,13 +581,15 @@ def _parse_requirement_clarification(raw: object) -> RequirementClarificationCon
             msg = f"Agent profile field 'requirement_clarification.{field_name}' must be a positive number"
             raise AgentProfileLoadError(msg)
         timeouts[field_name] = float(value)
-    unknown = set(raw_map) - {"enabled", "reuse_workspace_as_p0", *timeout_fields}
+    unknown = set(raw_map) - {"enabled", "strategy", "reuse_workspace_as_p0", "clarification_only", *timeout_fields}
     if unknown:
         msg = "Unknown agent profile requirement_clarification field(s): " + ", ".join(sorted(unknown))
         raise AgentProfileLoadError(msg)
     return RequirementClarificationConfig(
         enabled=enabled,
+        strategy=cast("Literal['legacy-v1-exact', 'legacy-v1-stabilized']", strategy),
         reuse_workspace_as_p0=reuse_workspace_as_p0,
+        clarification_only=clarification_only,
         **timeouts,
     )
 

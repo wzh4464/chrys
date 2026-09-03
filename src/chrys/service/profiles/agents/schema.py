@@ -343,7 +343,9 @@ class RequirementClarificationConfig:
     """
 
     enabled: bool = False
+    strategy: Literal["legacy-v1-exact", "legacy-v1-stabilized"] = "legacy-v1-stabilized"
     reuse_workspace_as_p0: bool = False
+    clarification_only: bool = False
     clarification_timeout_seconds: float = 1800.0
     initial_timeout_seconds: float = 5400.0
     repair_timeout_seconds: float = 5400.0

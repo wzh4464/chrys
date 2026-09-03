@@ -18,6 +18,8 @@ from pathlib import Path
 from evaluation.requirement_clarification.protocol import (
     AGENT_IMPORT_PATH,
     ARMS,
+    CLARIFICATION_STRATEGIES,
+    DEFAULT_CLARIFICATION_STRATEGY,
     HARBOR_MODEL_NAME,
     MODEL_PROFILE_ID,
     OPENROUTER_HOST,
@@ -114,6 +116,12 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--run-id", required=True, help="Immutable label shared by both arms")
     parser.add_argument("--expected-tasks", type=int, default=113)
     parser.add_argument("--concurrency", type=int, default=2)
+    parser.add_argument(
+        "--clarification-strategy",
+        choices=CLARIFICATION_STRATEGIES,
+        default=DEFAULT_CLARIFICATION_STRATEGY,
+        help="Clarification protocol used by the candidate arm",
+    )
     parser.add_argument(
         "--harbor-agent-timeout-seconds",
         type=float,
@@ -284,6 +292,7 @@ def main(argv: list[str] | None = None) -> int:
     profiles = render_paired_agent_profiles(
         repo_root / "src/chrys/service/profiles/agents/builtins/Code.yaml",
         config_dir / "agents",
+        strategy=args.clarification_strategy,
     )
     model_profile = repo_root / "evaluation/requirement_clarification/profiles" / f"{MODEL_PROFILE_ID}.yaml"
     jobs_dir = output_dir / "jobs"
@@ -315,6 +324,7 @@ def main(argv: list[str] | None = None) -> int:
         "tasks": fingerprints_as_dict(tasks),
         "task_count": len(tasks),
         "concurrency": args.concurrency,
+        "clarification_strategy": args.clarification_strategy,
         "arms": list(arms),
         "inputs": {
             "chrys_binary": asdict(fingerprint_file(chrys_binary)),

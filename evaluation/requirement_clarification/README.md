@@ -65,6 +65,12 @@ presence without printing either value, and writes `manifest.json`. Review that 
 To run both arms, repeat the command with `--execute`. To run only one arm, add `--arm control` or
 `--arm clarification`. Default concurrency is two; change it with `--concurrency`.
 
+The clarification arm defaults to `--clarification-strategy legacy-v1-stabilized`. For a
+source-protocol-equivalent replay of the historical `7619a94` clarifier, pass
+`--clarification-strategy legacy-v1-exact`. The selected strategy is written into both rendered
+profiles and `manifest.json`; it does not alter the control arm's execution because clarification
+remains disabled there.
+
 Use `--execute --resume` only for a Harbor job whose recorded stats contain no running trials. The runner checks this
 boundary and refuses to resume a job with `n_running_trials > 0`: Harbor may otherwise replace an orphaned trial with
 a fresh trial and make an unintended second model call. Inspect or recover the existing trial first. The runner also
@@ -180,6 +186,8 @@ uv run python -m evaluation.requirement_clarification.run_fixed_p0 \
 
 Again, this is dry-run only until `--execute` is added. Use the same `summarize` command on its Harbor job. Compare its
 task rewards to the control arm only over the eligible subset recorded by the materialization manifest.
+Imported-P0 clarification runs accept the same `--clarification-strategy` option; fixed-P0 repair-only datasets ignore
+it because their profiles disable clarification.
 
 ## Protocol boundaries
 

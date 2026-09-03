@@ -34,6 +34,7 @@ from evaluation.requirement_clarification.protocol import (
     sha256_file,
 )
 from evaluation.requirement_clarification.run_fixed_p0 import (
+    _clarification_health,
     _validate_collected_patches,
     _validate_materialized_dataset,
 )
@@ -134,6 +135,7 @@ def test_rendered_profiles_are_a_strict_feature_flag_pair(tmp_path: Path) -> Non
     candidate = yaml.safe_load(profiles[CANDIDATE_ARM].read_text(encoding="utf-8"))
 
     timeouts = {
+        "strategy": "legacy-v1-stabilized",
         "clarification_timeout_seconds": CLARIFICATION_TIMEOUT_SECONDS,
         "initial_timeout_seconds": CODING_PHASE_TIMEOUT_SECONDS,
         "repair_timeout_seconds": CODING_PHASE_TIMEOUT_SECONDS,
@@ -142,6 +144,18 @@ def test_rendered_profiles_are_a_strict_feature_flag_pair(tmp_path: Path) -> Non
     assert candidate["requirement_clarification"] == {"enabled": True, **timeouts}
     assert control["instructions"] == candidate["instructions"]
     assert control["tools"] == candidate["tools"]
+
+
+def test_rendered_profiles_can_select_exact_historical_strategy(tmp_path: Path) -> None:
+    profiles = render_paired_agent_profiles(
+        REPO_ROOT / "src/chrys/service/profiles/agents/builtins/Code.yaml",
+        tmp_path,
+        strategy="legacy-v1-exact",
+    )
+
+    candidate = yaml.safe_load(profiles[CANDIDATE_ARM].read_text(encoding="utf-8"))
+
+    assert candidate["requirement_clarification"]["strategy"] == "legacy-v1-exact"
 
 
 def test_fixed_p0_repair_profile_is_bounded_and_incremental(tmp_path: Path) -> None:
@@ -166,13 +180,16 @@ def test_imported_p0_profile_enables_native_clarification_without_initial_genera
     path = render_imported_p0_clarification_profile(
         REPO_ROOT / "src/chrys/service/profiles/agents/builtins/Code.yaml",
         tmp_path / "imported-p0-clarification.yaml",
+        clarification_only=True,
     )
 
     profile = yaml.safe_load(path.read_text(encoding="utf-8"))
 
     assert profile["name"] == IMPORTED_P0_CLARIFICATION_PROFILE_NAME
     assert profile["requirement_clarification"]["enabled"] is True
+    assert profile["requirement_clarification"]["strategy"] == "legacy-v1-stabilized"
     assert profile["requirement_clarification"]["reuse_workspace_as_p0"] is True
+    assert profile["requirement_clarification"]["clarification_only"] is True
     assert profile["requirement_clarification"]["clarification_timeout_seconds"] == 1800
 
 
@@ -226,6 +243,26 @@ def test_fixed_p0_patch_capture_includes_p0_untracked_and_committed_p1(tmp_path:
     assert "+p0 added" in rendered
 
 
+def test_fixed_p0_patch_capture_can_preserve_a_legitimate_empty_imported_p0(tmp_path: Path) -> None:
+    workspace = tmp_path / "repo"
+    workspace.mkdir()
+    subprocess.run(["git", "init", "-q", str(workspace)], check=True)
+    subprocess.run(["git", "-C", str(workspace), "config", "user.email", "test@example.com"], check=True)
+    subprocess.run(["git", "-C", str(workspace), "config", "user.name", "Test"], check=True)
+    (workspace / "tracked.txt").write_text("base\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(workspace), "add", "tracked.txt"], check=True)
+    subprocess.run(["git", "-C", str(workspace), "commit", "-qm", "base"], check=True)
+    base_file = tmp_path / "base.txt"
+    base_revision = record_base(workspace, base_file)
+    output = tmp_path / "empty.patch"
+
+    with pytest.raises(ValueError, match="patch is empty"):
+        capture_patch(workspace, base_revision, output)
+
+    capture_patch(workspace, base_revision, output, allow_empty=True)
+    assert output.read_bytes() == b""
+
+
 def test_secrets_reader_enforces_and_normalizes_model_lock(tmp_path: Path) -> None:
     secrets = tmp_path / ".chrys-secrets.env"
     secrets.write_text(
@@ -241,7 +278,14 @@ def test_secrets_reader_enforces_and_normalizes_model_lock(tmp_path: Path) -> No
     }
 
 
-def _write_trial(job: Path, task: str, *, reward: int, delta: str | None = None) -> Path:
+def _write_trial(
+    job: Path,
+    task: str,
+    *,
+    reward: int,
+    delta: str | None = None,
+    covered: bool = True,
+) -> Path:
     trial = job / f"{task}__trial"
     (trial / "artifacts").mkdir(parents=True)
     (trial / "artifacts/model.patch").write_text(f"patch for {task}\n", encoding="utf-8")
@@ -256,10 +300,35 @@ def _write_trial(job: Path, task: str, *, reward: int, delta: str | None = None)
     }
     (trial / "result.json").write_text(json.dumps(result), encoding="utf-8")
     if delta is not None:
-        artifact = trial / "agent/chrys-sessions/session/requirement_clarification/turn_1"
+        artifact = trial / "agent/chrys-sessions/sessions/session/requirement_clarification/turn_1"
         artifact.mkdir(parents=True)
-        (artifact / "clarification.private.json").write_text(json.dumps({"delta": delta}), encoding="utf-8")
+        investigations = (
+            [
+                {
+                    "status": "completed",
+                    "coverage_status": "sufficient",
+                    "input_token_count": 12000,
+                    "output_token_count": 800,
+                    "tool_calls": [
+                        {"name": "grep", "successful": True, "path": "."},
+                        {"name": "read_file", "successful": True, "path": f"src/{task}.py"},
+                    ],
+                }
+            ]
+            if covered
+            else []
+        )
+        (artifact / "clarification.private.json").write_text(
+            json.dumps({"status": "completed", "delta": delta, "investigations": investigations}),
+            encoding="utf-8",
+        )
         (artifact / "summary.json").write_text(json.dumps({"outcome": "repaired"}), encoding="utf-8")
+        pact_dir = artifact / "06-pact-input"
+        pact_dir.mkdir()
+        (pact_dir / "generation.private.json").write_text(
+            json.dumps({"status": "generated"}),
+            encoding="utf-8",
+        )
     return trial
 
 
@@ -279,6 +348,61 @@ def test_summary_reports_strict_paired_flips(tmp_path: Path) -> None:
     assert comparison["regressions"] == ["regression"]
     assert comparison["net_solved_delta"] == 0
     assert comparison["mcnemar_exact_two_sided_p"] == 1.0
+
+
+def test_clarification_health_rejects_collapsed_or_incomplete_batches(tmp_path: Path) -> None:
+    job = tmp_path / "job"
+    _write_trial(job, "empty", reward=0, delta="")
+    _write_trial(job, "nonempty", reward=0, delta="Add the missing integration seam.")
+
+    mixed = _clarification_health(job, {"empty", "nonempty"})
+
+    assert mixed["status"] == "ok"
+    assert mixed["empty_delta_count"] == 1
+    assert mixed["nonempty_delta_count"] == 1
+    assert mixed["sufficient_coverage_count"] == 2
+    assert mixed["successful_tool_call_count"] == 4
+    assert mixed["proposer_input_token_median"] == 12000
+
+    all_empty_job = tmp_path / "all-empty"
+    _write_trial(all_empty_job, "first", reward=0, delta="")
+    _write_trial(all_empty_job, "second", reward=0, delta="")
+
+    all_empty = _clarification_health(all_empty_job, {"first", "second"})
+
+    assert all_empty["status"] == "ok"
+    assert all_empty["empty_after_coverage_count"] == 2
+    assert all_empty["warnings"] == ["all tasks produced empty deltas after sufficient investigation coverage"]
+
+    collapsed_job = tmp_path / "collapsed"
+    _write_trial(collapsed_job, "first", reward=0, delta="", covered=False)
+    _write_trial(collapsed_job, "second", reward=0, delta="", covered=False)
+
+    collapsed = _clarification_health(collapsed_job, {"first", "second"})
+
+    assert collapsed["status"] == "invalid_proposer_collapse"
+    assert collapsed["low_coverage_empty_tasks"] == ["first", "second"]
+
+    missing = _clarification_health(job, {"empty", "nonempty", "missing"})
+    assert missing["status"] == "invalid_missing_results"
+
+    degraded_artifact = next(
+        (job / "empty__trial/agent/chrys-sessions").glob(
+            "**/requirement_clarification/turn_*/clarification.private.json"
+        )
+    )
+    degraded_artifact.write_text(
+        json.dumps({"status": "degraded", "empty_reason": "selector_failed", "delta": ""}),
+        encoding="utf-8",
+    )
+    degraded = _clarification_health(job, {"empty", "nonempty"})
+    assert degraded["status"] == "invalid_degraded_results"
+
+    degraded_artifact.write_text(json.dumps({"status": "completed", "delta": ""}), encoding="utf-8")
+    pact_generation = degraded_artifact.parent / "06-pact-input/generation.private.json"
+    pact_generation.write_text(json.dumps({"status": "failed"}), encoding="utf-8")
+    failed_pact = _clarification_health(job, {"empty", "nonempty"})
+    assert failed_pact["status"] == "invalid_pact_results"
 
 
 def test_fixed_p0_postflight_rejects_empty_patch(tmp_path: Path) -> None:

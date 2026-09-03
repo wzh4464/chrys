@@ -34,7 +34,7 @@ def record_base(workspace: Path, output: Path) -> str:
     return revision
 
 
-def capture_patch(workspace: Path, base_revision: str, output: Path) -> None:
+def capture_patch(workspace: Path, base_revision: str, output: Path, *, allow_empty: bool = False) -> None:
     """Capture committed, staged, unstaged, deleted, binary, and untracked changes."""
     revision = base_revision.strip()
     if not revision:
@@ -43,7 +43,7 @@ def capture_patch(workspace: Path, base_revision: str, output: Path) -> None:
     _git(workspace, "add", "--intent-to-add", "--all", "--", ".")
     with output.open("wb") as stream:
         _git(workspace, "diff", "--binary", revision, stdout=stream)
-    if output.stat().st_size == 0:
+    if output.stat().st_size == 0 and not allow_empty:
         raise ValueError("captured fixed-P0 repair patch is empty")
 
 
@@ -57,6 +57,7 @@ def _parser() -> argparse.ArgumentParser:
     capture.add_argument("--workspace", type=Path, required=True)
     capture.add_argument("--base-file", type=Path, required=True)
     capture.add_argument("--output", type=Path, required=True)
+    capture.add_argument("--allow-empty", action="store_true")
     return parser
 
 
@@ -69,7 +70,7 @@ def main(argv: list[str] | None = None) -> int:
         sys.stdout.write(f"recorded fixed-P0 base revision {revision}\n")
         return 0
     base_revision = args.base_file.read_text(encoding="utf-8")
-    capture_patch(workspace, base_revision, args.output)
+    capture_patch(workspace, base_revision, args.output, allow_empty=args.allow_empty)
     sys.stdout.write(f"captured fixed-P0 repair patch ({args.output.stat().st_size} bytes)\n")
     return 0
 

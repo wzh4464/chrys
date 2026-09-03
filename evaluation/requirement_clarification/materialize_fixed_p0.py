@@ -67,7 +67,9 @@ def _load_mapping(path: Path) -> dict[str, Any]:
 
 
 def _clarification_delta(trial_dir: Path) -> str | None:
-    paths = sorted(trial_dir.glob("agent/chrys-sessions/*/requirement_clarification/turn_*/clarification.private.json"))
+    paths = sorted(
+        trial_dir.glob("agent/chrys-sessions/**/requirement_clarification/turn_*/clarification.private.json")
+    )
     if not paths:
         return None
     delta = _load_mapping(paths[-1]).get("delta")

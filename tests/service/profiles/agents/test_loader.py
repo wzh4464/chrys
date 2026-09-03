@@ -58,6 +58,30 @@ def test_load_minimal_yaml(tmp_path: Path) -> None:
     assert profile.requirement_clarification.clarification_timeout_seconds == 1800.0
     assert profile.requirement_clarification.initial_timeout_seconds == 5400.0
     assert profile.requirement_clarification.repair_timeout_seconds == 5400.0
+    assert profile.requirement_clarification.strategy == "legacy-v1-stabilized"
+
+
+def test_load_requirement_clarification_exact_legacy_strategy(tmp_path: Path) -> None:
+    path = tmp_path / "clarification-exact.yaml"
+    path.write_text(
+        "name: clarification\nrequirement_clarification:\n  enabled: true\n  strategy: legacy-v1-exact\n",
+        encoding="utf-8",
+    )
+
+    profile = load_profile_from_yaml(path)
+
+    assert profile.requirement_clarification.strategy == "legacy-v1-exact"
+
+
+def test_load_requirement_clarification_rejects_unknown_strategy(tmp_path: Path) -> None:
+    path = tmp_path / "clarification-invalid-strategy.yaml"
+    path.write_text(
+        "name: clarification\nrequirement_clarification:\n  enabled: true\n  strategy: v6-placeholder\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(AgentProfileLoadError, match=r"requirement_clarification\.strategy"):
+        load_profile_from_yaml(path)
 
 
 def test_load_requirement_clarification_phase_timeouts(tmp_path: Path) -> None:
@@ -86,6 +110,18 @@ def test_load_requirement_clarification_reuses_workspace_as_p0(tmp_path: Path) -
     profile = load_profile_from_yaml(path)
 
     assert profile.requirement_clarification.reuse_workspace_as_p0 is True
+
+
+def test_load_requirement_clarification_only_mode(tmp_path: Path) -> None:
+    path = tmp_path / "clarification-only.yaml"
+    path.write_text(
+        "name: clarification\nrequirement_clarification:\n  enabled: true\n  clarification_only: true\n",
+        encoding="utf-8",
+    )
+
+    profile = load_profile_from_yaml(path)
+
+    assert profile.requirement_clarification.clarification_only is True
 
 
 @pytest.mark.parametrize("value", ["0", "-1", "true", '"90"'])

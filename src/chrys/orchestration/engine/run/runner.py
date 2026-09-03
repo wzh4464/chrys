@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Protocol
 
@@ -23,6 +23,8 @@ from chrys.orchestration.engine.run.turn_hooks import TurnHookDispatcher
 from chrys.service.trajectory.preparation import PreparationOutcome, PreparationScope, PreparationTrace
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from chrys.foundation.config.settings import Settings
     from chrys.foundation.events.bus import EventBus
     from chrys.foundation.events.types import AgentRuntimeDetails, RuntimeSkillDetails
@@ -91,11 +93,17 @@ class TurnRunnerHost(Protocol):
     _sub_agent_tools: SubAgentTools | None
     _on_successful_turn: Callable[[], None]
     _on_turn_started: Callable[[], None]
+    _requirement_clarification_workflow: Any | None
+
+    def _accumulate_side_call_usage(self, usage_details: Mapping[str, Any]) -> None: ...
 
     @property
     def _settings(self) -> Settings:
         """Read-only: settings change through the handle, not the holder."""
         ...
+
+    @property
+    def _session_dir(self) -> Path | None: ...
 
     @property
     def session_generation(self) -> int: ...
@@ -169,7 +177,9 @@ class TurnRunner:
         await RequirementClarificationWorkflow(
             self._host,
             self,
+            strategy=profile.requirement_clarification.strategy,
             reuse_workspace_as_p0=profile.requirement_clarification.reuse_workspace_as_p0,
+            clarification_only=profile.requirement_clarification.clarification_only,
             clarification_timeout_seconds=profile.requirement_clarification.clarification_timeout_seconds,
             initial_timeout_seconds=profile.requirement_clarification.initial_timeout_seconds,
             repair_timeout_seconds=profile.requirement_clarification.repair_timeout_seconds,

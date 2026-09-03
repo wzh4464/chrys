@@ -26,6 +26,8 @@ OPENROUTER_HOST = "openrouter.ai"
 CODING_PHASE_TIMEOUT_SECONDS = 5400.0
 CLARIFICATION_TIMEOUT_SECONDS = 1800.0
 IMPORTED_P0_AGENT_TIMEOUT_SECONDS = 7500.0
+DEFAULT_CLARIFICATION_STRATEGY = "legacy-v1-stabilized"
+CLARIFICATION_STRATEGIES = ("legacy-v1-stabilized", "legacy-v1-exact")
 
 AGENT_IMPORT_PATH = "evaluation.requirement_clarification.harbor_agent:ChrysHarborAgent"
 CONTROL_PROFILE_NAME = "DeepSWEControl"
@@ -144,8 +146,15 @@ def fingerprint_dataset(dataset_dir: Path, *, expected_tasks: int | None = None)
     return [fingerprint_task(path) for path in task_dirs]
 
 
-def render_paired_agent_profiles(code_profile_path: Path, output_dir: Path) -> dict[str, Path]:
+def render_paired_agent_profiles(
+    code_profile_path: Path,
+    output_dir: Path,
+    *,
+    strategy: str = DEFAULT_CLARIFICATION_STRATEGY,
+) -> dict[str, Path]:
     """Render two profiles that differ only in the clarification flag and identity."""
+    if strategy not in CLARIFICATION_STRATEGIES:
+        raise ValueError(f"unsupported clarification strategy: {strategy}")
     source = yaml.safe_load(code_profile_path.read_text(encoding="utf-8"))
     if not isinstance(source, dict):
         raise ValueError(f"agent profile must be a mapping: {code_profile_path}")
@@ -164,6 +173,7 @@ def render_paired_agent_profiles(code_profile_path: Path, output_dir: Path) -> d
         profile["description"] = "Pinned DeepSWE requirement-clarification experiment profile"
         profile["requirement_clarification"] = {
             "enabled": arm == CANDIDATE_ARM,
+            "strategy": strategy,
             "clarification_timeout_seconds": CLARIFICATION_TIMEOUT_SECONDS,
             "initial_timeout_seconds": CODING_PHASE_TIMEOUT_SECONDS,
             "repair_timeout_seconds": CODING_PHASE_TIMEOUT_SECONDS,
@@ -205,8 +215,16 @@ def render_fixed_p0_repair_profile(code_profile_path: Path, output_path: Path) -
     return output_path
 
 
-def render_imported_p0_clarification_profile(code_profile_path: Path, output_path: Path) -> Path:
+def render_imported_p0_clarification_profile(
+    code_profile_path: Path,
+    output_path: Path,
+    *,
+    clarification_only: bool = False,
+    strategy: str = DEFAULT_CLARIFICATION_STRATEGY,
+) -> Path:
     """Render the native clarification workflow with the existing workspace treated as P0."""
+    if strategy not in CLARIFICATION_STRATEGIES:
+        raise ValueError(f"unsupported clarification strategy: {strategy}")
     source = yaml.safe_load(code_profile_path.read_text(encoding="utf-8"))
     if not isinstance(source, dict) or source.get("name") != "Code":
         raise ValueError(f"expected the built-in Code profile: {code_profile_path}")
@@ -219,7 +237,9 @@ def render_imported_p0_clarification_profile(code_profile_path: Path, output_pat
             "description": "Native repository-grounded clarification and repair of a frozen baseline P0",
             "requirement_clarification": {
                 "enabled": True,
+                "strategy": strategy,
                 "reuse_workspace_as_p0": True,
+                "clarification_only": clarification_only,
                 "clarification_timeout_seconds": CLARIFICATION_TIMEOUT_SECONDS,
                 "initial_timeout_seconds": CODING_PHASE_TIMEOUT_SECONDS,
                 "repair_timeout_seconds": CODING_PHASE_TIMEOUT_SECONDS,
@@ -244,14 +264,20 @@ def assert_paired_profiles(control_path: Path, candidate_path: Path) -> None:
     candidate_shared = {key: value for key, value in candidate.items() if key not in ignored}
     if control_shared != candidate_shared:
         raise ValueError("paired agent profiles differ outside identity and requirement_clarification")
-    expected_timeouts = {
+    control_config = control["requirement_clarification"]
+    candidate_config = candidate["requirement_clarification"]
+    strategy = control_config.get("strategy")
+    if strategy not in CLARIFICATION_STRATEGIES or candidate_config.get("strategy") != strategy:
+        raise ValueError("paired profiles must use the same supported clarification strategy")
+    expected_fields = {
+        "strategy": strategy,
         "clarification_timeout_seconds": CLARIFICATION_TIMEOUT_SECONDS,
         "initial_timeout_seconds": CODING_PHASE_TIMEOUT_SECONDS,
         "repair_timeout_seconds": CODING_PHASE_TIMEOUT_SECONDS,
     }
-    if control["requirement_clarification"] != {"enabled": False, **expected_timeouts}:
+    if control_config != {"enabled": False, **expected_fields}:
         raise ValueError("control profile must disable requirement clarification")
-    if candidate["requirement_clarification"] != {"enabled": True, **expected_timeouts}:
+    if candidate_config != {"enabled": True, **expected_fields}:
         raise ValueError("candidate profile must enable requirement clarification")
 
 
