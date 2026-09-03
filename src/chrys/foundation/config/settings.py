@@ -615,6 +615,10 @@ _LABEL_SESSION_TITLE_AUTO = msg("settings.session.title.auto.label", fallback="A
 _LABEL_CONTEXT_WARN_THRESHOLD_PCT = msg(
     "settings.context.warn_threshold_pct.label", fallback="Context warning threshold"
 )
+_LABEL_ROUTING_MODE = msg("settings.routing.mode.label", fallback="Long-horizon routing")
+_LABEL_ROUTING_TIEBREAKER_MODEL_PROFILE = msg(
+    "settings.routing.tiebreaker_model_profile.label", fallback="Routing tiebreaker model"
+)
 _LABEL_MEMORY_MCP_ENABLED = msg("settings.memory.mcp.enabled.label", fallback="Team memory MCP")
 _LABEL_MEMORY_WRITEBACK_IDLE_SECONDS = msg(
     "settings.memory.writeback.idle_seconds.label", fallback="Memory writeback idle delay"
@@ -1288,6 +1292,45 @@ class Settings:
             # Where a user's sessions live is not a repository's business.
             project_merge=ProjectMerge.DENY,
             risk=Risk.CAUTION,
+        ),
+    )
+
+    # ── Routing ───────────────────────────────────────────────────
+    # Global ceiling on per-profile ``routing.mode``: ``off`` disables the
+    # router everywhere regardless of profile, ``always`` forces the
+    # long-horizon track. Deliberately NOT project-settable: ``always`` commits
+    # the user's machine to a PACT campaign per turn, so a repository being able
+    # to set this would be a cost escalation, and the tighten-only direction
+    # (project may only turn it off) has no comparator for a three-valued enum.
+    routing_mode: str = field(
+        default="auto",
+        metadata=spec(
+            key="routing.mode",
+            label=_LABEL_ROUTING_MODE,
+            env="CHRYS_ROUTING_MODE",
+            coerce=choice_coercer(choices=("off", "auto", "always")),
+            apply=Apply.LIVE,
+            group="routing",
+            kind=Kind.ENUM,
+            choices=("off", "auto", "always"),
+            invalid_policy=InvalidPolicy.SAFE_DEFAULT,
+        ),
+    )
+    # Model profile used for the one LLM tiebreaker the router may issue.
+    # Empty means the session's active model, which is also what makes
+    # ``CHRYS_MODEL_LOCK`` apply without any extra plumbing; naming a cheap
+    # profile here is the cost lever. Not project-settable: a repository must
+    # not be able to choose which model a user's machine calls.
+    routing_tiebreaker_model_profile: str = field(
+        default="",
+        metadata=spec(
+            key="routing.tiebreaker_model_profile",
+            label=_LABEL_ROUTING_TIEBREAKER_MODEL_PROFILE,
+            env="CHRYS_ROUTING_TIEBREAKER_MODEL_PROFILE",
+            coerce=text_coercer(),
+            apply=Apply.LIVE,
+            group="routing",
+            kind=Kind.TEXT,
         ),
     )
 

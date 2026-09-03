@@ -2937,6 +2937,8 @@ def test_live_catalog_artifacts_contain_effective_translations_and_are_loadable(
             "settings.project.config_enabled.label",
             "settings.project.hooks_enabled.label",
             "settings.rollback.snapshots_keep.label",
+            "settings.routing.mode.label",
+            "settings.routing.tiebreaker_model_profile.label",
             "settings.session.title.auto.label",
             "settings.storage.session_root_dir.label",
             "settings.tools.ask_user.inline.label",
@@ -3305,7 +3307,7 @@ def test_live_catalog_artifacts_contain_effective_translations_and_are_loadable(
             "tui.trajectory.tool_usage.unattributed",
         }
     )
-    assert len(expected_ids) == 1821
+    assert len(expected_ids) == 1823
     assert {_entry_id(message) for message in pot if message.id} == expected_ids
     assert {_entry_id(message) for message in po if message.id} == expected_ids
     assert set(_effective_catalog_entries(po)) == expected_ids

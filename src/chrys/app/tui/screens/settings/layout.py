@@ -393,6 +393,8 @@ DEFERRED_KEYS: frozenset[str] = frozenset(
         # Keep the backend/config surface while its product UX is undecided.
         "trajectory.verify_commands",
         "memory.mcp.enabled",
+        "routing.mode",
+        "routing.tiebreaker_model_profile",
         "memory.writeback.idle_seconds",
         "memory.writeback.on_session_end",
         # Low-frequency keys with a natural home, held back until asked for.
