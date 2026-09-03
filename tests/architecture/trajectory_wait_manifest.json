@@ -1,5 +1,5 @@
 {
-  "inventory_sha256": "43d128e281302f865ef27aa2cd8b6583f471aa2c19fadc61b366634fffc8c76b",
+  "inventory_sha256": "a865c8d202167968b75821fd002bf40b637aac6dbc7678dd04e70917f9b2789c",
   "nodes": [
     {
       "cases": [
@@ -37011,14 +37011,34 @@
           "when": "all_paths"
         }
       ],
-      "expression": "await asyncio.gather(*proposal_calls)",
+      "expression": "await _collect_base_evidence(snapshot, revision.rendered)",
       "identity": "chrys.service.requirement_clarification.service:ClarificationService._clarify_legacy_v1:1",
       "module": "chrys.service.requirement_clarification.service",
       "ordinal": 1,
+      "primitive": "wrapper",
+      "qualname": "ClarificationService._clarify_legacy_v1",
+      "source_column": 24,
+      "source_line": 247,
+      "wrapper_target": "chrys.service.requirement_clarification.service._collect_base_evidence"
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await asyncio.gather(*proposal_calls)",
+      "identity": "chrys.service.requirement_clarification.service:ClarificationService._clarify_legacy_v1:2",
+      "module": "chrys.service.requirement_clarification.service",
+      "ordinal": 2,
       "primitive": "gather",
       "qualname": "ClarificationService._clarify_legacy_v1",
       "source_column": 27,
-      "source_line": 237,
+      "source_line": 255,
       "wrapper_target": null
     },
     {
@@ -37032,13 +37052,13 @@
         }
       ],
       "expression": "await self._model.select_legacy_v1(build_legacy_v1_selector_prompt(revision.rendered, background, base_evidence, proposals))",
-      "identity": "chrys.service.requirement_clarification.service:ClarificationService._clarify_legacy_v1:2",
+      "identity": "chrys.service.requirement_clarification.service:ClarificationService._clarify_legacy_v1:3",
       "module": "chrys.service.requirement_clarification.service",
-      "ordinal": 2,
+      "ordinal": 3,
       "primitive": "awaitable",
       "qualname": "ClarificationService._clarify_legacy_v1",
       "source_column": 36,
-      "source_line": 243,
+      "source_line": 261,
       "wrapper_target": null
     },
     {
@@ -37058,7 +37078,7 @@
       "primitive": "wrapper",
       "qualname": "ClarificationService.clarify",
       "source_column": 19,
-      "source_line": 70,
+      "source_line": 91,
       "wrapper_target": "chrys.service.requirement_clarification.service.ClarificationService._clarify_legacy_v1"
     },
     {
@@ -37071,14 +37091,34 @@
           "when": "all_paths"
         }
       ],
-      "expression": "await asyncio.gather(*proposal_calls, return_exceptions=True)",
+      "expression": "await _collect_base_evidence(snapshot, revision.rendered)",
       "identity": "chrys.service.requirement_clarification.service:ClarificationService.clarify:2",
       "module": "chrys.service.requirement_clarification.service",
       "ordinal": 2,
+      "primitive": "wrapper",
+      "qualname": "ClarificationService.clarify",
+      "source_column": 24,
+      "source_line": 97,
+      "wrapper_target": "chrys.service.requirement_clarification.service._collect_base_evidence"
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await asyncio.gather(*proposal_calls, return_exceptions=True)",
+      "identity": "chrys.service.requirement_clarification.service:ClarificationService.clarify:3",
+      "module": "chrys.service.requirement_clarification.service",
+      "ordinal": 3,
       "primitive": "gather",
       "qualname": "ClarificationService.clarify",
       "source_column": 31,
-      "source_line": 87,
+      "source_line": 105,
       "wrapper_target": null
     },
     {
@@ -37092,13 +37132,13 @@
         }
       ],
       "expression": "await self._model.select(prompt)",
-      "identity": "chrys.service.requirement_clarification.service:ClarificationService.clarify:3",
+      "identity": "chrys.service.requirement_clarification.service:ClarificationService.clarify:4",
       "module": "chrys.service.requirement_clarification.service",
-      "ordinal": 3,
+      "ordinal": 4,
       "primitive": "awaitable",
       "qualname": "ClarificationService.clarify",
       "source_column": 43,
-      "source_line": 171,
+      "source_line": 189,
       "wrapper_target": null
     },
     {
@@ -37118,7 +37158,7 @@
       "primitive": "awaitable",
       "qualname": "ClarificationService.generate_pact_input",
       "source_column": 36,
-      "source_line": 284,
+      "source_line": 302,
       "wrapper_target": null
     },
     {
@@ -37131,14 +37171,54 @@
           "when": "all_paths"
         }
       ],
-      "expression": "await self._model.generate_pact_initial_plan(prompt)",
+      "expression": "await _collect_base_evidence(snapshot, revision.rendered)",
       "identity": "chrys.service.requirement_clarification.service:ClarificationService.generate_pact_input:2",
       "module": "chrys.service.requirement_clarification.service",
       "ordinal": 2,
+      "primitive": "wrapper",
+      "qualname": "ClarificationService.generate_pact_input",
+      "source_column": 24,
+      "source_line": 305,
+      "wrapper_target": "chrys.service.requirement_clarification.service._collect_base_evidence"
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await self._model.generate_pact_initial_plan(prompt)",
+      "identity": "chrys.service.requirement_clarification.service:ClarificationService.generate_pact_input:3",
+      "module": "chrys.service.requirement_clarification.service",
+      "ordinal": 3,
       "primitive": "awaitable",
       "qualname": "ClarificationService.generate_pact_input",
       "source_column": 39,
-      "source_line": 314,
+      "source_line": 332,
+      "wrapper_target": null
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await asyncio.get_running_loop().run_in_executor(pool, collect_base_evidence, snapshot, requirement)",
+      "identity": "chrys.service.requirement_clarification.service:_collect_base_evidence:1",
+      "module": "chrys.service.requirement_clarification.service",
+      "ordinal": 1,
+      "primitive": "thread_pool",
+      "qualname": "_collect_base_evidence",
+      "source_column": 15,
+      "source_line": 66,
       "wrapper_target": null
     },
     {

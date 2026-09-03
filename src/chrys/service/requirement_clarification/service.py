@@ -7,6 +7,7 @@ from __future__ import annotations
 import asyncio
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 from chrys.service.requirement_clarification.evidence import collect_base_evidence
 from chrys.service.requirement_clarification.model import ClarificationModelRunner
@@ -47,6 +48,26 @@ _RENDER_CONFIDENCE_THRESHOLD = 0.75
 _PROCESS_MARKERS = ("confidence:", "source:", "evidence:", "gate:")
 
 
+async def _collect_base_evidence(snapshot: WorkspaceSnapshot, requirement: str) -> str:
+    """Run the repository search off the event loop, in a pool it does not outlive.
+
+    The search shells out to git and ripgrep with per-call timeouts. Bounded is
+    not the same as fast: ten terms across two roots on a large repository is
+    tens of seconds even when nothing times out, and running it inline froze
+    the whole session for that window — no streaming, no redraw, no interrupt.
+
+    A dedicated executor rather than ``to_thread`` keeps the original reason
+    for running it inline: nothing process-wide outlives the clarification.
+    Shutdown does not wait, so a cancelled clarification returns immediately
+    instead of blocking the loop on a search it no longer needs.
+    """
+    pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="rc-evidence")
+    try:
+        return await asyncio.get_running_loop().run_in_executor(pool, collect_base_evidence, snapshot, requirement)
+    finally:
+        pool.shutdown(wait=False)
+
+
 class ClarificationService:
     """Generate a small validated ΔR without observing the baseline patch."""
 
@@ -73,10 +94,7 @@ class ClarificationService:
                 snapshot=snapshot,
             )
         started = time.monotonic()
-        # Evidence collection is deliberately bounded (both search volume and
-        # subprocess timeouts).  Keeping it in this task also avoids retaining
-        # a process-wide default executor beyond the clarification lifecycle.
-        base_evidence = collect_base_evidence(snapshot, revision.rendered)
+        base_evidence = await _collect_base_evidence(snapshot, revision.rendered)
         proposal_calls = [
             self._model.propose(
                 build_proposal_prompt(revision.rendered, background, base_evidence, sample_index),
@@ -226,7 +244,7 @@ class ClarificationService:
     ) -> ClarificationResult:
         """Execute the source-equivalent proposal/selector path from the historical +1 run."""
         started = time.monotonic()
-        base_evidence = collect_base_evidence(snapshot, revision.rendered)
+        base_evidence = await _collect_base_evidence(snapshot, revision.rendered)
         proposal_calls = [
             self._model.propose_legacy_v1(
                 build_legacy_v1_proposal_prompt(revision.rendered, background, base_evidence, sample_index),
@@ -284,7 +302,7 @@ class ClarificationService:
         goal_contract, goal_usage = await self._model.generate_pact_goal_contract(
             build_pact_goal_contract_prompt(revision.rendered, background)
         )
-        base_evidence = collect_base_evidence(snapshot, revision.rendered)
+        base_evidence = await _collect_base_evidence(snapshot, revision.rendered)
         plan_prompt = build_pact_initial_plan_prompt(
             goal_contract,
             base_evidence,

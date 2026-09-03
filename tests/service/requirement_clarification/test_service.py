@@ -701,3 +701,38 @@ async def test_empty_hints_leave_the_plan_prompt_unchanged(tmp_path: Path, monke
 
     assert "Untrusted code localization evidence" not in prompts["plan"]
     assert prompts["plan"] == prompts["plan_base"]
+
+
+async def test_repository_evidence_never_runs_on_the_event_loop(monkeypatch: pytest.MonkeyPatch) -> None:
+    """It shells out to git and ripgrep; inline, that froze the whole session."""
+    import threading
+
+    from chrys.service.requirement_clarification import service as service_module
+
+    loop_thread = threading.get_ident()
+    ran_on: list[int] = []
+
+    def _collect(snapshot: object, requirement: str) -> str:
+        ran_on.append(threading.get_ident())
+        return "evidence"
+
+    monkeypatch.setattr(service_module, "collect_base_evidence", _collect)
+
+    assert await service_module._collect_base_evidence(object(), "req") == "evidence"  # type: ignore[arg-type]
+    assert ran_on and ran_on[0] != loop_thread
+
+
+async def test_the_evidence_pool_does_not_outlive_the_clarification(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A process-wide pool outliving the turn is why this ran inline to begin with."""
+    import threading
+
+    from chrys.service.requirement_clarification import service as service_module
+
+    monkeypatch.setattr(service_module, "collect_base_evidence", lambda *_: "evidence")
+
+    await service_module._collect_base_evidence(object(), "req")  # type: ignore[arg-type]
+
+    workers = [thread for thread in threading.enumerate() if thread.name.startswith("rc-evidence")]
+    for worker in workers:
+        worker.join(timeout=5)
+    assert all(not worker.is_alive() for worker in workers)
