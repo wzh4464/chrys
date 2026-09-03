@@ -36,6 +36,8 @@ _BUILTIN_IDS: dict[str, str] = {
     "Plan": "b011b1ad0003",
     "General": "b0119e4e0004",
     "QA": "b0119a000005",
+    "ChrysPact": "b011bac70006",
+    "LongHorizon": "b011106e0007",
 }
 
 

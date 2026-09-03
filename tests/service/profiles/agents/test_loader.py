@@ -1060,7 +1060,7 @@ def test_load_builtin_profiles() -> None:
     builtins_dir = SRC_ROOT / "chrys" / "service" / "profiles" / "agents" / "builtins"
     profiles = load_profiles_from_dir(builtins_dir)
     names = {p.name for p in profiles}
-    assert names == {"Code", "Explore", "General", "Plan", "QA"}
+    assert names == {"ChrysPact", "Code", "Explore", "General", "LongHorizon", "Plan", "QA"}
 
     profiles_by_name = {profile.name: profile for profile in profiles}
     for name in ("Code", "QA"):
@@ -1078,12 +1078,17 @@ def test_builtin_last_words_templates_are_supplementary_only() -> None:
         "General": "cannot ask the caller for clarification",
         "Plan": "drafted plan items",
         "QA": "git history or blame context",
+        "LongHorizon": "read or changed",
     }
     templates: dict[str, str] = {}
 
     assert paths
     for path in paths:
         data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        if "compaction" not in data:
+            # An ACP profile runs no in-process loop, so it compacts nothing.
+            assert data.get("acp"), path.name
+            continue
         template = data["compaction"]["last_words_template"]
         templates[path.stem] = template
         assert set(data["compaction"]) == {"last_words_template"}, path.name

@@ -172,7 +172,7 @@ def test_build_builtin_reset_preserves_only_skills_mcp_and_memory() -> None:
 def test_load_builtins() -> None:
     reg = AgentProfileRegistry()
     count = reg.load_builtins()
-    assert count == 5
+    assert count == 7
     assert reg.get("Code") is not None
     assert reg.get("Explore") is not None
     assert reg.get("General") is not None
@@ -329,7 +329,7 @@ def test_load_all(tmp_path: Path) -> None:
     hidden_metadata.write_text("hidden:\n- Code\n", encoding="utf-8")
     reg = AgentProfileRegistry()
     total = reg.load_all(user_dir=tmp_path)
-    assert total == 6  # 5 builtins + 1 user
+    assert total == 8  # 7 builtins + 1 user
     assert reg.get("extra") is not None
     assert reg.get("Code") is not None
     assert not hidden_metadata.exists()
@@ -352,7 +352,7 @@ def test_load_all_continues_when_hidden_metadata_cannot_be_deleted(tmp_path: Pat
 
     total = reg.load_all(user_dir=tmp_path)
 
-    assert total == 5
+    assert total == 7
     assert reg.get("Code") is not None
     assert hidden_metadata.exists()
 
@@ -406,7 +406,7 @@ def test_load_user_profiles_quarantines_conflicting_source_and_never_rewrites_ca
     with caplog.at_level("WARNING", logger="chrys.service.profiles.agents.registry"):
         total = reg.load_all(user_dir=tmp_path)
 
-    assert total == 6  # 5 builtins + the canonical Code shadow; the conflicting source is not counted
+    assert total == 8  # 7 builtins + the canonical Code shadow; the conflicting source is not counted
     assert canonical.read_bytes() == canonical_bytes
     assert not other.exists()
     quarantined = tmp_path / "my-code.yaml.conflict"
@@ -458,7 +458,7 @@ def test_load_user_profiles_swaps_files_whose_names_point_at_each_other(tmp_path
     with caplog.at_level("WARNING", logger="chrys.service.profiles.agents.registry"):
         total = reg.load_all(user_dir=tmp_path)
 
-    assert total == 7
+    assert total == 9
     assert sorted(p.name for p in tmp_path.iterdir()) == ["A.yaml", "B.yaml"]
     assert "name: A" in (tmp_path / "A.yaml").read_text(encoding="utf-8")
     assert "name: B" in (tmp_path / "B.yaml").read_text(encoding="utf-8")
@@ -645,7 +645,7 @@ def test_load_user_profiles_rejects_unsafe_names_without_touching_disk(tmp_path:
     with caplog.at_level("WARNING", logger="chrys.service.profiles.agents.loader"):
         total = reg.load_all(user_dir=tmp_path)
 
-    assert total == 5
+    assert total == 7
     assert reg.get("../escape") is None
     assert source.read_bytes() == source_bytes
     assert not (tmp_path.parent / "escape.yaml").exists()
@@ -668,7 +668,7 @@ def test_load_user_profiles_skips_source_that_cannot_be_moved(tmp_path: Path, mo
     with caplog.at_level("WARNING", logger="chrys.service.profiles.agents.registry"):
         total = reg.load_all(user_dir=tmp_path)
 
-    assert total == 5
+    assert total == 7
     assert reg.get("Custom") is None
     assert sorted(p.name for p in tmp_path.iterdir()) == ["my-custom.yaml"]
     assert source.read_bytes() == source_bytes

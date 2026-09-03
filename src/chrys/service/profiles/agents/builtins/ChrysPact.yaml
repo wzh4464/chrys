@@ -1,0 +1,17 @@
+name: ChrysPact
+id: b011bac70006
+display_name: "Chrys PACT"
+description: "Execute an accepted Goal Contract and Initial Plan as a governed long-running PACT Campaign."
+sub_agent_only: true
+
+acp:
+  # ``chrys`` resolves to this very executable (the packaged binary, or this
+  # interpreter running the package) rather than whatever is first on PATH.
+  command: chrys
+  args: ["pact-agent", "--agent", "Code", "--verify-from-settings"]
+  result_mode: last_segment
+  # A campaign runs for as long as the work takes; an idle timeout would kill
+  # it mid-verification.
+  idle_timeout_seconds: 0
+  # Top level only: a PACT role must not be able to start another campaign.
+  max_depth: 1

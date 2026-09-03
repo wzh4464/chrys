@@ -19,6 +19,7 @@ import contextlib
 import json
 import logging
 import os
+import sys
 import tempfile
 from contextvars import ContextVar, Token
 from datetime import UTC, datetime
@@ -43,6 +44,7 @@ from chrys.foundation.platform.files import (
     secure_open_owner_verified_binary,
     secure_unlink_owner_verified,
 )
+from chrys.foundation.platform.runtime_paths import is_frozen_runtime
 from chrys.foundation.retry import RetryAttemptInfo
 from chrys.foundation.tool_kinds import (
     KIND_ASK_USER,
@@ -323,6 +325,24 @@ def _acp_stderr_path(
     if parent_session_dir is not None and writer is not None:
         return sessions_dir(parent_session_dir) / f"{writer.log_file_name}.stderr.log"
     return Path(tempfile.gettempdir()) / f"chrys-acp-{invocation_id}.stderr.log"
+
+
+_SELF_COMMAND = "chrys"
+
+
+def _resolve_self_command(command: str, args: tuple[str, ...]) -> tuple[str, tuple[str, ...]]:
+    """Resolve a built-in profile's ``command: chrys`` to this very executable.
+
+    A built-in profile cannot name an absolute path, and relying on ``chrys``
+    being on PATH would launch whichever install happens to be first -- a
+    different version, or none at all. From a packaged runtime the binary is
+    argv[0]; from a source checkout it is this interpreter running the package.
+    """
+    if command != _SELF_COMMAND:
+        return command, args
+    if is_frozen_runtime() and sys.argv and sys.argv[0]:
+        return sys.argv[0], args
+    return sys.executable, ("-m", "chrys", *args)
 
 
 def _acp_subagent_depth() -> int:
@@ -1207,6 +1227,7 @@ class SubAgentTools:
         try:
             command = resolve_env_templates(config.command, location="ACP command")
             args = tuple(resolve_env_templates(arg, location="ACP argument") for arg in config.args)
+            command, args = _resolve_self_command(command, args)
             env = {
                 key: resolve_env_templates(value, location=f"ACP environment {key!r}")
                 for key, value in config.env.items()
