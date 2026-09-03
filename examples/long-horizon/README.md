@@ -118,3 +118,51 @@ inputs a campaign was launched with, not your edits.
 ```
 
 It needs a real model and, for the memory half, a running Neo4j.
+
+### What was verified on the delivery machine
+
+The two commands that need neither a model nor a graph were run in this
+repository. The router's readiness veto is visible in both: this repo has no
+`pact.verify_command`, so `pact_ready=False` and the PACT stage is dropped from
+the plan even when the message earns the rest of the track.
+
+```
+$ chrys debug router "Implement end-to-end OAuth login: add the provider abstraction,
+  migrate the user table, update the API, and write integration tests."
+band            uncertain  (score 0.50)
+reason          scope=end-to-end; archetype=mutating_broad
+readiness       verify_command=False tests=True pact_ready=False
+plan            localization=False clarification=False pact=False
+tiebreaker      would_fire=True
+
+$ chrys debug router "<the same message, plus 'Acceptance criteria: existing sessions
+  keep working and all tests pass.'>"
+band            lean_long_horizon  (score 0.70)
+reason          scope=all/end-to-end; acceptance=acceptance criteria; archetype=mutating_broad
+readiness       verify_command=False tests=True pact_ready=False
+plan            localization=True clarification=True pact=False
+tiebreaker      would_fire=False
+```
+
+Stating acceptance criteria is what moves this message from `uncertain` (where
+the router would spend one tiebreaker call) to `lean_long_horizon` (where it
+decides on its own) — a useful thing to know when writing a prompt.
+
+```
+$ chrys memory doctor
+[FAIL] CONTEXTGRAPH_NEO4J_URI: not set; the memory MCP stays detached without it
+[FAIL] CONTEXTGRAPH_NEO4J_PASSWORD: not set
+[FAIL] CONTEXTGRAPH_EMBEDDING_API_KEY: not set; vector retrieval degrades to the lexical channel
+[FAIL] neo4j: skipped; CONTEXTGRAPH_NEO4J_URI is not set
+[FAIL] CONTEXTGRAPH_REPO: not set; experience cannot be deposited
+```
+
+That is the expected report on a machine with no graph, and it is why every
+recall path returns nothing instead of raising.
+
+`e2e_smoke.sh` itself has **not** been run end to end: it needs a target repo
+with `pact.verify_command` set and a live Neo4j, both of which are listed as
+outstanding in
+[`docs/design/long-horizon-known-gaps.md`](../../docs/design/long-horizon-known-gaps.md).
+The behaviour it asserts is covered by the unit and workflow suites in the
+meantime (`tests/orchestration/engine/test_long_horizon_*.py`).
