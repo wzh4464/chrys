@@ -1,0 +1,22 @@
+# Copyright (c) 2026 Chrys. All rights reserved.
+
+# Project-layer settings for this repository. Read only when the USER has set
+# `project.config_enabled: true` in ~/.chrys/settings.yaml — cloning a
+# repository must not hand it configuration authority.
+
+pact:
+  # What "done" means here, in the order that fails cheapest first: a
+  # formatting slip costs three seconds, not a two-minute test run. This is the
+  # same quartet the repository's own CI runs, so a campaign cannot report work
+  # complete that CI would then reject.
+  #
+  # Two environment-specific parts, both load-bearing:
+  #   * LANG — the TUI tests assert English copy, and a zh_CN.UTF-8 shell turns
+  #     that into ~173 false failures.
+  #   * the deselect — `test_stopped_script_returns_promptly` hangs on
+  #     `os.waitpid` on this platform and reproduces identically on origin/main,
+  #     so it is a pre-existing environment failure, not this branch's.
+  #     See docs/design/long-horizon-known-gaps.md §9.
+  #
+  # Runs with shell=True from the repository root; ~130 s green on a clean tree.
+  verify_command: 'uv run ruff check --no-fix src/ tests/ && uv run ruff format --check src/ tests/ && uv run ty check --error-on-warning src/chrys && LANG=en_US.UTF-8 uv run pytest -q -m "not integration and not gc_calibration" --deselect "tests/service/skills/test_runner.py::test_stopped_script_returns_promptly"'

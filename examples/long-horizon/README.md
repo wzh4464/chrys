@@ -37,14 +37,36 @@ repaired answer.
 
 ### 1. Tell PACT how to verify
 
+A campaign's verify command is what "done" means for your repository. This
+one is Chrys's own, in `.chrys/settings.yaml`, ordered so that the cheapest
+check fails first:
+
 ```yaml
-# <repo>/.chrys/settings.yaml
 pact:
-  verify_command: "uv run pytest -q"
+  verify_command: 'uv run ruff check --no-fix src/ tests/ && uv run ruff format --check src/ tests/ && uv run ty check --error-on-warning src/chrys && LANG=en_US.UTF-8 uv run pytest -q -m "not integration and not gc_calibration" --deselect "tests/service/skills/test_runner.py::test_stopped_script_returns_promptly"'
 ```
 
-Without it a campaign cannot tell done from broken, so the router does not
-delegate — it still runs the baseline, the search, and the repair.
+It runs with `shell=True` from the repository root, so `&&` and environment
+prefixes work. Make it the same gate your CI applies: a campaign that verifies
+with less can report work complete that CI then rejects.
+
+**The project layer is off by default** — cloning a repository must not hand it
+configuration authority. To let `<repo>/.chrys/settings.yaml` take effect, you
+turn it on yourself, once, in `~/.chrys/settings.yaml`:
+
+```yaml
+project:
+  config_enabled: true
+```
+
+Or scope it to a single run instead, without granting any repository anything:
+
+```bash
+CHRYS_PACT_VERIFY_COMMAND='…' chrys run --route long-horizon "…"
+```
+
+Without a verify command a campaign cannot tell done from broken, so the router
+does not delegate — it still runs the baseline, the search, and the repair.
 
 ### 2. Bring up the memory graph (optional)
 
@@ -68,7 +90,22 @@ sessions run. To seed one from a dump you already have:
 chrys memory init --import /path/to/neo4j.dump
 ```
 
-The dump is yours to provide; nothing in this repository distributes one.
+The dump is yours to provide; nothing in this repository distributes one. If
+you already have a graph running somewhere, point `CONTEXTGRAPH_NEO4J_URI` at
+it instead — that is all "seeding" means here.
+
+**Match the embedding model to the graph.** Retrieval embeds your query and
+compares it against vectors already stored, so a different model is a different
+space and the vector channel returns noise. Check what is in there:
+
+```bash
+cypher-shell "MATCH (r:CanonicalRule) WHERE r.embedding IS NOT NULL RETURN size(r.embedding) LIMIT 1"
+# 3072 -> text-embedding-3-large   1536 -> text-embedding-3-small
+```
+
+then set `CONTEXTGRAPH_EMBEDDING_MODEL` to match. `chrys memory doctor` cannot
+catch this one: a mismatched model still connects, still answers, and quietly
+ranks badly.
 
 ### 3. Check what the router would do
 
@@ -121,48 +158,42 @@ It needs a real model and, for the memory half, a running Neo4j.
 
 ### What was verified on the delivery machine
 
-The two commands that need neither a model nor a graph were run in this
-repository. The router's readiness veto is visible in both: this repo has no
-`pact.verify_command`, so `pact_ready=False` and the PACT stage is dropped from
-the plan even when the message earns the rest of the track.
+Both readiness halves are real here, so the router plans the whole chain:
 
 ```
-$ chrys debug router "Implement end-to-end OAuth login: add the provider abstraction,
-  migrate the user table, update the API, and write integration tests."
-band            uncertain  (score 0.50)
-reason          scope=end-to-end; archetype=mutating_broad
-readiness       verify_command=False tests=True pact_ready=False
-plan            localization=False clarification=False pact=False
-tiebreaker      would_fire=True
-
-$ chrys debug router "<the same message, plus 'Acceptance criteria: existing sessions
-  keep working and all tests pass.'>"
-band            lean_long_horizon  (score 0.70)
-reason          scope=all/end-to-end; acceptance=acceptance criteria; archetype=mutating_broad
-readiness       verify_command=False tests=True pact_ready=False
-plan            localization=True clarification=True pact=False
-tiebreaker      would_fire=False
+$ chrys debug router "Implement end-to-end OAuth login: … Acceptance criteria:
+  1) existing sessions keep working 2) … 3) all tests pass. Touch
+  src/auth/provider.py, src/api/routes.py and web/src/login.tsx as needed."
+band            strong_long_horizon
+readiness       verify_command=True tests=True pact_ready=True
+plan            localization=True clarification=True pact=True
 ```
 
-Stating acceptance criteria is what moves this message from `uncertain` (where
-the router would spend one tiebreaker call) to `lean_long_horizon` (where it
-decides on its own) — a useful thing to know when writing a prompt.
+Drop the acceptance criteria and the file mentions from that message and it
+lands in `uncertain` instead, where the router spends one tiebreaker call —
+worth knowing when you write a prompt.
+
+The memory graph is the CAPBench selected-Harbor corpus on
+`bolt://127.0.0.1:7705` (see
+[known gaps §3](../../docs/design/long-horizon-known-gaps.md)):
 
 ```
 $ chrys memory doctor
-[FAIL] CONTEXTGRAPH_NEO4J_URI: not set; the memory MCP stays detached without it
-[FAIL] CONTEXTGRAPH_NEO4J_PASSWORD: not set
-[FAIL] CONTEXTGRAPH_EMBEDDING_API_KEY: not set; vector retrieval degrades to the lexical channel
-[FAIL] neo4j: skipped; CONTEXTGRAPH_NEO4J_URI is not set
-[FAIL] CONTEXTGRAPH_REPO: not set; experience cannot be deposited
+[ok] CONTEXTGRAPH_NEO4J_URI: bolt://127.0.0.1:7705
+[ok] CONTEXTGRAPH_NEO4J_PASSWORD: set
+[ok] CONTEXTGRAPH_EMBEDDING_API_KEY: set
+[ok] neo4j: ContextGraph Neo4j is healthy (canonical_rules=2525, chrys_trajectories=0).
+[ok] CONTEXTGRAPH_REPO: /Users/zihanwu/codes/ContextGraph (python)
 ```
 
-That is the expected report on a machine with no graph, and it is why every
-recall path returns nothing instead of raising.
+`chrys_trajectories=0` is the shape of a seeded graph before this machine has
+deposited anything: priors to draw on, no local experience yet. A recall
+against it returns what a plan can actually use — for "the build fails after I
+added a new public method to a Java interface", the top rules are about
+outdated mock signatures, symbol-export files per JDK version, and updating the
+tests that implement the interface.
 
-`e2e_smoke.sh` itself has **not** been run end to end: it needs a target repo
-with `pact.verify_command` set and a live Neo4j, both of which are listed as
-outstanding in
-[`docs/design/long-horizon-known-gaps.md`](../../docs/design/long-horizon-known-gaps.md).
-The behaviour it asserts is covered by the unit and workflow suites in the
-meantime (`tests/orchestration/engine/test_long_horizon_*.py`).
+The verify command above was run to completion on a clean tree: **exit 0 in
+~130 s**, `19373 passed, 11 skipped`. It was also checked to fail — a single
+badly formatted file in `src/` makes both ruff stages exit 1, so the gate bites
+before a campaign can call unformatted work done.

@@ -85,18 +85,42 @@ ContextGraph 连接来自 `~/.chrys/.env` 里的 `CONTEXTGRAPH_*`，指向**本�
 "团队图谱"目前的含义是"这台机器上这个人的图谱"。多人共享需要一个远端 Neo4j 和一套权限模型，两者都不在
 本次交付范围内。
 
-## 3. 初始图谱 dump 仍然待提供
+## 3. 初始图谱：已就位（CAPBench selected-Harbor）
 
-图是空的启动。在有人存入经验之前：
+不再是空图。本机接的是 CAPBench selected-Harbor 图（2026-08-31 构建），一个 tarball 安装的
+Neo4j 5.26 跑在 `bolt://127.0.0.1:7705`：
 
-- `chrys memory doctor` 报告连通且索引齐全，但 health 行里是
-  `canonical_rules=0, chrys_trajectories=0`；
-- Initial Plan 的记忆先验（`long_horizon.py::_memory_prior`）拿到 ContextGraph 的
-  `No prior ContextGraph memory found.` 哨兵，于是**不追加任何段落**——计划照常生成，只是没有先验。
+| 节点 | 数量 |
+| --- | --- |
+| Fragment | 75 193 |
+| Strategy | 2 607 |
+| CanonicalRule | 2 525 |
+| Trajectory | 1 463 |
+| ErrorPattern | 1 076 |
 
-用户承诺提供的初始图谱 dump 尚未导入。导入入口是 `chrys memory init --import <dump>`；schema 创建本身
-委派给 ContextGraph 自己的 `Neo4jStore.init_schema`，chrys 侧不复制它的建索引逻辑。在 dump 到位之前，
-"记忆先验"这条能力是**通路已经打通但内容为空**的状态。
+来源是 49 个 CAPBench 任务的 1 463 条 Harbor agent 轨迹，规则由 `deepseek/deepseek-v4-pro` 抽取后按
+0.88 阈值去重。建图策略明确写在 manifest 里：**只读 agent 侧证据与 verifier 的 resolved 标志，不读参考
+解、隐藏测试或 gold patch**——所以它可以安全地作为先验喂给一个正在解同类问题的 agent。
+
+运行时与接线：
+
+```bash
+# 启停（不需要 Docker）
+~/Public/codes/CAPBench/contextgraph_selected_harbor_graph/runtime/neo4j-community-5.26.0/bin/neo4j start
+~/Public/codes/CAPBench/contextgraph_selected_harbor_graph/runtime/neo4j-community-5.26.0/bin/neo4j stop
+```
+
+`~/.chrys/.env` 里的 `CONTEXTGRAPH_*` 指向它。**嵌入模型必须是 `text-embedding-3-large`**：库里的向量
+是 3072 维，换一个模型向量通道就只会返回噪声（词法通道仍可用，但融合结果会变差）。
+
+`chrys memory doctor` 五项全绿，health 行为 `canonical_rules=2525, chrys_trajectories=0`——正是初始图
+应有的形状：有先验，还没有本机沉淀的经验。
+
+两条仍然成立的注意事项：
+
+1. Neo4j 5.26 只支持 Java 17/21，本机是 Java 26，启动时会打印 unsupported runtime 警告。实测可用
+   （读写、向量与全文索引均正常），但这不是受支持配置；真出问题先装一个 JDK 21。
+2. 这张图不跨主机（见 §2）。它是这台机器上的图。
 
 ## 4. `route` / `campaign_status` 不进图
 
