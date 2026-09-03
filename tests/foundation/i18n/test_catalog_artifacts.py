@@ -2910,6 +2910,9 @@ def test_live_catalog_artifacts_contain_effective_translations_and_are_loadable(
             "settings.history.prompt.enabled.label",
             "settings.llm.retry.max_transient.label",
             "settings.log.raw_http_capture.label",
+            "settings.memory.mcp.enabled.label",
+            "settings.memory.writeback.idle_seconds.label",
+            "settings.memory.writeback.on_session_end.label",
             "settings.model.profile.active.label",
             "settings.model.role.approval_judge.label",
             "settings.model.role.buddy_model_id.label",
@@ -3302,7 +3305,7 @@ def test_live_catalog_artifacts_contain_effective_translations_and_are_loadable(
             "tui.trajectory.tool_usage.unattributed",
         }
     )
-    assert len(expected_ids) == 1818
+    assert len(expected_ids) == 1821
     assert {_entry_id(message) for message in pot if message.id} == expected_ids
     assert {_entry_id(message) for message in po if message.id} == expected_ids
     assert set(_effective_catalog_entries(po)) == expected_ids

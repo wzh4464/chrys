@@ -392,6 +392,9 @@ DEFERRED_KEYS: frozenset[str] = frozenset(
         "context.warn_threshold_pct",
         # Keep the backend/config surface while its product UX is undecided.
         "trajectory.verify_commands",
+        "memory.mcp.enabled",
+        "memory.writeback.idle_seconds",
+        "memory.writeback.on_session_end",
         # Low-frequency keys with a natural home, held back until asked for.
         "workspace.mru_max_entries",
         "mutations.snapshot.max_file_mb",

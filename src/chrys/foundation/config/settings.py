@@ -615,6 +615,13 @@ _LABEL_SESSION_TITLE_AUTO = msg("settings.session.title.auto.label", fallback="A
 _LABEL_CONTEXT_WARN_THRESHOLD_PCT = msg(
     "settings.context.warn_threshold_pct.label", fallback="Context warning threshold"
 )
+_LABEL_MEMORY_MCP_ENABLED = msg("settings.memory.mcp.enabled.label", fallback="Team memory MCP")
+_LABEL_MEMORY_WRITEBACK_IDLE_SECONDS = msg(
+    "settings.memory.writeback.idle_seconds.label", fallback="Memory writeback idle delay"
+)
+_LABEL_MEMORY_WRITEBACK_ON_SESSION_END = msg(
+    "settings.memory.writeback.on_session_end.label", fallback="Write memory back at session end"
+)
 _LABEL_TRAJECTORY_VERIFY_COMMANDS = msg(
     "settings.trajectory.verify_commands.label", fallback="Trajectory verification commands"
 )
@@ -1281,6 +1288,53 @@ class Settings:
             # Where a user's sessions live is not a repository's business.
             project_merge=ProjectMerge.DENY,
             risk=Risk.CAUTION,
+        ),
+    )
+
+    # ── Memory (ContextGraph) ─────────────────────────────────────
+    # Whether every agent build gets the code-owned ContextGraph memory MCP
+    # server appended.  The switch alone is not enough: the overlay also
+    # requires ``CONTEXTGRAPH_NEO4J_URI`` in the environment, so the default
+    # is inert on a machine that never configured a graph.
+    memory_mcp_enabled: bool = field(
+        default=True,
+        metadata=spec(
+            key="memory.mcp.enabled",
+            label=_LABEL_MEMORY_MCP_ENABLED,
+            env="CHRYS_MEMORY_MCP",
+            coerce=bool_coercer(),
+            apply=Apply.RELOAD,
+            group="memory",
+            kind=Kind.BOOL,
+        ),
+    )
+    # Idle seconds before a session's completed turns are deposited into the
+    # graph.  ``0`` disables the timer entirely; a negative value is rejected
+    # so it falls through to this default rather than meaning "immediately".
+    memory_writeback_idle_seconds: int = field(
+        default=3600,
+        metadata=spec(
+            key="memory.writeback.idle_seconds",
+            label=_LABEL_MEMORY_WRITEBACK_IDLE_SECONDS,
+            env="CHRYS_MEMORY_WRITEBACK_IDLE_SECONDS",
+            coerce=int_coercer(reject_negative=True),
+            apply=Apply.LIVE,
+            group="memory",
+            kind=Kind.INT,
+        ),
+    )
+    # Whether a normally ending session (TUI exit, ``chrys run`` completion,
+    # ACP ``session/delete``, PACT role host shutdown) flushes once more.
+    memory_writeback_on_session_end: bool = field(
+        default=True,
+        metadata=spec(
+            key="memory.writeback.on_session_end",
+            label=_LABEL_MEMORY_WRITEBACK_ON_SESSION_END,
+            env="CHRYS_MEMORY_WRITEBACK_ON_END",
+            coerce=bool_coercer(),
+            apply=Apply.LIVE,
+            group="memory",
+            kind=Kind.BOOL,
         ),
     )
 
