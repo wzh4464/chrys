@@ -1,5 +1,5 @@
 {
-  "inventory_sha256": "5d7c475911a896d5cdbb5b4f3b1a91b55aa5a20441c6a551d884ac8f0a6dd995",
+  "inventory_sha256": "472fef7feeb73eb5ad60276b347fb679566ac81dbd55cbe178144db6b0a9e777",
   "nodes": [
     {
       "cases": [
@@ -28198,7 +28198,7 @@
       "primitive": "wrapper",
       "qualname": "ApprovalJudge.evaluate",
       "source_column": 23,
-      "source_line": 491,
+      "source_line": 353,
       "wrapper_target": "chrys.service.llm.responses.get_final_response"
     },
     {
@@ -35999,6 +35999,26 @@
       "qualname": "ClarificationService.generate_pact_input",
       "source_column": 39,
       "source_line": 299,
+      "wrapper_target": null
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await asyncio.wait_for(get_final_response(self._get_client(), messages, stream=False, options=self._options(), timeout=self._timeout), self._timeout)",
+      "identity": "chrys.service.routing.llm:LlmRouteClassifier.classify:1",
+      "module": "chrys.service.routing.llm",
+      "ordinal": 1,
+      "primitive": "timeout",
+      "qualname": "LlmRouteClassifier.classify",
+      "source_column": 23,
+      "source_line": 118,
       "wrapper_target": null
     },
     {
