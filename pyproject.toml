@@ -14,6 +14,7 @@ dependencies = [
     "pyyaml==6.0.3",
     "charset-normalizer==3.5.1",
     "mcp==1.28.1",
+    "neo4j==6.1.0",
     # Ceiling: pillow 12.3.0 dropped manylinux2014 (glibc 2.17) wheels; the
     # offline binaries advertise a glibc 2.17 floor, enforced at build time by
     # scripts/build_offline_dist.sh. Raise only together with that floor.
