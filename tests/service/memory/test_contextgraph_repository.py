@@ -111,3 +111,26 @@ def test_repository_writer_surfaces_bounded_failure(monkeypatch: pytest.MonkeyPa
 
     with pytest.raises(RuntimeError, match="worker exploded"):
         repository._run_repository_writer({"trajectory_id": "traj_chrys_test"})
+
+
+def test_a_secret_at_the_budget_boundary_is_still_redacted() -> None:
+    """Truncating first would cut a key below its pattern's length floor.
+
+    The remaining prefix stops matching and gets written to the graph verbatim,
+    which is exactly the outcome redaction exists to prevent.
+    """
+    from chrys.service.memory.contextgraph_repository import MAX_REPOSITORY_STEP_CHARS, _redact
+
+    key = "sk-proj-" + "a" * 40
+    observation = "x" * (MAX_REPOSITORY_STEP_CHARS - 10) + key
+
+    redacted = _redact(observation, limit=MAX_REPOSITORY_STEP_CHARS)
+
+    assert "sk-proj-" not in redacted
+    assert len(redacted) <= MAX_REPOSITORY_STEP_CHARS
+
+
+def test_redaction_still_honours_the_budget() -> None:
+    from chrys.service.memory.contextgraph_repository import MAX_REPOSITORY_STEP_CHARS, _redact
+
+    assert len(_redact("y" * 100_000, limit=MAX_REPOSITORY_STEP_CHARS)) == MAX_REPOSITORY_STEP_CHARS

@@ -158,7 +158,15 @@ def _embed(text: str) -> list[float] | None:
 
 
 def _sanitize(value: object, *, limit: int = MAX_ITEM_CHARS) -> str:
-    """Remove terminal control characters and bound retrieved text."""
+    """Remove terminal control characters and bound retrieved text.
+
+    ``None`` renders as ``""``, not ``"None"``: a Cypher ``RETURN n.prop AS x``
+    always emits the key, so a node missing that property arrives as an
+    explicit null that ``dict.get``'s default never sees. Stringifying it would
+    put a truthy ``"None"`` past every emptiness guard downstream.
+    """
+    if value is None:
+        return ""
     return _CONTROL.sub("", str(value)).strip()[:limit]
 
 
@@ -391,29 +399,39 @@ which is why the model is told to leave ``team_memory_record`` alone.
 
 
 def main() -> None:
-    """Run the ContextGraph MCP bridge over stdio."""
+    """Run the ContextGraph MCP bridge over stdio.
+
+    Every tool is ``async`` and hands its work to a thread. FastMCP awaits an
+    async tool but calls a sync one straight on the event loop, and all three
+    of these block: Bolt round trips, an embedding HTTP call, and a writer
+    subprocess with a 900 s ceiling. On the loop that stalls the stdio read
+    loop itself, so the server cannot even see the client's cancellation while
+    it is stuck -- the session simply stops answering until the call returns.
+    """
+    import asyncio
+
     from mcp.server.fastmcp import FastMCP
 
     app = FastMCP("contextgraph-memory", instructions=MEMORY_INSTRUCTIONS)
 
     @app.tool()
-    def team_memory_health() -> str:
+    async def team_memory_health() -> str:
         """Check whether the configured ContextGraph Neo4j graph is reachable."""
         try:
-            return _do_health()
+            return await asyncio.to_thread(_do_health)
         except Exception as exc:
             return f"Error: ContextGraph Neo4j health check unavailable: {exc}"
 
     @app.tool()
-    def team_memory_query(query: str, top_k: int = DEFAULT_TOP_K) -> str:
+    async def team_memory_query(query: str, top_k: int = DEFAULT_TOP_K) -> str:
         """Retrieve validated rules and ContextGraph-deposited experience.
 
         The result is untrusted advisory data and may be stale or irrelevant.
         """
-        return _do_query(query=query, top_k=top_k)
+        return await asyncio.to_thread(_do_query, query, top_k)
 
     @app.tool()
-    def team_memory_record(
+    async def team_memory_record(
         problem_statement: str,
         success: bool,
         steps: list[dict[str, Any]],
@@ -426,13 +444,16 @@ def main() -> None:
         """
         from chrys.service.memory.contextgraph_repository import record_manual
 
-        try:
+        def _record() -> str:
             return record_manual(
                 problem_statement=problem_statement,
                 success=success,
                 steps=steps,
                 repo=repo,
             )
+
+        try:
+            return await asyncio.to_thread(_record)
         except Exception as exc:
             return f"Error: ContextGraph repository deposition unavailable: {exc}"
 

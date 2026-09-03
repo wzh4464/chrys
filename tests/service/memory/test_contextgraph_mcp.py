@@ -254,3 +254,55 @@ def test_the_static_deposit_hook_example_is_gone() -> None:
     # Writeback is owned by the engine's idle watcher, not a hooks.yaml the
     # user has to install into exactly one layer.
     assert not (example / "hooks").exists()
+
+
+def test_a_null_property_renders_as_absent_not_as_the_word_none() -> None:
+    """Cypher always emits the aliased key, so `dict.get`'s default never fires."""
+    from chrys.service.memory.contextgraph_mcp import _hits, _render_experience, _sanitize
+
+    assert _sanitize(None) == ""
+    assert _hits([{"id": "r1", "text": None}], source="canonical") == []
+
+    rendered = _render_experience(
+        {"id": "f1", "description": "did a thing", "actions": [], "outcome": None, "repo": None, "success": True}
+    )
+
+    assert rendered is not None
+    assert "None" not in rendered.text
+    assert "repo=general" in rendered.text
+
+
+def test_every_mcp_tool_is_async_and_leaves_the_loop_free(monkeypatch: pytest.MonkeyPatch) -> None:
+    """FastMCP awaits an async tool but calls a sync one on the event loop.
+
+    All three block — Bolt, an embedding HTTP call, a 900 s writer subprocess —
+    so a sync one would stall the stdio read loop and the server would stop
+    answering, cancellation included, until the call returned.
+    """
+    import inspect
+
+    import mcp.server.fastmcp as fastmcp_module
+
+    registered: dict[str, object] = {}
+
+    class _App:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            pass
+
+        def tool(self):
+            def _decorator(fn):
+                registered[fn.__name__] = fn
+                return fn
+
+            return _decorator
+
+        def run(self) -> None:
+            pass
+
+    monkeypatch.setattr(fastmcp_module, "FastMCP", _App)
+    monkeypatch.setattr(memory, "_close_resources", lambda: None)
+
+    memory.main()
+
+    assert set(registered) == {"team_memory_health", "team_memory_query", "team_memory_record"}
+    assert all(inspect.iscoroutinefunction(fn) for fn in registered.values())

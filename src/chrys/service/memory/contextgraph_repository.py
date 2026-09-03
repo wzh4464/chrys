@@ -37,8 +37,16 @@ class RepositoryDepositResult:
     created: bool
 
 
+# How far past the budget to look before redacting. Every secret pattern has a
+# minimum length, so a credential straddling the cut would lose enough
+# characters to stop matching and be stored as a readable prefix.
+_REDACT_LOOKAHEAD = 512
+
+
 def _redact(value: object, *, limit: int) -> str:
-    return _SECRET.sub("[REDACTED]", backend._sanitize(value, limit=limit))
+    """Bound *value*, redacting secrets BEFORE the budget cuts them short."""
+    window = backend._sanitize(value, limit=limit + _REDACT_LOOKAHEAD)
+    return _SECRET.sub("[REDACTED]", window)[:limit]
 
 
 def _normalize_steps(

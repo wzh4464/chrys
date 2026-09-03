@@ -1,5 +1,5 @@
 {
-  "inventory_sha256": "d70fba65b1a167d9e93188c0ccd76306f4425d0493682e91265306afc919c667",
+  "inventory_sha256": "43d128e281302f865ef27aa2cd8b6583f471aa2c19fadc61b366634fffc8c76b",
   "nodes": [
     {
       "cases": [
@@ -36320,6 +36320,66 @@
       "source_column": 11,
       "source_line": 47,
       "wrapper_target": "chrys.service.tools.spill.run_spill_finalizer"
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await asyncio.to_thread(_do_health)",
+      "identity": "chrys.service.memory.contextgraph_mcp:main.team_memory_health:1",
+      "module": "chrys.service.memory.contextgraph_mcp",
+      "ordinal": 1,
+      "primitive": "thread_pool",
+      "qualname": "main.team_memory_health",
+      "source_column": 19,
+      "source_line": 421,
+      "wrapper_target": null
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await asyncio.to_thread(_do_query, query, top_k)",
+      "identity": "chrys.service.memory.contextgraph_mcp:main.team_memory_query:1",
+      "module": "chrys.service.memory.contextgraph_mcp",
+      "ordinal": 1,
+      "primitive": "thread_pool",
+      "qualname": "main.team_memory_query",
+      "source_column": 15,
+      "source_line": 431,
+      "wrapper_target": null
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await asyncio.to_thread(_record)",
+      "identity": "chrys.service.memory.contextgraph_mcp:main.team_memory_record:1",
+      "module": "chrys.service.memory.contextgraph_mcp",
+      "ordinal": 1,
+      "primitive": "thread_pool",
+      "qualname": "main.team_memory_record",
+      "source_column": 19,
+      "source_line": 456,
+      "wrapper_target": null
     },
     {
       "cases": [
