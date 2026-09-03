@@ -247,6 +247,7 @@ def _parse_acp(raw: object) -> AcpAgentConfig:
             default=defaults.idle_timeout_seconds,
             allow_zero=True,
         ),
+        max_depth=_parse_acp_max_depth(raw_map),
     )
 
 
@@ -626,6 +627,13 @@ def _parse_long_horizon(raw: object) -> LongHorizonConfig:
         pact_tool=pact_tool.strip(),
         require_pact=_bool_field(raw_map, "require_pact", False, section="routing.long_horizon"),
     )
+
+
+def _parse_acp_max_depth(raw_map: Mapping[str, Any]) -> int:
+    value = raw_map.get("max_depth", 1)
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise AgentProfileLoadError("Agent profile field 'acp.max_depth' must be a positive integer")
+    return value
 
 
 def _parse_routing(raw: object) -> RoutingConfig:

@@ -325,6 +325,14 @@ def _acp_stderr_path(
     return Path(tempfile.gettempdir()) / f"chrys-acp-{invocation_id}.stderr.log"
 
 
+def _acp_subagent_depth() -> int:
+    """Read this process's ACP nesting depth, treating anything unparsable as top level."""
+    try:
+        return max(0, int(os.environ.get("CHRYS_ACP_SUBAGENT_DEPTH", "0")))
+    except ValueError:
+        return 0
+
+
 class SubAgentTools:
     """Manages sub-agent lifecycle and exposes them as FunctionTools.
 
@@ -731,6 +739,30 @@ class SubAgentTools:
         """Register an external ACP profile without constructing kernel machinery."""
         if profile.acp is None:
             raise ValueError("register_acp requires an ACP agent profile")
+        depth = _acp_subagent_depth()
+        if depth >= profile.acp.max_depth:
+            # Registering here would let an agent that is itself an ACP
+            # sub-agent start another one -- a PACT role launching its own
+            # campaign, which recurses without bound.
+            tool_name = ref.tool_name or profile.name
+            logger.warning(
+                "Skipping ACP sub-agent %s: nesting depth %d reaches its max_depth %d",
+                tool_name,
+                depth,
+                profile.acp.max_depth,
+            )
+            if self._bus is not None:
+                await self._bus.publish(
+                    Warning(
+                        code="acp_sub_agent_depth_exceeded",
+                        message=(
+                            f"Sub-agent {tool_name!r} is not available at ACP nesting depth {depth} "
+                            f"(its max_depth is {profile.acp.max_depth})."
+                        ),
+                        session_id=self._session_id,
+                    )
+                )
+            return
         self._runtime = runtime
         if not self._workspace_cwd:
             self._workspace_cwd = runtime.cwd
@@ -1205,11 +1237,7 @@ class SubAgentTools:
 
         if not config.allow_external_cwd and not any(is_within_root(root) for root in resolved_roots):
             raise AcpConfigError("ACP cwd resolves outside the active workspace.")
-        depth_raw = os.environ.get("CHRYS_ACP_SUBAGENT_DEPTH", "0")
-        try:
-            depth = max(0, int(depth_raw))
-        except ValueError:
-            depth = 0
+        depth = _acp_subagent_depth()
         return AcpAgentSpec(
             command=command,
             args=args,

@@ -26,6 +26,12 @@ class AcpAgentConfig:
     result_mode: Literal["last_segment", "transcript"] = "last_segment"
     handshake_timeout_seconds: float = 30.0
     idle_timeout_seconds: float = 600.0
+    max_depth: int = 1
+    """Deepest ACP nesting level at which this agent may still be registered.
+
+    The default of 1 means "top level only". A PACT role host runs at depth 1,
+    so it never gets the campaign tool and cannot start a campaign of its own.
+    """
 
 
 @dataclass
