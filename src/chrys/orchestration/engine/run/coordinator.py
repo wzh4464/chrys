@@ -585,6 +585,21 @@ class TurnCoordinator:
         )
         if accepted:
             self._queue_prompt_hook_reminders(decision, injected=True)
+        else:
+            # The gate that routed this message here was read before three
+            # awaits ago -- a UserPromptSubmit hook alone can outlast the phase.
+            # Every other abandoned-injection path publishes this, and the
+            # frontend restores the text to the input box on it; without it the
+            # message is simply gone while the UI shows it as sent.
+            await self._host._bus.publish(
+                UserInjectResult(
+                    text=event.text,
+                    consumed=False,
+                    created_at=event.timestamp,
+                    injection_id=event.injection_id,
+                    session_id=self._host._session_id,
+                )
+            )
         if preparation is not None:
             await preparation.finished(
                 outcome=PreparationOutcome.INJECTED if accepted else PreparationOutcome.TARGET_STALE

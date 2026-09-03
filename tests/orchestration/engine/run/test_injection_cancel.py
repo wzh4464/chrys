@@ -570,3 +570,32 @@ async def test_uncancelled_submit_with_injection_id_still_starts_fresh_turn() ->
 
     assert host.run_texts == ["still wanted"]
     assert host._fsm.transitions == [Trigger.USER_MESSAGE]
+
+
+async def test_an_amendment_the_workflow_no_longer_accepts_is_reported_back() -> None:
+    """The routing gate is read three awaits before `accept_amendment` runs.
+
+    A `UserPromptSubmit` hook alone can outlast the phase. Every other
+    abandoned-injection path publishes `consumed=False`, and the frontend
+    restores the text to the input box on it; without one the message is gone
+    while the UI still shows it as sent.
+    """
+
+    class _StaleWorkflow:
+        accepts_amendments = True
+
+        async def accept_amendment(self, _text: str, **_kwargs: object) -> bool:
+            return False
+
+    host = _Host()
+    results = await _collect_inject_results(host._bus)
+    event = UserMessage(text="also handle SAML", injection_id="inj-1", session_id="s1")
+
+    accepted = await TurnCoordinator(host)._admit_requirement_amendment(  # type: ignore[arg-type]
+        _StaleWorkflow(),
+        event,
+        preparation=None,
+    )
+
+    assert accepted is False
+    assert [(item.text, item.consumed) for item in results] == [("also handle SAML", False)]

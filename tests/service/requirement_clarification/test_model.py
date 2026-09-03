@@ -381,3 +381,39 @@ def test_proposal_semantics_reject_unresolved_confirmation_note() -> None:
     )
 
     assert _proposal_errors(proposal, calls) == ["proposal contains placeholder or unfinished investigation text"]
+
+
+def test_the_investigation_record_holds_every_anchor_a_proposal_may_cite() -> None:
+    """A lower cap made a fully valid proposal fail validation as diagnostics.
+
+    The blanket handler around record construction then reported it as a failed
+    proposer, and losing one can drop the turn below MIN_VALID_PROPOSALS.
+    """
+    from chrys.service.requirement_clarification.types import (
+        MAX_PROPOSAL_EVIDENCE_ANCHORS,
+        ProposalInvestigation,
+        VerifiedEvidenceReference,
+    )
+
+    # 4 top-level + 2 coverage findings x 4 + 6 guidance points x 4.
+    assert MAX_PROPOSAL_EVIDENCE_ANCHORS == 36
+
+    record = ProposalInvestigation(
+        sample_index=1,
+        status="completed",
+        investigation_attempts=1,
+        synthesis_attempts=1,
+        verified_evidence=[
+            VerifiedEvidenceReference(
+                path="src/a.py",
+                line_start=line + 1,
+                line_end=line + 1,
+                claim="the runtime seam is here",
+                tool_call_id=f"read-{line}",
+                result_sha256="a" * 64,
+            )
+            for line in range(MAX_PROPOSAL_EVIDENCE_ANCHORS)
+        ],
+    )
+
+    assert len(record.verified_evidence) == MAX_PROPOSAL_EVIDENCE_ANCHORS

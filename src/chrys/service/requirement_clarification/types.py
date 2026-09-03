@@ -203,6 +203,14 @@ class VerifiedEvidenceReference(BaseModel):
         return self
 
 
+# Every anchor a schema-valid ``ClarificationProposal`` can carry: 4 top-level,
+# 2 coverage findings x 4, and 6 guidance points x 4. The investigation record
+# is diagnostics, so it must be able to hold whatever the proposal it describes
+# is allowed to cite -- a lower cap made a fully valid proposal fail validation
+# here, and the blanket handler above reported it as a failed proposer.
+MAX_PROPOSAL_EVIDENCE_ANCHORS = 4 + 2 * 4 + 6 * 4
+
+
 class ProposalInvestigation(BaseModel):
     """Private diagnostics proving that proposal synthesis followed investigation."""
 
@@ -222,7 +230,9 @@ class ProposalInvestigation(BaseModel):
     output_token_count: int = Field(default=0, ge=0)
     total_token_count: int = Field(default=0, ge=0)
     tool_calls: list[InvestigationToolCall] = Field(default_factory=list, max_length=100)
-    verified_evidence: list[VerifiedEvidenceReference] = Field(default_factory=list, max_length=30)
+    verified_evidence: list[VerifiedEvidenceReference] = Field(
+        default_factory=list, max_length=MAX_PROPOSAL_EVIDENCE_ANCHORS
+    )
     validation_errors: list[str] = Field(default_factory=list, max_length=20)
 
 

@@ -1,5 +1,5 @@
 {
-  "inventory_sha256": "2049ebbda11c84d6db6a4f5d4d68c63651053fb6834832070cc16c770b30fd1c",
+  "inventory_sha256": "d76a6ff447ecf18217a4f59f0ea9a23739da7621f13aa7eb1f595f3274c89dc3",
   "nodes": [
     {
       "cases": [
@@ -11378,7 +11378,7 @@
       "primitive": "awaitable",
       "qualname": "TurnCoordinator._abandon_cancelled_injection_submit",
       "source_column": 8,
-      "source_line": 744,
+      "source_line": 759,
       "wrapper_target": null
     },
     {
@@ -11551,14 +11551,34 @@
           "when": "all_paths"
         }
       ],
-      "expression": "await preparation.finished(outcome=PreparationOutcome.INJECTED if accepted else PreparationOutcome.TARGET_STALE)",
+      "expression": "await self._host._bus.publish(UserInjectResult(text=event.text, consumed=False, created_at=event.timestamp, injection_id=event.injection_id, session_id=self._host._session_id))",
       "identity": "chrys.orchestration.engine.run.coordinator:TurnCoordinator._admit_requirement_amendment:9",
       "module": "chrys.orchestration.engine.run.coordinator",
       "ordinal": 9,
       "primitive": "awaitable",
       "qualname": "TurnCoordinator._admit_requirement_amendment",
       "source_column": 12,
-      "source_line": 589,
+      "source_line": 594,
+      "wrapper_target": null
+    },
+    {
+      "cases": [
+        {
+          "classification": "B",
+          "container_rule": "unresolved_outer_container",
+          "degradation_rule": "Mark the containing residual Unresolved; never report it as exact.",
+          "reason": "No enclosing trajectory interval is machine-proven for every call path; fail closed until reviewed.",
+          "when": "all_paths"
+        }
+      ],
+      "expression": "await preparation.finished(outcome=PreparationOutcome.INJECTED if accepted else PreparationOutcome.TARGET_STALE)",
+      "identity": "chrys.orchestration.engine.run.coordinator:TurnCoordinator._admit_requirement_amendment:10",
+      "module": "chrys.orchestration.engine.run.coordinator",
+      "ordinal": 10,
+      "primitive": "awaitable",
+      "qualname": "TurnCoordinator._admit_requirement_amendment",
+      "source_column": 12,
+      "source_line": 604,
       "wrapper_target": null
     },
     {
@@ -12198,7 +12218,7 @@
       "primitive": "awaitable",
       "qualname": "TurnCoordinator._evaluate_user_prompt_submit",
       "source_column": 15,
-      "source_line": 905,
+      "source_line": 920,
       "wrapper_target": null
     },
     {
@@ -12218,7 +12238,7 @@
       "primitive": "awaitable",
       "qualname": "TurnCoordinator._handle_user_prompt_submit_decision",
       "source_column": 15,
-      "source_line": 955,
+      "source_line": 970,
       "wrapper_target": null
     },
     {
@@ -12258,7 +12278,7 @@
       "primitive": "awaitable",
       "qualname": "TurnCoordinator._publish_prompt_admission_conflict",
       "source_column": 8,
-      "source_line": 888,
+      "source_line": 903,
       "wrapper_target": null
     },
     {
@@ -12278,7 +12298,7 @@
       "primitive": "wrapper",
       "qualname": "TurnCoordinator._route_turn",
       "source_column": 19,
-      "source_line": 807,
+      "source_line": 822,
       "wrapper_target": "chrys.orchestration.engine.run.coordinator.TurnCoordinator._route_turn_unguarded"
     },
     {
@@ -12298,7 +12318,7 @@
       "primitive": "awaitable",
       "qualname": "TurnCoordinator._route_turn_unguarded",
       "source_column": 19,
-      "source_line": 822,
+      "source_line": 837,
       "wrapper_target": null
     },
     {
@@ -12318,7 +12338,7 @@
       "primitive": "awaitable",
       "qualname": "TurnCoordinator._route_turn_unguarded",
       "source_column": 38,
-      "source_line": 822,
+      "source_line": 837,
       "wrapper_target": null
     },
     {
@@ -12338,7 +12358,7 @@
       "primitive": "awaitable",
       "qualname": "TurnCoordinator._route_turn_unguarded",
       "source_column": 8,
-      "source_line": 823,
+      "source_line": 838,
       "wrapper_target": null
     },
     {
@@ -12358,7 +12378,7 @@
       "primitive": "awaitable",
       "qualname": "TurnCoordinator._route_turn_unguarded",
       "source_column": 8,
-      "source_line": 824,
+      "source_line": 839,
       "wrapper_target": null
     },
     {
@@ -12378,7 +12398,7 @@
       "primitive": "awaitable",
       "qualname": "TurnCoordinator._start_pre_admission_preparation",
       "source_column": 8,
-      "source_line": 930,
+      "source_line": 945,
       "wrapper_target": null
     },
     {
@@ -12398,7 +12418,7 @@
       "primitive": "async_context",
       "qualname": "TurnCoordinator._switch_routing_profile",
       "source_column": 19,
-      "source_line": 847,
+      "source_line": 862,
       "wrapper_target": null
     },
     {
@@ -12418,7 +12438,7 @@
       "primitive": "awaitable",
       "qualname": "TurnCoordinator._switch_routing_profile",
       "source_column": 12,
-      "source_line": 848,
+      "source_line": 863,
       "wrapper_target": null
     },
     {
@@ -12438,7 +12458,7 @@
       "primitive": "timeout",
       "qualname": "TurnCoordinator._switch_routing_profile",
       "source_column": 27,
-      "source_line": 850,
+      "source_line": 865,
       "wrapper_target": null
     },
     {
@@ -12458,7 +12478,7 @@
       "primitive": "async_iteration",
       "qualname": "TurnCoordinator._switch_routing_profile",
       "source_column": 20,
-      "source_line": 851,
+      "source_line": 866,
       "wrapper_target": null
     },
     {
@@ -12478,7 +12498,7 @@
       "primitive": "future",
       "qualname": "TurnCoordinator._wait_for_existing_run_task",
       "source_column": 12,
-      "source_line": 796,
+      "source_line": 811,
       "wrapper_target": null
     },
     {
@@ -12498,7 +12518,7 @@
       "primitive": "wrapper",
       "qualname": "TurnCoordinator._wait_for_pre_admission_gate",
       "source_column": 8,
-      "source_line": 941,
+      "source_line": 956,
       "wrapper_target": "chrys.service.trajectory.preparation.input_admission_wait"
     },
     {
@@ -12518,7 +12538,7 @@
       "primitive": "wrapper",
       "qualname": "TurnCoordinator._wait_for_pre_admission_gate",
       "source_column": 8,
-      "source_line": 945,
+      "source_line": 960,
       "wrapper_target": "chrys.orchestration.engine.run.coordinator.TurnCoordinator._start_pre_admission_preparation"
     },
     {
@@ -12578,7 +12598,7 @@
       "primitive": "wrapper",
       "qualname": "TurnCoordinator.on_user_inject",
       "source_column": 12,
-      "source_line": 645,
+      "source_line": 660,
       "wrapper_target": "chrys.orchestration.engine.run.coordinator.TurnCoordinator._start_pre_admission_preparation"
     },
     {
@@ -12598,7 +12618,7 @@
       "primitive": "wrapper",
       "qualname": "TurnCoordinator.on_user_inject",
       "source_column": 12,
-      "source_line": 646,
+      "source_line": 661,
       "wrapper_target": "chrys.orchestration.engine.run.coordinator.TurnCoordinator._wait_for_pre_admission_gate"
     },
     {
@@ -12618,7 +12638,7 @@
       "primitive": "awaitable",
       "qualname": "TurnCoordinator.on_user_inject",
       "source_column": 20,
-      "source_line": 650,
+      "source_line": 665,
       "wrapper_target": null
     },
     {
@@ -12638,7 +12658,7 @@
       "primitive": "awaitable",
       "qualname": "TurnCoordinator.on_user_inject",
       "source_column": 25,
-      "source_line": 652,
+      "source_line": 667,
       "wrapper_target": null
     },
     {
@@ -12658,7 +12678,7 @@
       "primitive": "awaitable",
       "qualname": "TurnCoordinator.on_user_inject",
       "source_column": 16,
-      "source_line": 689,
+      "source_line": 704,
       "wrapper_target": null
     },
     {
@@ -12678,7 +12698,7 @@
       "primitive": "awaitable",
       "qualname": "TurnCoordinator.on_user_inject_cancel",
       "source_column": 8,
-      "source_line": 729,
+      "source_line": 744,
       "wrapper_target": null
     },
     {
@@ -12698,7 +12718,7 @@
       "primitive": "awaitable",
       "qualname": "TurnCoordinator.on_user_interrupt",
       "source_column": 12,
-      "source_line": 608,
+      "source_line": 623,
       "wrapper_target": null
     },
     {
@@ -12718,7 +12738,7 @@
       "primitive": "awaitable",
       "qualname": "TurnCoordinator.on_user_interrupt",
       "source_column": 12,
-      "source_line": 622,
+      "source_line": 637,
       "wrapper_target": null
     },
     {
@@ -12738,7 +12758,7 @@
       "primitive": "awaitable",
       "qualname": "TurnCoordinator.on_user_interrupt",
       "source_column": 12,
-      "source_line": 626,
+      "source_line": 641,
       "wrapper_target": null
     },
     {
@@ -12758,7 +12778,7 @@
       "primitive": "awaitable",
       "qualname": "TurnCoordinator.on_user_interrupt",
       "source_column": 16,
-      "source_line": 629,
+      "source_line": 644,
       "wrapper_target": null
     },
     {
@@ -12838,7 +12858,7 @@
       "primitive": "awaitable",
       "qualname": "TurnCoordinator.on_user_retry",
       "source_column": 8,
-      "source_line": 636,
+      "source_line": 651,
       "wrapper_target": null
     },
     {
@@ -12858,7 +12878,7 @@
       "primitive": "awaitable",
       "qualname": "TurnCoordinator.prepare_user_contents",
       "source_column": 17,
-      "source_line": 768,
+      "source_line": 783,
       "wrapper_target": null
     },
     {
@@ -12878,7 +12898,7 @@
       "primitive": "awaitable",
       "qualname": "TurnCoordinator.reject_text_only_prepared_contents",
       "source_column": 15,
-      "source_line": 785,
+      "source_line": 800,
       "wrapper_target": null
     },
     {
