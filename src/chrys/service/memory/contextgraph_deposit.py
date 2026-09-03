@@ -73,13 +73,24 @@ class TurnExperience:
     steps: tuple[dict[str, str], ...]
     turn_digest: str
     success: bool = True
-    """Whether the turn reached a normal end.
+    """Whether the turn reached a normal end, or was verifiably completed.
 
-    Derived from the turn's own status markers, so a caller reading a persisted
-    session needs no out-of-band hook status. Interruption and failure are what
-    the graph must learn to avoid; M5 refines this for long-horizon turns, where
-    a PACT campaign's verified ``completed`` is the stronger signal.
+    A standard turn is successful when it carries no interrupted/failed marker
+    -- runtime completion, not verified correctness. A long-horizon turn that
+    delegated a campaign is held to the campaign's own ``completed`` status
+    instead: the campaign ran the repository's verify command, so its verdict
+    is evidence where a clean exit is only an absence of errors.
     """
+    route: str = ""
+    """``standard`` or ``long_horizon``, from the turn's own route marker.
+
+    Not stored in the graph: ContextGraph's ``RawTrajectory`` has no field for
+    it, and inventing one here would fork a schema this repository does not
+    own. It is what decides :attr:`success`, which does reach the graph, and it
+    is available to anything reading a persisted session.
+    """
+    campaign_status: str = ""
+    """The campaign's reported status, when this turn delegated one."""
 
 
 _PAIRING_POLICY = PairingPolicy(
@@ -191,13 +202,47 @@ def extract_turn_experience(session_file: Path, turn: int) -> TurnExperience | N
     )
     canonical = json.dumps(serialized, ensure_ascii=True, sort_keys=True, separators=(",", ":"), default=str)
     turn_digest = hashlib.sha256(canonical.encode()).hexdigest()
+    route = _route_record(live_messages[start:end])
+    campaign = route.get("campaign") if isinstance(route.get("campaign"), Mapping) else None
+    campaign_status = str(campaign.get("status", "")) if campaign is not None else ""
+    marker_success = turn_succeeded(serialized)
     return TurnExperience(
-        problem_statement=problem_statement,
+        problem_statement=_clarified_problem_statement(session_file, turn) or problem_statement,
         final_response=final_response,
         steps=steps,
         turn_digest=turn_digest,
-        success=turn_succeeded(serialized),
+        # A delegated campaign verified the work; nothing else here did.
+        success=(campaign_status == "completed") if campaign_status else marker_success,
+        route=str(route.get("track", "")),
+        campaign_status=campaign_status,
     )
+
+
+def _route_record(messages: Sequence[Any]) -> Mapping[str, Any]:
+    """Return this turn's ``_chrys_route`` marker payload, or an empty mapping."""
+    for message in reversed(list(messages)):
+        properties = getattr(message, "additional_properties", None)
+        if not isinstance(properties, Mapping):
+            continue
+        record = properties.get("_chrys_route")
+        if isinstance(record, Mapping):
+            return record
+    return {}
+
+
+def _clarified_problem_statement(session_file: Path, turn: int) -> str:
+    """Prefer the clarified requirement over the raw prompt, when one exists.
+
+    The clarified requirement is what the repair actually implemented, so it
+    describes the problem the recorded steps solve.
+    """
+    path = (
+        session_file.parent / "requirement_clarification" / f"turn_{turn}" / "05-outcome" / "clarified-requirement.md"
+    )
+    try:
+        return path.read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
 
 
 def turn_succeeded(serialized_messages: Sequence[Mapping[str, Any]]) -> bool:

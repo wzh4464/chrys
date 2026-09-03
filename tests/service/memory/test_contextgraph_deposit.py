@@ -120,3 +120,108 @@ def test_deposit_hook_payload_binds_session_turn_and_content(
 def test_deposit_hook_payload_rejects_invalid_identity(payload: dict[str, object]) -> None:
     with pytest.raises(ValueError, match="invalid"):
         deposit.deposit_hook_payload(payload)
+
+
+# ── route and campaign semantics ─────────────────────────────────────
+
+
+def _route_marker(record: dict[str, object]) -> Message:
+    marker = Message("assistant", [Content.from_text("")])
+    marker.additional_properties["_chrys_route"] = record
+    return marker
+
+
+def test_a_standard_turn_keeps_marker_derived_success(tmp_path: Path) -> None:
+    session_file = tmp_path / "session.json"
+    _write_session(
+        session_file,
+        [*_tool_turn(), _route_marker({"track": "standard", "baseline": "none", "campaign": None})],
+    )
+
+    extracted = deposit.extract_turn_experience(session_file, 1)
+
+    assert extracted is not None
+    assert extracted.route == "standard"
+    assert extracted.campaign_status == ""
+    assert extracted.success is True
+
+
+def test_a_completed_campaign_is_a_verified_success(tmp_path: Path) -> None:
+    """The campaign ran the repository's verify command; a clean exit did not."""
+    session_file = tmp_path / "session.json"
+    _write_session(
+        session_file,
+        [
+            *_tool_turn(),
+            _route_marker(
+                {
+                    "track": "long_horizon",
+                    "baseline": "p1",
+                    "campaign": {"status": "completed", "campaign_id": "c1"},
+                }
+            ),
+        ],
+    )
+
+    extracted = deposit.extract_turn_experience(session_file, 1)
+
+    assert extracted is not None
+    assert extracted.route == "long_horizon"
+    assert extracted.campaign_status == "completed"
+    assert extracted.success is True
+
+
+def test_a_blocked_campaign_is_recorded_as_a_failure(tmp_path: Path) -> None:
+    """A turn that exited cleanly but did not finish the work is not a success."""
+    session_file = tmp_path / "session.json"
+    _write_session(
+        session_file,
+        [
+            *_tool_turn(),
+            _route_marker({"track": "long_horizon", "baseline": "p1", "campaign": {"status": "blocked"}}),
+        ],
+    )
+
+    extracted = deposit.extract_turn_experience(session_file, 1)
+
+    assert extracted is not None
+    assert extracted.campaign_status == "blocked"
+    assert extracted.success is False
+
+
+def test_a_long_horizon_turn_without_a_campaign_uses_the_markers(tmp_path: Path) -> None:
+    session_file = tmp_path / "session.json"
+    _write_session(
+        session_file,
+        [*_tool_turn(), _route_marker({"track": "long_horizon", "baseline": "p1", "campaign": None})],
+    )
+
+    extracted = deposit.extract_turn_experience(session_file, 1)
+
+    assert extracted is not None
+    assert extracted.campaign_status == ""
+    assert extracted.success is True
+
+
+def test_the_clarified_requirement_replaces_the_raw_prompt(tmp_path: Path) -> None:
+    """The clarified requirement is what the recorded steps actually solved."""
+    session_file = tmp_path / "session.json"
+    _write_session(session_file, _tool_turn())
+    outcome = tmp_path / "requirement_clarification" / "turn_1" / "05-outcome"
+    outcome.mkdir(parents=True)
+    (outcome / "clarified-requirement.md").write_text("Fix the parser so it accepts trailing commas.", encoding="utf-8")
+
+    extracted = deposit.extract_turn_experience(session_file, 1)
+
+    assert extracted is not None
+    assert extracted.problem_statement == "Fix the parser so it accepts trailing commas."
+
+
+def test_a_missing_clarified_requirement_keeps_the_prompt(tmp_path: Path) -> None:
+    session_file = tmp_path / "session.json"
+    _write_session(session_file, _tool_turn())
+
+    extracted = deposit.extract_turn_experience(session_file, 1)
+
+    assert extracted is not None
+    assert extracted.problem_statement == "Fix the failing parser tests"
