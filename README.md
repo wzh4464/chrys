@@ -227,6 +227,33 @@ the execution flow, the complete artifact tree, and which files downstream agent
 The deeper implementation and recovery contract is documented in
 [docs/design/requirement-clarification-integration.md](docs/design/requirement-clarification-integration.md).
 
+## Long-horizon tasks
+
+Some requests do not fit in one pass. Chrys classifies each message and, when one earns it,
+runs a longer chain: a baseline implementation, a clarification with a code search running
+beside it against the frozen pre-baseline workspace, a repair pass over the baseline, and —
+where the repository says how to verify itself — a governed PACT campaign that finishes and
+checks the rest.
+
+Classification is local and cheap: a bilingual heuristic decides the obvious cases and only
+a genuinely ambiguous message costs one bounded model call. You can always override it with
+`/longrun`, `/quick`, or `chrys run --route`, and `chrys debug router "<prompt>"` shows what
+it would decide without running anything.
+
+```yaml
+# <repo>/.chrys/settings.yaml — what makes a campaign possible
+pact:
+  verify_command: "uv run pytest -q"
+```
+
+See [examples/long-horizon/](examples/long-horizon/) for the full walkthrough, the artifact
+tree, and a live smoke test.
+
+Chrys can also keep long-term memory in a locally deployed ContextGraph: every agent gets a
+retrieval tool it decides for itself when to use, and completed turns are deposited back
+after a session goes idle. `chrys memory doctor` says what is missing; see
+[examples/contextgraph-memory/](examples/contextgraph-memory/).
+
 Drop a file of the same shape into `~/.chrys/agents/` and it shows up in the picker and in
 `chrys agents`. Reuse a built-in's name and yours shadows it. The same file can attach MCP
 servers, [Agent Skills](https://agentskills.io/specification) directories, or an external
