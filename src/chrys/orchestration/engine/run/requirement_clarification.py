@@ -16,6 +16,11 @@ from uuid import uuid4
 from chrys.foundation.events.types import RequirementClarificationPhaseChanged, UserInjectResult, Warning
 from chrys.foundation.trajectory.ids import new_analytics_id
 from chrys.kernel import Message
+from chrys.orchestration.engine.run.workflow_extensions import (
+    NoopExtensions,
+    RepairOutcome,
+    RequirementWorkflowExtensions,
+)
 from chrys.service.agent_middleware.injection import ConsumedInjection, InjectionAnchor
 from chrys.service.requirement_clarification.artifacts import ClarificationArtifactStore
 from chrys.service.requirement_clarification.model import ChrysClarificationModel
@@ -84,8 +89,10 @@ class RequirementClarificationWorkflow:
         clarification_timeout_seconds: float = 1800.0,
         initial_timeout_seconds: float = 5400.0,
         repair_timeout_seconds: float = 5400.0,
+        extensions: RequirementWorkflowExtensions | None = None,
     ) -> None:
         self._host = host
+        self._extensions: RequirementWorkflowExtensions = extensions or NoopExtensions()
         self._runner = runner
         self._workflow_id = uuid4().hex
         self._snapshotter = WorkspaceSnapshotter()
@@ -148,6 +155,7 @@ class RequirementClarificationWorkflow:
         )
         if self._phase_name == RequirementWorkflowPhase.REPAIR and self._host._executor.is_running:
             await self._host._executor.interrupt()
+        await self._extensions.on_revision(self._revision)
         await self._host._bus.publish(
             UserInjectResult(
                 text=text,
@@ -162,6 +170,7 @@ class RequirementClarificationWorkflow:
     async def request_stop(self) -> None:
         """Stop the active phase and retain P0 whenever it already exists."""
         self._stop_requested = True
+        await self._extensions.cancel()
         if self._host._executor.is_running:
             await self._host._executor.interrupt()
 
@@ -379,11 +388,29 @@ class RequirementClarificationWorkflow:
                 )
                 try:
                     async with asyncio.timeout(self._clarification_timeout_seconds):
-                        result = await clarification_service.clarify(
-                            revision=revision,
-                            background=history_background,
-                            snapshot=s0,
+                        clarified, extension_outcome = await asyncio.gather(
+                            clarification_service.clarify(
+                                revision=revision,
+                                background=history_background,
+                                snapshot=s0,
+                            ),
+                            self._extensions.on_clarification_start(revision, s0),
+                            return_exceptions=True,
                         )
+                    if isinstance(extension_outcome, BaseException):
+                        # Parallel work is additive: losing it costs evidence,
+                        # never the clarification the turn actually needs.
+                        logger.warning("Clarification-parallel extension failed", exc_info=extension_outcome)
+                        await host._bus.publish(
+                            Warning(
+                                code="requirement_clarification_extension_failed",
+                                message=f"parallel clarification work failed: {extension_outcome}",
+                                session_id=host._session_id,
+                            )
+                        )
+                    if isinstance(clarified, BaseException):
+                        raise clarified
+                    result = clarified
                 except Exception as exc:
                     logger.warning("Requirement clarification side calls failed", exc_info=True)
                     detail = f"{type(exc).__name__}: {exc}"[:1000]
@@ -432,6 +459,7 @@ class RequirementClarificationWorkflow:
                                 revision=revision,
                                 background=history_background,
                                 snapshot=s0,
+                                localization_hints=self._extensions.pact_input_hints(),
                             )
                         result = replace(
                             result,
@@ -512,7 +540,7 @@ class RequirementClarificationWorkflow:
                 host._consumed_injections.clear()
                 executor.reset_counters(reset_batch_id=True)
                 executor.set_requirement_phase(RequirementWorkflowPhase.REPAIR)
-                reminder = _repair_reminder(revision, result.delta)
+                reminder = _repair_reminder(revision, self._extensions.augment_repair_reminder(result.delta))
                 if host._reminder_middleware is not None:
                     host._reminder_middleware.queue_hook_reminders([reminder])
                 executor.set_user_messages(list(revision.messages))
@@ -592,6 +620,17 @@ class RequirementClarificationWorkflow:
             all_injections = [*baseline_injections, *self._late_injections]
             host._consumed_injections[:] = _reanchor_injections(all_injections, executor.history_state)
             await self._phase(RequirementWorkflowPhase.FINALIZING, revision.number)
+            # Anything that runs after the repair — a delegation pass, say —
+            # goes here rather than after finalization, so the turn closes on
+            # whatever the workspace and the executor actually ended with.
+            await self._extensions.after_repair(
+                RepairOutcome(
+                    status="succeeded",
+                    final_text=executor.last_response_text,
+                    baseline="p1",
+                    pact_input_dir=self._pact_input_dir(),
+                )
+            )
             await self._runner.finalize_current_run()
             try:
                 artifacts.save_summary(
@@ -646,6 +685,14 @@ class RequirementClarificationWorkflow:
             )
         await executor.publish_last_response_as_final()
         await self._phase(RequirementWorkflowPhase.FINALIZING, revision.number, detail=detail)
+        await self._extensions.after_repair(
+            RepairOutcome(
+                status="promoted_p0",
+                final_text=text,
+                baseline="p0",
+                pact_input_dir=self._pact_input_dir(),
+            )
+        )
         await self._runner.finalize_current_run()
         if self._artifacts is not None:
             try:
@@ -666,6 +713,15 @@ class RequirementClarificationWorkflow:
             except OSError:
                 logger.warning("Failed to persist requirement-clarification fallback summary", exc_info=True)
         await self._phase(phase, revision.number, detail=detail, terminal=True)
+
+    def _pact_input_dir(self) -> Path | None:
+        """Return ``06-pact-input/`` only when a validated pair was written there."""
+        if self._artifacts is None:
+            return None
+        directory = self._artifacts.root / "06-pact-input"
+        contract = directory / "goal-contract.json"
+        plan = directory / "initial-plan.json"
+        return directory if contract.is_file() and plan.is_file() else None
 
     async def _degraded(self, detail: str) -> None:
         await self._host._bus.publish(

@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
+from chrys.service.requirement_clarification import service as service_module
 from chrys.service.requirement_clarification.service import (
     ClarificationService,
     _materialize_selection,
@@ -637,3 +638,66 @@ def test_pact_pair_validation_rejects_cycles() -> None:
 
     with pytest.raises(ValueError, match="contains a cycle"):
         validate_pact_runtime_input(goal_contract, initial_plan)
+
+
+# ── localization hints on the Initial Plan prompt ─────────────────────
+
+
+async def _pact_prompts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, hints: str) -> dict[str, str]:
+    """Run generate_pact_input and return the prompts each stage actually saw."""
+    prompts: dict[str, str] = {}
+    model = _FakeModel(_decision(selected_ids=("p1-g1",)))
+    monkeypatch.setattr(
+        "chrys.service.requirement_clarification.service.collect_base_evidence",
+        lambda _snapshot, _requirement: "packet",
+    )
+    monkeypatch.setattr(
+        "chrys.service.requirement_clarification.service.build_pact_goal_contract_prompt",
+        lambda *args: prompts.setdefault("goal", "GOAL " + " ".join(str(a) for a in args)),
+    )
+    original_plan_prompt = service_module.build_pact_initial_plan_prompt
+
+    def _plan_prompt(*args, **kwargs):
+        rendered = original_plan_prompt(*args, **kwargs)
+        prompts["plan_base"] = rendered
+        return rendered
+
+    monkeypatch.setattr(service_module, "build_pact_initial_plan_prompt", _plan_prompt)
+    original_generate = model.generate_pact_initial_plan
+
+    async def _generate(prompt: str):
+        prompts["plan"] = prompt
+        return await original_generate(prompt)
+
+    model.generate_pact_initial_plan = _generate  # type: ignore[method-assign]
+
+    service = ClarificationService(model)
+    revision = RequirementRevision(number=1, messages=("Add the option.",))
+    snapshot = _snapshot(tmp_path)
+    result = await service.clarify(revision=revision, background="ctx", snapshot=snapshot)
+    await service.generate_pact_input(
+        result=result,
+        revision=revision,
+        background="ctx",
+        snapshot=snapshot,
+        localization_hints=hints,
+    )
+    return prompts
+
+
+async def test_localization_hints_reach_the_plan_prompt_but_not_the_goal_contract(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A code search must never be able to widen what the campaign may do."""
+    prompts = await _pact_prompts(tmp_path, monkeypatch, hints="src/auth/provider.py:40 primary - token exchange")
+
+    assert "src/auth/provider.py" in prompts["plan"]
+    assert "Untrusted code localization evidence" in prompts["plan"]
+    assert "src/auth/provider.py" not in prompts["goal"]
+
+
+async def test_empty_hints_leave_the_plan_prompt_unchanged(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    prompts = await _pact_prompts(tmp_path, monkeypatch, hints="   ")
+
+    assert "Untrusted code localization evidence" not in prompts["plan"]
+    assert prompts["plan"] == prompts["plan_base"]
