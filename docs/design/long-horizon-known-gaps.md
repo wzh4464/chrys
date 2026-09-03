@@ -55,6 +55,23 @@ campaign 级的"停下并回滚"协议**。
 要正确处理需要 ContextGraph 支持"按 trajectory 身份更新"，属于上游改动；本次刻意不在 chrys 侧用重复
 写入来模拟它。
 
+## 1d. 崩溃恢复出来的 P0 轮次没有 mutation 记录
+
+进程在澄清 side-call 期间被杀死后，`_recover_incomplete_requirement_workflow` 会在工作区仍与 P0 一致时
+把 P0 的 transcript 提升为一个已完成的轮次。但 P0 pass 是以 `finalize=False` 跑的——**它从不 save**——
+所以那一趟的 mutation 行只存在于已经死掉的进程内存里。恢复时 `engine._mutation_tracker` 是从轮次**之前**
+的磁盘 state 水合的，随后的 save 又把这份陈旧 tracker 写回去。
+
+后果：那个轮次的改动在工作区里，但账本里没有：diff 界面对该轮次显示为空，`/rollback` 选"撤销改动"会
+回退历史却把 P0 的编辑留在工作树里。
+
+没有在本次修复的原因：让它可修需要 P0 pass 中途 save，而引擎里明确写着"主 save 会删除 recovery
+sidecar，而 sidecar 在轮次进行中是已提交但未合并的工具交换的唯一持久副本"——用一个更严重的丢失去换这个。
+真正的修法是把 mutation 账本与主 save 解耦，属于持久化层的设计改动。
+
+**运维含义**：看到 `requirement_clarification_recovery_conflict` 或"从中断的澄清流程恢复"的提示后，
+不要相信该轮次的 diff 视图；用 `git status` 自己看工作树。
+
 ## 2. 图不跨主机
 
 ContextGraph 连接来自 `~/.chrys/.env` 里的 `CONTEXTGRAPH_*`，指向**本机部署**的 Neo4j。

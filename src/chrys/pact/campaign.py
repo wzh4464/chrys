@@ -281,7 +281,11 @@ class CampaignCoordinator:
 
         if self._cancel_requested.is_set():
             message = "Invocation cancelled; canonical PACT artifacts, if any, were preserved."
-            await send_update(update_tool_call(campaign_tool_id, status="failed", raw_output=message))
+            # Suppressed like the failure path above: a broken channel is the
+            # usual companion of a cancel, and letting the notification's own
+            # error escape reports the run as a refusal instead of a cancel.
+            with contextlib.suppress(Exception):
+                await send_update(update_tool_call(campaign_tool_id, status="failed", raw_output=message))
             raise CampaignCancelled(message)
 
         await projection_reporter.refresh()
