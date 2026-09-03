@@ -19,7 +19,11 @@ from typing import TYPE_CHECKING, Any
 from chrys.foundation.events.types import LongHorizonPhaseChanged, Warning
 from chrys.orchestration.engine.run.workflow_extensions import RepairOutcome
 from chrys.service.profiles.models.registry import ModelProfileRegistry
-from chrys.service.routing.delegation import augment_delta_with_locations, localization_hints
+from chrys.service.routing.delegation import (
+    augment_delta_with_locations,
+    build_task_brief,
+    localization_hints,
+)
 from chrys.service.semantic_search import SemanticSearchConfig, SemanticSearchMode, localize_requirement
 from chrys.service.semantic_search.localization_model import resolve_localization_model_profile
 
@@ -67,6 +71,8 @@ class LongHorizonExtensions:
         self._decision = decision
         self._workflow_id = ""
         self.localization = LocalizationOutcome()
+        self.brief_path: Path | None = None
+        self._requirement = ""
         self._task: asyncio.Task[None] | None = None
 
     # -- RequirementWorkflowExtensions ---------------------------------
@@ -77,6 +83,7 @@ class LongHorizonExtensions:
 
     async def on_clarification_start(self, revision: RequirementRevision, s0: WorkspaceSnapshot) -> None:
         """Search the frozen S0 view while clarification runs against it."""
+        self._requirement = revision.rendered
         if not self._decision.plan.localization:
             return
         await self._phase(LongHorizonPhase.LOCALIZING, "searching the frozen workspace")
@@ -99,13 +106,69 @@ class LongHorizonExtensions:
         return augment_delta_with_locations(delta_text, self.localization.locations)
 
     def pact_input_hints(self) -> str:
-        """Return the search's candidates as untrusted evidence for the plan."""
+        """Return the search's candidates as untrusted evidence for the plan.
+
+        Also the moment the task brief first lands: the plan may reference it,
+        and a role reading the brief needs it on disk before the campaign runs.
+        """
+        self.write_brief(baseline="none")
         if not self.localization.available:
             return ""
         return localization_hints(self.localization.locations)
 
+    def write_brief(self, *, baseline: str) -> Path | None:
+        """Write the brief the campaign's roles read, and return its path.
+
+        Written even when a stage degraded: a brief that names what is missing
+        is more use to a role than no brief at all.
+        """
+        directory = self._turn_dir()
+        if directory is None:
+            return None
+        warnings = [self.localization.warning] if self.localization.warning else []
+        brief = build_task_brief(
+            original_requirement=self._requirement,
+            clarified_requirement_md=self._clarified_requirement(),
+            locations=self.localization.locations,
+            baseline=baseline,
+            warnings=warnings,
+        )
+        try:
+            directory.mkdir(parents=True, exist_ok=True)
+            path = directory / "brief.md"
+            path.write_text(brief, encoding="utf-8")
+        except OSError:
+            logger.warning("could not write the long-horizon task brief", exc_info=True)
+            return None
+        self.brief_path = path
+        return path
+
+    def _clarified_requirement(self) -> str | None:
+        """Read the clarification's own canonical output, when it produced one."""
+        session_dir = self._host._session_dir
+        if session_dir is None:
+            return None
+        path = (
+            session_dir
+            / "requirement_clarification"
+            / f"turn_{self._host._turn_number + 1}"
+            / "05-outcome"
+            / "clarified-requirement.md"
+        )
+        try:
+            return path.read_text(encoding="utf-8")
+        except OSError:
+            return None
+
+    def _turn_dir(self) -> Path | None:
+        session_dir = self._host._session_dir
+        if session_dir is None:
+            return None
+        return session_dir / "long_horizon" / f"turn_{self._host._turn_number + 1}"
+
     async def after_repair(self, outcome: RepairOutcome) -> None:
         """Hand the repaired baseline to a PACT campaign when one is warranted."""
+        self.write_brief(baseline=outcome.baseline)
         await self._phase(
             LongHorizonPhase.COMPLETED if outcome.status == "succeeded" else LongHorizonPhase.DEGRADED,
             f"baseline={outcome.baseline}",
@@ -116,6 +179,7 @@ class LongHorizonExtensions:
         """An amendment invalidates the search: the requirement it ran on changed."""
         await self.cancel()
         self.localization = LocalizationOutcome()
+        self._requirement = revision.rendered
 
     async def cancel(self) -> None:
         """Abandon a search still in flight."""
