@@ -14,6 +14,7 @@ TOTAL_SESSION_INPUT_TOKENS_KEY = "total_session_input_tokens"
 TOTAL_SESSION_OUTPUT_TOKENS_KEY = "total_session_output_tokens"
 TOTAL_SESSION_CACHE_HIT_TOKENS_KEY = "total_session_cache_hit_tokens"
 CONTEXT_CALIBRATION_KEY = "context_calibration"
+MEMORY_DEPOSIT_WATERMARK_KEY = "memory_deposit_watermark"
 CONTEXT_CALIBRATION_VERSION = 2
 
 
@@ -42,6 +43,13 @@ class SessionRuntimeMetadata:
     cache-aware response (even a reported 0) and stays ``int`` thereafter."""
     last_usage_details: LastUsageDetails = field(default_factory=dict)
     context_calibration: dict[str, Any] | None = None
+    memory_deposit_watermark: int = 0
+    """Highest turn already deposited into ContextGraph.
+
+    A high-water mark rather than a per-turn flag: writeback resumes from here
+    after an idle flush, a session end, or a later ``chrys memory sweep``, and a
+    failed write simply leaves it behind so the next pass retries.
+    """
 
     @classmethod
     def from_state_dict(cls, state: Mapping[str, Any]) -> Self:
@@ -59,6 +67,16 @@ class SessionRuntimeMetadata:
             context_calibration=(
                 dict(record) if isinstance((record := state.get(CONTEXT_CALIBRATION_KEY)), Mapping) else None
             ),
+            # A hand-edited or corrupted mark reads as 0 rather than raising:
+            # re-depositing is idempotent, skipping turns is not recoverable.
+            # ``bool`` is an ``int`` subclass, so it is rejected explicitly.
+            memory_deposit_watermark=(
+                mark
+                if isinstance(mark := state.get(MEMORY_DEPOSIT_WATERMARK_KEY, 0), int)
+                and not isinstance(mark, bool)
+                and mark >= 0
+                else 0
+            ),
         )
 
     def to_state_dict(self) -> dict[str, Any]:
@@ -69,6 +87,7 @@ class SessionRuntimeMetadata:
             TOTAL_SESSION_INPUT_TOKENS_KEY: self.total_session_input_tokens,
             TOTAL_SESSION_OUTPUT_TOKENS_KEY: self.total_session_output_tokens,
             TOTAL_SESSION_CACHE_HIT_TOKENS_KEY: self.total_session_cache_hit_tokens,
+            MEMORY_DEPOSIT_WATERMARK_KEY: self.memory_deposit_watermark,
         }
         if self.context_calibration is not None:
             state[CONTEXT_CALIBRATION_KEY] = dict(self.context_calibration)

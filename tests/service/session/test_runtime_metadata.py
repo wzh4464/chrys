@@ -4,7 +4,10 @@
 
 from __future__ import annotations
 
+import pytest
+
 from chrys.service.context.compaction import UnifiedContextStrategy
+from chrys.service.memory.writeback import WATERMARK_KEY
 from chrys.service.session.runtime_metadata import CONTEXT_CALIBRATION_VERSION, SessionRuntimeMetadata
 
 
@@ -42,6 +45,7 @@ def test_to_state_dict_writes_all_owned_keys_unconditionally() -> None:
         "total_session_input_tokens": 0,
         "total_session_output_tokens": 0,
         "total_session_cache_hit_tokens": None,
+        "memory_deposit_watermark": 0,
     }
     assert "turn_counter" not in state
 
@@ -192,3 +196,21 @@ def test_context_calibration_restore_skips_missing_malformed_and_wrong_version()
         agent_profile_fingerprint="agent",
     )
     assert not strategy.calibration_initialized
+
+
+def test_memory_deposit_watermark_round_trips() -> None:
+    metadata = SessionRuntimeMetadata(memory_deposit_watermark=4)
+
+    assert SessionRuntimeMetadata.from_state_dict(metadata.to_state_dict()).memory_deposit_watermark == 4
+
+
+def test_memory_deposit_watermark_defaults_to_zero_for_legacy_state() -> None:
+    assert SessionRuntimeMetadata.from_state_dict({}).memory_deposit_watermark == 0
+
+
+@pytest.mark.parametrize("stored", ["4", None, -1, 1.5, True])
+def test_a_non_integer_watermark_reads_as_zero(stored: object) -> None:
+    """A hand-edited or corrupted mark must not skip turns or crash the load."""
+    state = {WATERMARK_KEY: stored}
+
+    assert SessionRuntimeMetadata.from_state_dict(state).memory_deposit_watermark == 0

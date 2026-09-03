@@ -19,11 +19,14 @@ from typing import Any
 
 from chrys.foundation.models.turns import turn_slices
 from chrys.service.memory.contextgraph_deposit import deposit_experience, extract_turn_experience
+from chrys.service.session.runtime_metadata import MEMORY_DEPOSIT_WATERMARK_KEY
 from chrys.service.state.serializers import deserialize_state
 
 logger = logging.getLogger(__name__)
 
-WATERMARK_KEY = "memory_deposit_watermark"
+# Re-exported so a caller reading or writing the mark in persisted state does
+# not have to know it is declared alongside the other session-state keys.
+WATERMARK_KEY = MEMORY_DEPOSIT_WATERMARK_KEY
 
 
 @dataclass(frozen=True, slots=True)
