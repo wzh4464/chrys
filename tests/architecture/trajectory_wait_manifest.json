@@ -13298,7 +13298,7 @@
       "primitive": "awaitable",
       "qualname": "LongHorizonExtensions._degrade",
       "source_column": 8,
-      "source_line": 397,
+      "source_line": 430,
       "wrapper_target": null
     },
     {
@@ -13318,7 +13318,7 @@
       "primitive": "awaitable",
       "qualname": "LongHorizonExtensions._degrade_delegation",
       "source_column": 8,
-      "source_line": 289,
+      "source_line": 322,
       "wrapper_target": null
     },
     {
@@ -13338,7 +13338,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions._degrade_delegation",
       "source_column": 8,
-      "source_line": 297,
+      "source_line": 330,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._phase"
     },
     {
@@ -13358,7 +13358,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions._localize",
       "source_column": 12,
-      "source_line": 334,
+      "source_line": 367,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._degrade"
     },
     {
@@ -13378,7 +13378,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions._localize",
       "source_column": 12,
-      "source_line": 338,
+      "source_line": 371,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._degrade"
     },
     {
@@ -13398,7 +13398,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions._localize",
       "source_column": 12,
-      "source_line": 342,
+      "source_line": 375,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._degrade"
     },
     {
@@ -13418,7 +13418,7 @@
       "primitive": "thread_pool",
       "qualname": "LongHorizonExtensions._localize",
       "source_column": 21,
-      "source_line": 345,
+      "source_line": 378,
       "wrapper_target": null
     },
     {
@@ -13438,7 +13438,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions._localize",
       "source_column": 12,
-      "source_line": 358,
+      "source_line": 391,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._degrade"
     },
     {
@@ -13458,7 +13458,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions._localize",
       "source_column": 8,
-      "source_line": 363,
+      "source_line": 396,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._phase"
     },
     {
@@ -13478,7 +13478,7 @@
       "primitive": "awaitable",
       "qualname": "LongHorizonExtensions._phase",
       "source_column": 8,
-      "source_line": 406,
+      "source_line": 439,
       "wrapper_target": null
     },
     {
@@ -13498,7 +13498,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions.after_repair",
       "source_column": 12,
-      "source_line": 193,
+      "source_line": 226,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._phase"
     },
     {
@@ -13518,7 +13518,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions.after_repair",
       "source_column": 12,
-      "source_line": 203,
+      "source_line": 236,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._degrade_delegation"
     },
     {
@@ -13538,7 +13538,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions.after_repair",
       "source_column": 8,
-      "source_line": 216,
+      "source_line": 249,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._phase"
     },
     {
@@ -13558,7 +13558,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions.after_repair",
       "source_column": 12,
-      "source_line": 218,
+      "source_line": 251,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._degrade_delegation"
     },
     {
@@ -13578,7 +13578,7 @@
       "primitive": "awaitable",
       "qualname": "LongHorizonExtensions.after_repair",
       "source_column": 12,
-      "source_line": 221,
+      "source_line": 254,
       "wrapper_target": null
     },
     {
@@ -13598,7 +13598,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions.after_repair",
       "source_column": 12,
-      "source_line": 231,
+      "source_line": 264,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._phase"
     },
     {
@@ -13618,7 +13618,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions.after_repair",
       "source_column": 12,
-      "source_line": 236,
+      "source_line": 269,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._degrade_delegation"
     },
     {
@@ -13638,7 +13638,7 @@
       "primitive": "awaitable",
       "qualname": "LongHorizonExtensions.after_repair",
       "source_column": 12,
-      "source_line": 243,
+      "source_line": 276,
       "wrapper_target": null
     },
     {
@@ -13658,7 +13658,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions.after_repair",
       "source_column": 8,
-      "source_line": 250,
+      "source_line": 283,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._phase"
     },
     {
@@ -13678,7 +13678,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions.on_clarification_start",
       "source_column": 8,
-      "source_line": 109,
+      "source_line": 114,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._phase"
     },
     {
@@ -13698,7 +13698,7 @@
       "primitive": "timeout",
       "qualname": "LongHorizonExtensions.on_clarification_start",
       "source_column": 12,
-      "source_line": 112,
+      "source_line": 117,
       "wrapper_target": null
     },
     {
@@ -13718,7 +13718,7 @@
       "primitive": "shield",
       "qualname": "LongHorizonExtensions.on_clarification_start",
       "source_column": 35,
-      "source_line": 112,
+      "source_line": 117,
       "wrapper_target": null
     },
     {
@@ -13738,7 +13738,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions.on_clarification_start",
       "source_column": 12,
-      "source_line": 115,
+      "source_line": 120,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._degrade"
     },
     {
@@ -13758,7 +13758,7 @@
       "primitive": "awaitable",
       "qualname": "LongHorizonExtensions.on_revision",
       "source_column": 8,
-      "source_line": 318,
+      "source_line": 351,
       "wrapper_target": null
     },
     {

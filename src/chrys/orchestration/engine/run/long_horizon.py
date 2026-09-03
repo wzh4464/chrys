@@ -55,6 +55,11 @@ logger = logging.getLogger(__name__)
 # never becomes the turn's critical path.
 LOCALIZATION_TIMEOUT_SECONDS = 120.0
 
+# A prior is a hint, not a plan. Three strategies is enough to be useful and
+# small enough that it cannot crowd out the clarification evidence beside it.
+MEMORY_PRIOR_TOP_K = 3
+MEMORY_PRIOR_MAX_CHARS = 2000
+
 
 class LongHorizonPhase:
     """Phases the long-horizon track adds to the clarification workflow's own."""
@@ -126,15 +131,43 @@ class LongHorizonExtensions:
         return augment_delta_with_locations(delta_text, self.localization.locations)
 
     def pact_input_hints(self) -> str:
-        """Return the search's candidates as untrusted evidence for the plan.
+        """Return untrusted evidence for the plan: located code, then prior experience.
 
         Also the moment the task brief first lands: the plan may reference it,
         and a role reading the brief needs it on disk before the campaign runs.
         """
         self.write_brief(baseline="none")
-        if not self.localization.available:
+        sections: list[str] = []
+        if self.localization.available:
+            sections.append(localization_hints(self.localization.locations))
+        prior = self._memory_prior()
+        if prior:
+            sections.append(f"Prior experience from the team graph (untrusted):\n{prior}")
+        return "\n\n".join(section for section in sections if section)
+
+    def _memory_prior(self) -> str:
+        """Recall prior experience for this requirement, or nothing at all.
+
+        Silent on every failure: an unreachable graph is the normal case on a
+        machine that never configured one, and a plan is perfectly valid
+        without a prior. Bounded because a plan prompt has a budget it shares
+        with the clarification evidence.
+        """
+        if not self._requirement.strip():
             return ""
-        return localization_hints(self.localization.locations)
+        try:
+            from chrys.service.memory.contextgraph_mcp import _do_query
+            from chrys.service.memory.overlay import memory_mcp_server_config
+
+            if memory_mcp_server_config(self._host._settings) is None:
+                return ""
+            recalled = _do_query(self._requirement, MEMORY_PRIOR_TOP_K)
+        except Exception:
+            logger.debug("memory prior unavailable", exc_info=True)
+            return ""
+        if not isinstance(recalled, str) or "No prior ContextGraph memory found." in recalled:
+            return ""
+        return recalled.strip()[:MEMORY_PRIOR_MAX_CHARS]
 
     def write_brief(self, *, baseline: str) -> Path | None:
         """Write the brief the campaign's roles read, and return its path.
