@@ -363,7 +363,13 @@ def main(argv: list[str] | None = None) -> int:
         task_dir.mkdir(parents=True, exist_ok=True)
         result_path = task_dir / "result.json"
         if args.resume and result_path.is_file():
-            previous = json.loads(result_path.read_text(encoding="utf-8"))
+            try:
+                previous = json.loads(result_path.read_text(encoding="utf-8"))
+            except OSError, ValueError:
+                # A result truncated by a killed run is not a result. Redo the
+                # task rather than aborting the whole resumed batch on it --
+                # the loop's own error handling starts below this point.
+                previous = {}
             completed_statuses = {"completed"} if args.run_agent else {"localized", "completed"}
             # A timed-out/terminated agent may still have produced a useful
             # patch before the runner wrote its result.  Treat that durable

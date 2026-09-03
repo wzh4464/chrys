@@ -150,7 +150,14 @@ def _run_script(script: str, arguments: list[str], *, cwd: Path, timeout: float)
         raise SemanticSearchError(f"semantic-search {script} failed ({completed.returncode}): {detail}")
 
 
-def _cache_valid(artifacts, *, repo: Path, requirement: str) -> bool:
+def _cache_valid(artifacts, *, repo: Path, requirement: str, mode: str) -> bool:
+    """Whether the cached run answers the question being asked now.
+
+    The mode is part of the question, not a detail of the answer: a cached
+    ``fallback`` run is a deterministic ranking with no model behind it, and
+    reusing it for an ``llm`` request hands back the cheap result the caller
+    explicitly did not ask for, silently flagged as reused.
+    """
     if (
         not artifacts.manifest_json.is_file()
         or not artifacts.result_json.is_file()
@@ -161,9 +168,11 @@ def _cache_valid(artifacts, *, repo: Path, requirement: str) -> bool:
         manifest = json.loads(artifacts.manifest_json.read_text(encoding="utf-8"))
     except OSError, ValueError:
         return False
-    return manifest.get("requirement_sha256") == requirement_hash(requirement) and manifest.get(
-        "repo_fingerprint"
-    ) == repo_fingerprint(repo)
+    return (
+        manifest.get("requirement_sha256") == requirement_hash(requirement)
+        and manifest.get("repo_fingerprint") == repo_fingerprint(repo)
+        and manifest.get("mode") == mode
+    )
 
 
 def _redact_payload_paths(payload: dict[str, Any], *, artifact_dir: Path) -> dict[str, Any]:
@@ -230,7 +239,7 @@ def localize_requirement(
         raise SemanticSearchError("semantic localization is disabled")
     root = _resolve_repo(repo)
     artifacts = artifact_paths(_safe_artifact_dir(root, artifact_dir))
-    if not refresh and _cache_valid(artifacts, repo=root, requirement=requirement):
+    if not refresh and _cache_valid(artifacts, repo=root, requirement=requirement, mode=cfg.mode.value):
         # A corrupt cache is not a cache: fall through and regenerate rather
         # than failing a run the user never asked to reuse anything for.
         with suppress(SemanticSearchError):

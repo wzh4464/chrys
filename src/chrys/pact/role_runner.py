@@ -484,9 +484,16 @@ class InProcessChrysAdapter:
 
     @staticmethod
     def _clear_review_transport(path: Path) -> None:
+        """Remove a stale decision file, tolerating whatever is actually there.
+
+        The agent owns this directory, so the path can be a directory or an
+        unreadable entry rather than the file we expect. Failing to clear it is
+        not a reason to refuse to start the turn -- the capture step reports a
+        decision it cannot read.
+        """
         try:
             path.unlink()
-        except FileNotFoundError:
+        except OSError:
             return
 
     @staticmethod
@@ -504,7 +511,12 @@ class InProcessChrysAdapter:
                 finally:
                     path.unlink()
             else:
-                raise IsADirectoryError(path)
+                # A directory (or anything else) where the decision file
+                # belongs means the reviewer wrote no decision, which is what
+                # `parse_review_decision` reports from empty text. Raising here
+                # instead was caught as a spawn failure and threw away the
+                # final text of a turn that had actually completed.
+                raw_text = ""
         if existed and request.artifact_dir is not None:
             raw_path = request.artifact_dir / "reviewer-decision-raw.txt"
             raw_path.parent.mkdir(parents=True, exist_ok=True)

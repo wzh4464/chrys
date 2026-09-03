@@ -100,7 +100,13 @@ def _verify_task(
     reward_path = attempt / "verifier" / "reward.json"
     reward: dict[str, Any] = {}
     if reward_path.is_file():
-        loaded = json.loads(reward_path.read_text(encoding="utf-8"))
+        try:
+            loaded = json.loads(reward_path.read_text(encoding="utf-8"))
+        except OSError, ValueError:
+            # A verifier killed mid-write leaves a truncated reward file. That
+            # is a verifier failure for this task, not a reason to abandon the
+            # rest of the run -- the empty reward below reports it as one.
+            loaded = None
         reward = loaded if isinstance(loaded, dict) else {}
     resolved = reward.get("reward") == 1 or reward.get("reward") == 1.0
     status = "resolved" if resolved else "unresolved"

@@ -37138,7 +37138,7 @@
       "primitive": "wrapper",
       "qualname": "ClarificationService._clarify_legacy_v1",
       "source_column": 24,
-      "source_line": 247,
+      "source_line": 253,
       "wrapper_target": "chrys.service.requirement_clarification.service._collect_base_evidence"
     },
     {
@@ -37158,7 +37158,7 @@
       "primitive": "gather",
       "qualname": "ClarificationService._clarify_legacy_v1",
       "source_column": 27,
-      "source_line": 255,
+      "source_line": 261,
       "wrapper_target": null
     },
     {
@@ -37178,7 +37178,7 @@
       "primitive": "awaitable",
       "qualname": "ClarificationService._clarify_legacy_v1",
       "source_column": 36,
-      "source_line": 261,
+      "source_line": 267,
       "wrapper_target": null
     },
     {
@@ -37258,7 +37258,7 @@
       "primitive": "awaitable",
       "qualname": "ClarificationService.clarify",
       "source_column": 43,
-      "source_line": 189,
+      "source_line": 193,
       "wrapper_target": null
     },
     {
@@ -37278,7 +37278,7 @@
       "primitive": "awaitable",
       "qualname": "ClarificationService.generate_pact_input",
       "source_column": 36,
-      "source_line": 302,
+      "source_line": 311,
       "wrapper_target": null
     },
     {
@@ -37298,7 +37298,7 @@
       "primitive": "wrapper",
       "qualname": "ClarificationService.generate_pact_input",
       "source_column": 24,
-      "source_line": 305,
+      "source_line": 314,
       "wrapper_target": "chrys.service.requirement_clarification.service._collect_base_evidence"
     },
     {
@@ -37318,7 +37318,7 @@
       "primitive": "awaitable",
       "qualname": "ClarificationService.generate_pact_input",
       "source_column": 39,
-      "source_line": 332,
+      "source_line": 341,
       "wrapper_target": null
     },
     {

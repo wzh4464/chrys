@@ -598,3 +598,28 @@ def test_role_host_settings_never_route(tmp_path) -> None:
     derived = _derive_turn_settings(tmp_path, base)
 
     assert derived.settings.routing_mode == "off"
+
+
+async def test_a_directory_where_the_decision_belongs_does_not_fail_the_turn(tmp_path: Path) -> None:
+    """The reviewer owns that directory, so it can put anything at that path.
+
+    Raising there was caught as a spawn failure and threw away the final text
+    of a turn that had actually completed — over a misplaced `mkdir`.
+    """
+    factory = _FakeHostFactory([_HostScript(outcome=EndTurn(final_text="review evidence"))])
+    base = _base_settings()
+    adapter = _adapter(semantic_role="reviewer", base_settings=base, factory=factory, updates=[])
+    workdir = tmp_path / "workdir"
+    misplaced = workdir / ".pact-io" / "reviewer-decision.json"
+    misplaced.mkdir(parents=True)
+
+    with patch("chrys.pact.role_runner.load_settings", autospec=True, return_value=base):
+        result = await asyncio.to_thread(
+            adapter.run_turn,
+            _request(workdir, role="reviewer"),
+        )
+
+    assert result.status == "completed"
+    assert result.final_text == "review evidence"
+    assert result.review_decision.verdict_status == "malformed"
+    assert misplaced.is_dir()
