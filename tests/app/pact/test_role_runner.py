@@ -585,3 +585,16 @@ async def test_acp_update_failure_unwinds_adapter_and_shuts_down_active_host(
 
     assert len(factory.hosts) == expected_hosts
     assert all(host.shutdown_called for host in factory.hosts)
+
+
+def test_role_host_settings_never_route(tmp_path) -> None:
+    """A role already runs inside a campaign; routing here would start another."""
+    from chrys.foundation.config.settings import Settings
+    from chrys.foundation.config.settings_store import LoadedSettings
+    from chrys.pact.role_runner import _derive_turn_settings
+
+    base = LoadedSettings(settings=Settings(routing_mode="always"), provenance={})
+
+    derived = _derive_turn_settings(tmp_path, base)
+
+    assert derived.settings.routing_mode == "off"

@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import math
 import threading
 import time
@@ -122,7 +123,9 @@ def _derive_turn_settings(workdir: Path, base: LoadedSettings) -> LoadedSettings
         ),
     )
     loaded, _deferred = route_restart_settings(reattribute_command_line(candidate, base), base)
-    return loaded
+    # A role host must never route: it already runs inside a campaign, and a
+    # long-horizon decision here would try to start another one.
+    return dataclasses.replace(loaded, settings=dataclasses.replace(loaded.settings, routing_mode="off"))
 
 
 def _not_applicable_review_decision() -> ReviewDecisionCapture:

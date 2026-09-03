@@ -29,6 +29,11 @@ def build_parser() -> argparse.ArgumentParser:
     verification = parser.add_mutually_exclusive_group(required=True)
     verification.add_argument("--verify", metavar="COMMAND", help="Deterministic verification command")
     verification.add_argument(
+        "--verify-from-settings",
+        action="store_true",
+        help="Read the verification command from the pact.verify_command setting",
+    )
+    verification.add_argument(
         "--allow-unverified",
         action="store_true",
         help="Explicitly permit PACT completion without a verification command",
@@ -73,6 +78,16 @@ async def run_command(args: argparse.Namespace) -> int:
     if args.verify is not None and not verify_command:
         raise ValueError("--verify must contain a non-empty command.")
     loaded_settings = _prepare_runtime()
+    if args.verify_from_settings:
+        # Fail closed. A campaign whose verify command silently resolved to
+        # nothing would report work as done without ever checking it, which is
+        # the one thing the governance layer exists to prevent.
+        verify_command = loaded_settings.settings.pact_verify_command.strip()
+        if not verify_command:
+            raise ValueError(
+                "--verify-from-settings requires pact.verify_command to be set "
+                "(project .chrys/settings.yaml, user settings, or CHRYS_PACT_VERIFY_COMMAND)."
+            )
     profile_name = _resolve_profile_name(args.agent)
     server = default_server(
         profile_name=profile_name,
