@@ -48,7 +48,7 @@ def _main_session(store: Path) -> Path | None:
 
 
 def _route_marker(session: Path) -> dict | None:
-    envelope = _load(session / "session.json")
+    envelope = _load(session / "session.json") or _load(session / "session.recovery.json")
     if not envelope:
         return None
     for message in envelope.get("state", {}).get("messages", []):
@@ -111,7 +111,7 @@ def _prior(session: Path) -> dict:
 
 
 def _deposit(session: Path) -> dict:
-    envelope = _load(session / "session.json") or {}
+    envelope = _load(session / "session.json") or _load(session / "session.recovery.json") or {}
     state = envelope.get("state", {})
     return {"watermark": state.get("memory_deposit_watermark"), "turns": state.get("turn_counter")}
 
@@ -145,9 +145,10 @@ def _task_dirs(runs_dir: Path) -> list[tuple[str, Path | None, Path | None]]:
         if not entry.is_dir() or entry.name in {"chrys-home", "grades", "workspaces"}:
             continue
         store = entry / "agent_out" / "chrys"
-        patch = entry / "solution.patch"
-        if store.is_dir() or patch.is_file():
-            found.append((entry.name, store if store.is_dir() else None, patch if patch.is_file() else None))
+        # LoLBench captures solution.patch; the DeepSWE runner writes model.patch.
+        patch = next((c for c in (entry / "solution.patch", entry / "model.patch") if c.is_file()), None)
+        if store.is_dir() or patch is not None:
+            found.append((entry.name, store if store.is_dir() else None, patch))
         elif (entry / "result.json").is_file():
             found.append((entry.name, None, None))
     return found
@@ -157,7 +158,9 @@ def _runner_sessions(runs_dir: Path, task_id: str) -> Path | None:
     """The plain DeepSWE runner keeps one home for every task; match by workspace path."""
     store = runs_dir / "chrys-home" / ".chrys" / "sessions"
     for session in reversed(_sessions(store)):
-        meta = (_load(session / "session.json") or {}).get("meta", {})
+        # A run that ended without a final response leaves only the recovery envelope.
+        envelope = _load(session / "session.json") or _load(session / "session.recovery.json") or {}
+        meta = envelope.get("meta", {})
         cwd = str(meta.get("primary_cwd") or meta.get("cwd") or "")
         if cwd.rstrip("/").endswith(task_id) and (
             (session / "requirement_clarification").is_dir() or (session / "long_horizon").is_dir()
