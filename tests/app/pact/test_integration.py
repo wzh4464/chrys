@@ -12,6 +12,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import cast
 
+import pytest
 from pact_core.adapters.fake import FakeAdapter, FakeTurn
 from pact_core.runtime.planner import PlanningRequest, parse_plan_revision_proposal
 from pact_core.runtime.planning import validate_initial_plan
@@ -21,6 +22,14 @@ from pact_core.schemas import PlanChallenge, ReviewDecisionCapture
 from chrys.app.acp.bridge import SessionUpdate
 from chrys.foundation.config.settings_store import LoadedSettings
 from chrys.pact.campaign import CampaignCoordinator, SemanticRole, UpdateSender
+
+# PACT keeps every mission in its own git worktree named by campaign, mission, plan and
+# attempt; under pytest's temp directory on Windows that path exceeds what git accepts
+# ("fatal: '$GIT_DIR' too big"). The runtime behaves the same on every platform; only
+# the path budget differs, so these run on POSIX.
+pytestmark = pytest.mark.skipif(
+    sys.platform == "win32", reason="git worktree paths exceed Windows limits under pytest tmp"
+)
 
 _WORKER_RESULT = """## Changed files
 - greeting.txt: added

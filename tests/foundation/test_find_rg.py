@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import sys
 from pathlib import Path
 
 import pytest
@@ -41,6 +42,7 @@ def test_a_foreign_bundled_binary_falls_through_to_path(monkeypatch: pytest.Monk
     assert vendor.find_rg() == "/usr/bin/rg"
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="the probe binary is a POSIX shell script")
 def test_a_working_bundled_binary_is_preferred(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     binary = _bundle(monkeypatch, tmp_path, body="#!/bin/sh\necho 'ripgrep 0.0.0-test'\n")
     monkeypatch.setattr(shutil, "which", lambda name: "/usr/bin/rg" if name == "rg" else None)
