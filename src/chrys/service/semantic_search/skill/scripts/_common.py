@@ -274,15 +274,15 @@ def run_process_bounded(
             if start_new_session:
                 with suppress(ProcessLookupError):
                     os.killpg(process.pid, signal.SIGKILL)
-                process.wait()
-                # A descendant forked between the group sweep and the leader's death
-                # keeps the group alive; sweep it once more now that the leader is gone.
-                with suppress(ProcessLookupError):
-                    os.killpg(process.pid, signal.SIGKILL)
             else:
                 with suppress(ProcessLookupError):
                     process.kill()
-                process.wait()
+            process.wait()
+            # A descendant forked between the group sweep and the leader's death keeps
+            # the group alive; sweep it once more now that the leader is gone.
+            if start_new_session:
+                with suppress(ProcessLookupError):
+                    os.killpg(process.pid, signal.SIGKILL)
         stdout_file.seek(0)
         stderr_file.seek(0)
         stdout = stdout_file.read(max_chars * 4).decode("utf-8", errors="replace")[:max_chars]
