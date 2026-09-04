@@ -16,7 +16,7 @@ import pytest
 
 import chrys.orchestration.engine.run.requirement_clarification as workflow_module
 from chrys.foundation.events.bus import EventBus
-from chrys.foundation.events.types import AgentMessage, RequirementClarificationPhaseChanged
+from chrys.foundation.events.types import AgentMessage, RequirementClarificationPhaseChanged, Warning
 from chrys.foundation.models.workspace import Workspace
 from chrys.kernel import Message
 from chrys.orchestration.engine.run.requirement_clarification import (
@@ -409,3 +409,99 @@ async def test_live_clarification_side_call_is_cancelled_immediately(
     else:
         assert clarification_calls == 1
         assert executor.published_finals == ["P0"]
+
+
+async def test_a_baseline_pass_that_runs_out_of_budget_keeps_its_partial_work(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """P0 hitting its time budget is a bounded baseline, not an abandoned turn.
+
+    Two benchmark tasks spent ninety minutes editing and were then reported with
+    no final response because the budget ended the workflow. The budget now ends
+    the pass: the partial baseline is snapshotted, clarification and repair run on
+    it, and the turn delivers an answer.
+    """
+
+    async def _direct(function, /, *args, **kwargs):
+        return function(*args, **kwargs)
+
+    class _Service:
+        def __init__(self, _model, **_kwargs) -> None:
+            return
+
+        async def clarify(self, **_kwargs):
+            return _result()
+
+        async def generate_pact_input(self, **_kwargs):
+            raise RuntimeError("no PACT input in this test")
+
+    monkeypatch.setattr(workflow_module.asyncio, "to_thread", _direct)
+    monkeypatch.setattr(workflow_module, "ClarificationService", _Service)
+    monkeypatch.setattr(workflow_module, "ChrysClarificationModel", lambda **_kwargs: object())
+
+    workspace_root = tmp_path / "workspace"
+    workspace_root.mkdir()
+    workspace_file = workspace_root / "value.txt"
+    workspace_file.write_text("S0\n", encoding="utf-8")
+    executor = _Executor(workspace_file)
+    history = SessionHistoryManager()
+    history.bind(executor.history_state)
+    warnings: list[str] = []
+    bus = EventBus()
+    host = SimpleNamespace(
+        _active_profile=object(),
+        _agent_profile_fingerprint="agent-fp",
+        _model_profile_fingerprint="model-fp",
+        _bus=bus,
+        _consumed_injections=[],
+        _executor=executor,
+        _history=history,
+        _intermediate_texts={},
+        _reminder_middleware=_Reminder(),
+        _session_id="session",
+        _turn_number=0,
+        _turn_state=SimpleNamespace(close_injection_admission=lambda _scope: None),
+        _workspace=Workspace.from_cwd(str(workspace_root)),
+        _session_dir=tmp_path / "session",
+        _requirement_clarification_workflow=None,
+        _accumulate_side_call_usage=lambda _usage: None,
+    )
+
+    class _SlowRunner(_Runner):
+        async def _run_fresh_standard(self, text: str, **kwargs) -> None:
+            # Half the work lands, then the pass overruns its budget.
+            self.workspace_file.write_text("P0\n", encoding="utf-8")
+            self.host._executor.history_state["messages"] = [Message("user", [text]), Message("assistant", ["half"])]
+            self.host._executor.last_response_text = "half"
+            self.host._executor.is_running = True
+            try:
+                await asyncio.sleep(30)
+            except asyncio.CancelledError:
+                self.host._executor.is_running = False
+                raise
+
+    runner = _SlowRunner(host, workspace_file)
+    snapshotter = _Snapshotter(workspace_file)
+    workflow = RequirementClarificationWorkflow(host, runner, initial_timeout_seconds=0.05)
+    workflow._snapshotter = snapshotter
+
+    async def _warning(event: Warning) -> None:
+        warnings.append(event.code)
+
+    await bus.subscribe(Warning, _warning)
+    await workflow.run(
+        "do the thing",
+        created_at=None,
+        contents=["do the thing"],
+        run_scope=None,
+        injection_window=None,
+        admission_preparation=None,
+    )
+
+    assert "requirement_clarification_p0_timeout" in warnings
+    assert "p0" in snapshotter.calls  # the partial baseline was checkpointed
+    assert executor.run_calls == 1  # and the repair pass ran on it
+    assert executor.last_response_text == "P1"  # the turn's answer is the repair, not nothing
+    assert executor.was_interrupted is False
+    assert runner.finalized == 1

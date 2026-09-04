@@ -300,6 +300,7 @@ class RequirementClarificationWorkflow:
                 p0_history = h0
                 baseline_injections: list[ConsumedInjection] = []
             else:
+                p0_timed_out = False
                 try:
                     async with asyncio.timeout(self._initial_timeout_seconds):
                         await self._runner._run_fresh_standard(
@@ -312,18 +313,16 @@ class RequirementClarificationWorkflow:
                             finalize=False,
                         )
                 except TimeoutError:
+                    # The budget bounds the baseline pass; it does not abandon
+                    # the turn. The workspace holds whatever P0 managed, and
+                    # clarification and repair exist to improve exactly that --
+                    # ending here threw away ninety minutes of edits on two
+                    # benchmark tasks and answered with nothing at all.
+                    p0_timed_out = True
                     if executor.is_running:
                         await executor.interrupt()
-                    executor.set_requirement_phase("")
-                    await self._phase(
-                        RequirementWorkflowPhase.INTERRUPTED,
-                        revision.number,
-                        detail=f"initial implementation exceeded {self._initial_timeout_seconds:g} seconds",
-                        terminal=True,
-                    )
-                    await self._runner.finalize_current_run()
-                    return
-                if executor.run_failed or executor.was_interrupted:
+                    await _settle_executor(executor)
+                if executor.run_failed or (executor.was_interrupted and not p0_timed_out):
                     executor.set_requirement_phase("")
                     await self._phase(
                         RequirementWorkflowPhase.INTERRUPTED
@@ -335,6 +334,22 @@ class RequirementClarificationWorkflow:
                     await self._runner.finalize_current_run()
                     return
 
+                if p0_timed_out:
+                    detail = (
+                        f"initial implementation exceeded {self._initial_timeout_seconds:g} seconds; "
+                        "continuing with the partial baseline"
+                    )
+                    executor.adopt_fallback_success(
+                        executor.last_response_text.strip()
+                        or "The baseline pass was stopped at its time budget; the workspace holds its partial changes."
+                    )
+                    await host._bus.publish(
+                        Warning(
+                            code="requirement_clarification_p0_timeout",
+                            message=detail,
+                            session_id=host._session_id,
+                        )
+                    )
                 p0_text = executor.last_response_text
                 p0_history = executor.snapshot_history()
                 baseline_injections = list(host._consumed_injections)
@@ -896,6 +911,21 @@ def _unique_injections(injections: list[ConsumedInjection]) -> list[ConsumedInje
         seen.add(key)
         unique.append(injection)
     return unique
+
+
+async def _settle_executor(executor: Any, *, timeout_seconds: float = 30.0) -> None:
+    """Wait for an interrupted executor pass to actually stop.
+
+    ``interrupt`` signals the pass and cancels its tool; the history is only
+    safe to snapshot once the pass has observed that and returned.
+    """
+    # The executor exposes no "stopped" event, only ``is_running``; a bounded
+    # number of short waits is the whole of what can be done with that.
+    interval = 0.05
+    for _ in range(int(timeout_seconds / interval)):
+        if not getattr(executor, "is_running", False):
+            return
+        await asyncio.sleep(interval)
 
 
 def _snapshot_record(snapshot: WorkspaceSnapshot | None) -> dict[str, object] | None:
