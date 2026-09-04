@@ -56,6 +56,9 @@ class FakeHost:
         self.session_id = "session-1"
         self.model_profile_pinned = False
         self.published: list[object] = []
+        # Whether the host was already started when each event was published:
+        # an override published before ``start()`` has no subscriber to hold it.
+        self.started_at_publish: list[bool] = []
         self.reminders: list[list[str]] = []
         self.event_bus = SimpleNamespace(publish=self._publish)
         self.engine = SimpleNamespace(
@@ -68,6 +71,7 @@ class FakeHost:
 
     async def _publish(self, event: object) -> None:
         self.published.append(event)
+        self.started_at_publish.append(self.started)
 
     async def start(self) -> None:
         self.started = True
@@ -1657,10 +1661,14 @@ def test_route_flag_publishes_a_one_shot_override(monkeypatch: pytest.MonkeyPatc
     rc = run_cli.main(["hello", "--agent", "Headless", "--route", flag])
 
     assert rc == 0
-    (published,) = FakeHost.instances[-1].published
+    host = FakeHost.instances[-1]
+    (published,) = host.published
     assert isinstance(published, RouteOverride)
     assert published.track == expected
     assert published.one_shot is True
+    # A fresh run starts the host lazily; the engine subscribes its override
+    # handler in ``start()``, so publishing first would route by classifier.
+    assert host.started_at_publish == [True]
 
 
 def test_json_output_reports_the_route_when_one_was_decided(monkeypatch: pytest.MonkeyPatch, capsys) -> None:

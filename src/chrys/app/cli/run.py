@@ -558,7 +558,12 @@ async def run_command(args: argparse.Namespace, holder: PreparedRuntimeHolder) -
                 reminder_middleware.queue_hook_reminders([localization_reminder])
         if args.route != "auto":
             # Published before the prompt so it is waiting when the message is
-            # admitted; the engine consumes it for exactly that one turn.
+            # admitted; the engine consumes it for exactly that one turn. The
+            # handler that holds it is subscribed by ``start()``, which a fresh
+            # run has not called yet -- and a publish nobody hears is a turn
+            # routed by the classifier, which is how a benchmark forced onto
+            # the long-horizon track ran 10 of 12 tasks on the standard one.
+            await host.start()
             await host.event_bus.publish(
                 RouteOverride(
                     track="long_horizon" if args.route == "long-horizon" else "standard",

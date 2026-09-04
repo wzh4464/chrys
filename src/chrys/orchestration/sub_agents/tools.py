@@ -481,6 +481,7 @@ class SubAgentTools:
         # resolves the same command this session did; the child's environment is
         # an allowlist and inherits nothing from ours by design.
         self._pact_verify_command = settings.pact_verify_command.strip()
+        self._active_model_profile = settings.model_profile.strip()
         runtime_cwd = runtime.cwd if isinstance(runtime.cwd, str) else None
         if not self._workspace_cwd and runtime_cwd is not None:
             self._workspace_cwd = runtime_cwd
@@ -1242,6 +1243,10 @@ class SubAgentTools:
                 # command, the child was spawned into a clean environment and
                 # refused to start without one.
                 env["CHRYS_PACT_VERIFY_COMMAND"] = self._pact_verify_command
+            if is_self and self._active_model_profile and "CHRYS_MODEL_PROFILE" not in env:
+                # Same reason: a session run with `-m` would otherwise hand the
+                # campaign to whatever the global pointer says, or to nothing.
+                env["CHRYS_MODEL_PROFILE"] = self._active_model_profile
             cwd_raw = resolve_env_templates(config.cwd, location="ACP cwd") if config.cwd else runtime.cwd
         except ValueError as exc:
             raise AcpConfigError(str(exc), cause=exc) from exc
