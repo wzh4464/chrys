@@ -110,6 +110,14 @@ def _prior(session: Path) -> dict:
     return {"status": status, "rules": sum(1 for line in text.splitlines() if line.startswith("- "))}
 
 
+def _text(path: Path, limit: int) -> str:
+    try:
+        body = path.read_text(encoding="utf-8", errors="replace").strip()
+    except OSError:
+        return ""
+    return body if len(body) <= limit else body[:limit].rstrip() + f"\n… ({len(body) - limit} more chars)"
+
+
 def _deposit(session: Path) -> dict:
     envelope = _load(session / "session.json") or _load(session / "session.recovery.json") or {}
     state = envelope.get("state", {})
@@ -169,7 +177,7 @@ def _runner_sessions(runs_dir: Path, task_id: str) -> Path | None:
     return None
 
 
-def render(runs_dir: Path, grades_dir: Path | None) -> str:
+def render(runs_dir: Path, grades_dir: Path | None, *, verbose: bool = False) -> str:
     grades: dict[str, dict] = {}
     if grades_dir and (grades_dir / "results.csv").is_file():
         with (grades_dir / "results.csv").open(newline="", encoding="utf-8") as fh:
@@ -229,10 +237,40 @@ def render(runs_dir: Path, grades_dir: Path | None) -> str:
         lines.append(f"- localization: {loc['count']} candidates, CodeGraph {loc['codegraph']}")
         for cand in loc["candidates"]:
             lines.append(f"  - {cand}")
+        if verbose:
+            delta = _text(
+                session / "requirement_clarification" / "turn_1" / "05-outcome" / "clarified-requirement-delta.md", 2500
+            )
+            if delta:
+                lines.extend(
+                    (
+                        "",
+                        "<details><summary>澄清增量（clarified-requirement-delta.md）</summary>",
+                        "",
+                        "```text",
+                        delta,
+                        "```",
+                        "</details>",
+                    )
+                )
         lines.append("")
         lines.append("### 2. ContextGraph 召回与沉淀")
         lines.append(f"- recall: {prior['status']} ({prior['rules']} items)")
         lines.append(f"- deposit watermark: {dep['watermark']} of {dep['turns']} turn(s)")
+        if verbose:
+            recalled = _text(session / "long_horizon" / "turn_1" / "memory-prior.md", 2000)
+            if recalled:
+                lines.extend(
+                    (
+                        "",
+                        "<details><summary>召回内容（memory-prior.md）</summary>",
+                        "",
+                        "```text",
+                        recalled,
+                        "```",
+                        "</details>",
+                    )
+                )
         lines.append("")
         lines.append("### 3. PACT 执行")
         if not camp["children"]:
@@ -243,6 +281,10 @@ def render(runs_dir: Path, grades_dir: Path | None) -> str:
             )
             lines.append(f"  - {child['result']}")
         lines.append("")
+        if verbose:
+            final = _text(session / "requirement_clarification" / "turn_1" / "05-outcome" / "final-response.md", 2500)
+            if final:
+                lines.extend(("### 最终回复（final-response.md）", "", "```text", final, "```", ""))
         lines.append("### 4. 判分")
         if grade:
             lines.append(
@@ -275,8 +317,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--grades", type=Path, default=None, help="grade.py --out-dir (results.csv)")
     parser.add_argument("--out", type=Path, default=Path("report.md"))
+    parser.add_argument(
+        "--verbose", action="store_true", help="include each stage's actual output (delta, prior, final response)"
+    )
     args = parser.parse_args(argv)
-    text = render(args.runs_dir, args.grades)
+    text = render(args.runs_dir, args.grades, verbose=args.verbose)
     args.out.write_text(text, encoding="utf-8")
     print(f"wrote {args.out} ({len(text)} chars)")
     return 0
