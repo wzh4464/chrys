@@ -88,7 +88,9 @@ A campaign runs only when the workspace has a deterministic verification command
 DeepSWE tasks carry none of their own — so the wrapper image sets
 `CHRYS_PACT_VERIFY_COMMAND` from the task's language (`evaluation/deepswe/verify.py`:
 `go test ./...`, `python -m pytest -q -x`, `npm test --silent`, `cargo test -q`), which is
-what the campaign's Worker/Reviewer loop runs to accept each mission. Clarification's goal
+what the campaign's Worker/Reviewer loop runs to accept each mission (through
+`chrys.pact.verify_shim`, which lends pact_core's fresh verification worktrees the
+workspace's ignored `node_modules`/`.venv`/`target`). Clarification's goal
 contract and initial plan (`06-pact-input/`, copied to `.pact-io/chrys-pact/<id>/` in the
 workspace) are the campaign's input. A repository whose own suite fails at the base commit
 blocks its campaign; the turn then answers with the repaired baseline.

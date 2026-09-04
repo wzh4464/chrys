@@ -167,6 +167,14 @@ verification cannot disturb the session that delegated it. The mechanics:
   chrys pact-agent --agent Code --max-rounds 2 --verify 'python -m pytest -q'
   ```
 
+  Whichever way it arrives, the command runs through `chrys.pact.verify_shim`:
+  pact_core verifies each checkpoint in a fresh `git worktree`, which carries only
+  tracked files, so the shim first symlinks the primary checkout's git-ignored
+  directories (`node_modules`, `.venv`, `target`, a vendored tree) into the worktree
+  where nothing of that name exists, then runs the command in place. Without it,
+  `npm test` in the worktree ends in `vitest: not found` while passing in the
+  workspace, and every mission fails its gate.
+
   `command: chrys` is special-cased (`_resolve_self_command`): a source checkout runs
   `sys.executable -m chrys …`, a packaged runtime runs its own binary. The child's
   environment is an allowlist (`HOME`, `PATH`, …) plus the profile's `env`; a self

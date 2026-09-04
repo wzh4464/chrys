@@ -21,6 +21,7 @@ from acp.interfaces import Client
 from chrys import __version__
 from chrys.app.acp.bridge import SessionUpdate
 from chrys.pact.campaign import CampaignCancelled, CampaignCoordinator, CampaignTerminal, UpdateSender
+from chrys.pact.verify_shim import wrap_verify_command
 
 if TYPE_CHECKING:
     from chrys.foundation.config.settings_store import LoadedSettings
@@ -331,11 +332,14 @@ def default_server(
     max_rounds: int = 3,
 ) -> ChrysPactServer:
     """Build the production server while keeping tests dependency-injected."""
+    # pact_core verifies in fresh worktrees; the shim lends them the primary
+    # checkout's ignored dependency directories so the command finds its tools.
+    wrapped = wrap_verify_command(verify_command) if verify_command else verify_command
     return ChrysPactServer(
         lambda: CampaignCoordinator(
             profile_name=profile_name,
             loaded_settings=loaded_settings,
-            verify_command=verify_command,
+            verify_command=wrapped,
             allow_unverified=allow_unverified,
             max_rounds=max_rounds,
         )
