@@ -176,6 +176,42 @@ chrys run "<requirement>" --agent <profile-name>
 当前的 S0 隔离、artifact tree、fallback 和 PACT 落盘，因此不会回滚这些产品能力。模型服务随时间变化仍
 可能造成随机差异；该选项保证的是源码协议等价，而不是保证某道题必胜。
 
+### 3.3 长程 track 如何复用这条流程
+
+长程 track 不是另一条澄清流程，而是同一条流程加上六个扩展点。`engine/run/runner.py` 判定本轮为
+`RouteTrack.LONG_HORIZON` 时，会强制开启澄清、强制关闭 `reuse_workspace_as_p0` 与 `clarification_only`，
+并把 `LongHorizonExtensions` 传给 workflow；未路由到长程的轮次拿到的是 `NoopExtensions`，澄清行为与本文
+其余部分逐字节相同（`tests/orchestration/engine/test_workflow_extensions.py` 钉住这一点）。
+
+扩展点定义在 `engine/run/workflow_extensions.py`，长程实现在 `engine/run/long_horizon.py`：
+
+| 扩展点 | 时机 | 长程 track 做什么 |
+| --- | --- | --- |
+| E1 | P0 落盘后、`clarify()` 期间 | 与澄清**并行**跑语义定位（`localize_requirement_async`），读冻结的 S0 视图而不是活动工作树；预算由 `semantic_search.localization_timeout_seconds` 决定 |
+| E2 | delta 交给 repair 前 | 把候选位置作为**显式 untrusted** 表格追加在 delta 之后（delta 永远在前，且从不被改写） |
+| E3 | 生成 PACT 输入前 | 向 Initial Plan prompt 追加定位证据与团队图谱先验；**只给 Initial Plan，永不进 Goal Contract** |
+| E4 | repair 结束、`finalize_current_run()` 之前 | 把已接受的 contract/plan 复制进 `<workspace>/.pact-io/chrys-pact/<request-id>/`，排队一条委派 reminder，再跑第三次 executor pass 把 JSON 交给 `chrys_pact` |
+| E5/E6 | 阶段推进与降级记录 | 写 `long_horizon/turn_<n>/` 下的 brief 与阶段状态；`<n>` 与 `requirement_clarification/turn_<n>` 是同一个数 |
+
+因此一次长程轮次是 **P0 → ΔR → repair → 委派 pass** 四段。每一段都是降级而不是失败；campaign 的状态只从它
+自己的工具结果里读，从不从文本推断。手动入口：`chrys run --route long-horizon`、TUI 的 `/longrun`，
+`chrys debug router "<需求>"` 只做判定。
+
+### 3.4 需求增强（enrichment）：更轻的预检形态
+
+`requirement_enrichment` 是澄清工作流的轻量姐妹：冻结一份 turn-start 快照，**并行**跑澄清与定位，把两者的
+有界结果作为一条 `[REQUIREMENT_ENRICHMENT]` 提醒注入到**一次**普通运行之前——没有 P0、没有 repair。
+它与 `requirement_clarification` 互斥、默认关闭、ACP profile 不能开启。修改意见会取消两路分析并重来；
+工作区在分析期间发生变化时，过期的提示会被丢弃并告警。实现在 `engine/run/requirement_enrichment.py`，
+产物在 `<session>/requirement_enrichment/turn_<n>/`。
+
+```yaml
+requirement_enrichment:
+  enabled: true
+  clarification_strategy: legacy-v1-stabilized
+  localization_mode: auto
+```
+
 ## 4. 产物在哪里
 
 默认 session storage 位于：

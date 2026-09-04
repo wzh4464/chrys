@@ -149,7 +149,7 @@ DeepSWE 前 20 题（deepseek-v4-pro via OpenRouter，reasoning effort high，`c
 
 1. **分母偏大**：gold patch 包含 benchmark 自己撰写的测试文件，定位阶段没有理由指向它们，因此真实的
    "该改的实现文件"召回率高于上表。
-2. **这是 Task 26 之前的测量**：跑的是 subprocess 版定位路径，不是后来的 in-process
+2. **这是 Task 26 之前的测量**（而 Task 26 的 in-process 模型随后已被上游的 subprocess 定位流水线取代；"after"对照现在是 `deepswe_runner --run-long-horizon` 跑出的整条长程 track，见 `runs/first20-lh`）：跑的是 subprocess 版定位路径，不是后来的 in-process
    `ChrysLocalizationModel`。数值可作为"不比基线差"的参照，不能当作当前实现的评估结果。
 
 结论：候选位置是**提示**，不是答案。这也是它在 delta 之后、在 Initial Plan prompt 里、在 brief 里都被标为
