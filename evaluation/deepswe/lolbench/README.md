@@ -131,3 +131,7 @@ SMTP with an app password from the environment.
   with `network_mode = "no-network"` and a Harbor-hosted model. Grading is identical to
   DeepSWE's (`tests/test.sh` in the verifier image, no network).
 - Task images are `x86_64` Debian bookworm; run this on an x86_64 host.
+- The agent runs as root inside its container, so everything it writes under
+  `runs/deepswe/<agent>/<id>/agent_out/` (the captured session store included) is
+  root-owned on the host. Reading is fine; to delete a run use
+  `docker run --rm -v "$PWD/runs:/r" alpine rm -rf /r/deepswe`.

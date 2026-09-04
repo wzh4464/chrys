@@ -230,6 +230,11 @@ uv run pytest -m "not integration and not gc_calibration"
   在上游 main 本地同样失败，与本分支无关。
 - 远端 Neo4j 曾在 IO 风暴中静默退出（日志停在 Started），`neo4j status` 在无 JDK PATH 的非交互 ssh 里会误报
   "We cannot execute"；核对时先 `export PATH=$HOME/lhs/jdk21/bin:$PATH`。
+- **LoLBench 接入的"前 20 题"选错**（`fe3dea0a`）：`gen_instances.py` 按目录名排序取前 20，而 DeepSWE runner
+  按 `tasks/manifest.json` 顺序；两套 20 题几乎不重叠。改为 manifest 顺序后重跑。容器内 agent 以 root 写
+  `agent_out/`，普通用户删不掉，用 alpine 容器删。
+- lh 被杀过的运行留下的工作区会让 `--resume` 后的重跑撞 `index.lock`（langchain 就是这样失败的）；
+  排队分片对应的 5 个旧工作区已清理，langchain 的失败记录删掉让它重跑。
 
 ## 7. 交付状态（09-03 收尾）
 
