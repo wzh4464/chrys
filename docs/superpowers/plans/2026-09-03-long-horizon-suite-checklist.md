@@ -294,6 +294,16 @@ uv run pytest -m "not integration and not gc_calibration"
   （`evaluation/deepswe/lolbench/patches/lolbench_eval-cpuset.diff`）给代理容器按实例分配 `--cpuset-cpus`，
   Node 的 `availableParallelism()` 随亲和掩码变为 4。对已在跑的第二轮无效，第三轮起生效。
 
+- **第二轮的首批完整 campaign**（09-05 03:40）：mashumaro（6/6 mission，1 h 48 min）、wasmi（5/5，2 h 04 min）、
+  koota-composite（5/5，2 h 24 min）全部 `status: completed`，每轮验证经 verify-shim + 任务自带 runner 通过。三者都
+  会撞上容器内 10200 s 超时：在最后两个 mission 时对容器内 `timeout`（pid 14）与引擎进程 SIGSTOP，chrys 跑完后由
+  `resume_after_campaigns.sh` 依次 SIGCONT（run.sh 以 rc=124 捕获补丁；引擎先 `proc.wait()` 再判超时，恢复后按
+  "done" 收尾）。后续轮次 AGENT_TIMEOUT=18000、`--mem 10g`，不再需要救援。
+- **fastapi 的 campaign 死于 `R3 Planner cannot change Plan constraints`**（`2b99ee31`）：mission 两轮未被 Reviewer 接受
+  后 Manager 触发重规划，Planner 改了 constraints。Planner 提示现在列出 pact_core 对修订的全部规则。
+- **两次 rc=137**（sql-formatter、python-statemachine，均在 P0/P1 阶段）：chrys 进程被 SIGKILL 后 `timeout` 转发信号；
+  docker/内核日志无 OOM 记录，转写里也没有模型执行的 kill 命令，原因未定。已将容器内存提到 10g、限制工具链并行度。
+
 ## 7. 交付状态（09-03 收尾）
 
 - 36 个 task 全部完成并 commit 在本地 `integration/long-horizon-suite`（`origin/main..HEAD` 共 96 个
