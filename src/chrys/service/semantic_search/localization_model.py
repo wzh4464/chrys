@@ -163,7 +163,9 @@ class ChrysLocalizationModel:
             stream=False,
         )
         text = response.text or ""
-        self._trace("final-response", {"chars": len(text)})
+        # The text itself, bounded: a count alone made a zero-location run
+        # undiagnosable after the fact.
+        self._trace("final-response", {"chars": len(text), "text": text[:2000]})
 
         parsed = agent_module.parse_locations(text)
         normalized = agent_module.normalize_locations(parsed, graph, source="llm-search")

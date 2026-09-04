@@ -236,9 +236,23 @@ def _path_aliases(value: str) -> tuple[str, ...]:
 
 def _anchor_read_paths(anchor: str, read_paths: tuple[str, ...]) -> tuple[str, ...]:
     normalized_anchor = anchor.replace("\\", "/")
-    return tuple(
+    matched = tuple(
         path for path in read_paths if any(alias and alias in normalized_anchor for alias in _path_aliases(path))
     )
+    if matched:
+        return matched
+    # A file at the repository root has no directory component to cite, and the
+    # suffix aliases above never go down to a single segment -- so `pyproject.toml`
+    # was uncitable no matter how carefully it had been read. Fall back to the
+    # bare name, but only for an anchor that names no directory at all, and only
+    # when exactly one inspected path carries it: an anchor that DID name a
+    # directory and still missed is a real miss, and a name shared by several
+    # inspected files is the ambiguity the suffix rule exists to prevent.
+    cited = normalized_anchor.split(":", 1)[0].strip()
+    if not cited or "/" in cited:
+        return ()
+    by_name = tuple(path for path in read_paths if path.rsplit("/", 1)[-1] == cited)
+    return by_name if len(by_name) == 1 else ()
 
 
 def _proposal_current_repo_anchors(proposal: ClarificationProposal) -> list[str]:

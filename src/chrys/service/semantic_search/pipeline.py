@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import subprocess
 import sys
@@ -27,6 +28,8 @@ from chrys.service.profiles.models.schema import ModelProfile
 from .config import SemanticSearchConfig, SemanticSearchMode
 from .models import LocalizationArtifact, LocalizationResult
 from .output import artifact_paths, repo_fingerprint, requirement_hash, write_manifest
+
+logger = logging.getLogger(__name__)
 
 
 class SemanticSearchError(RuntimeError):
@@ -105,7 +108,12 @@ def _run_in_process_localization(
         warnings.append(f"model_locked: {exc}")
         return None
     except Exception as exc:
-        warnings.append(f"model_unavailable: {exc}")
+        # Both channels, because neither alone survives: the warning is lost
+        # when the pipeline goes on to raise, and a trace line is the only
+        # record that lands beside the artifacts a reader will actually open.
+        logger.warning("in-process localization failed", exc_info=True)
+        _trace_writer(artifacts.trace_jsonl)("agent-failed", {"error": f"{type(exc).__name__}: {exc}"[:800]})
+        warnings.append(f"model_unavailable: {type(exc).__name__}: {exc}")
         return None
     if run is None:
         warnings.append("model_unavailable: the search returned no repository locations")

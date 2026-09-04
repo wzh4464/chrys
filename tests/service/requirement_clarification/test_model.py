@@ -417,3 +417,35 @@ def test_the_investigation_record_holds_every_anchor_a_proposal_may_cite() -> No
     )
 
     assert len(record.verified_evidence) == MAX_PROPOSAL_EVIDENCE_ANCHORS
+
+
+def test_a_repository_root_file_can_be_cited_as_evidence() -> None:
+    """`pyproject.toml` has no directory component to cite.
+
+    The suffix aliases never go down to a single segment, so a root-level file
+    was uncitable no matter how carefully it had been read — which rejected
+    two of three proposers on a live run and degraded the whole turn.
+    """
+    from chrys.service.requirement_clarification.model import _anchor_read_paths, _normalized_path
+
+    view = "/session/s0/roots/0/view"
+    reads = tuple(_normalized_path(view + p) for p in ("/pyproject.toml", "/src/parser.py"))
+
+    assert _anchor_read_paths("pyproject.toml:9-12", reads)
+    assert _anchor_read_paths("src/parser.py:1-2", reads)
+
+
+def test_the_bare_name_fallback_does_not_weaken_the_gate() -> None:
+    """It applies only where a directory could not have been written."""
+    from chrys.service.requirement_clarification.model import _anchor_read_paths, _normalized_path
+
+    view = "/session/s0/roots/0/view"
+    reads = tuple(_normalized_path(view + p) for p in ("/src/parser.py",))
+
+    # Named a directory and missed: a real miss, not a root-file citation.
+    assert not _anchor_read_paths("lib/parser.py:1", reads)
+
+    ambiguous = tuple(_normalized_path(view + p) for p in ("/a/utils.py", "/b/utils.py"))
+
+    # The ambiguity the suffix rule exists to prevent.
+    assert not _anchor_read_paths("utils.py:3", ambiguous)
