@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+import json
 import math
 import re
 import threading
@@ -39,6 +40,7 @@ from chrys.orchestration.session_host import (
     TurnOutcome,
 )
 from chrys.service.approval.policy import ApprovalMode
+from chrys.service.llm.json_extract import json_object_candidates, repair_json_object_candidate
 
 SemanticRole = Literal["worker", "reviewer", "planner", "manager"]
 SendUpdate = Callable[[SessionUpdate], Awaitable[None]]
@@ -156,6 +158,36 @@ def _bounded_diagnostic(error: BaseException) -> str:
 
 
 _FENCED_WHOLE = re.compile(r"\A\s*```[A-Za-z0-9_+-]*[ \t]*\r?\n(.*?)\r?\n[ \t]*```\s*\Z", re.DOTALL)
+
+
+_JSON_PROTOCOL_ROLES = frozenset({"manager", "planner"})
+
+
+def _protocol_payload(text: str) -> str:
+    """The JSON object a Manager or Planner reply carries, wherever the model put it.
+
+    The protocols want a bare object. Models return it inside a fence, after a
+    paragraph of reasoning, or both -- a Manager that wrote "The campaign is
+    genuinely blocked: …" and then the correct decision in a ```json block was
+    rejected as "not valid JSON", and the campaign ended. A reply with no JSON
+    object at all is returned as it is, so the runtime's own repair pass still
+    sees what the model said.
+    """
+    stripped = _unfenced(text).strip()
+    try:
+        json.loads(stripped)
+    except ValueError:
+        pass
+    else:
+        return stripped
+    for candidate in json_object_candidates(text):
+        try:
+            payload = json.loads(repair_json_object_candidate(candidate))
+        except ValueError, RecursionError:
+            continue
+        if isinstance(payload, dict):
+            return json.dumps(payload)
+    return text
 
 
 def _unfenced(text: str) -> str:
@@ -315,6 +347,8 @@ class InProcessChrysAdapter:
                 except asyncio.CancelledError as error:
                     raise RoleTurnCancelled("PACT role turn was cancelled") from error
                 status, final_text, diagnostic = self._map_outcome(host.last_turn_outcome)
+                if status == "completed" and self.semantic_role in _JSON_PROTOCOL_ROLES:
+                    final_text = _protocol_payload(final_text)
             session_id = host.session_id
             if self.semantic_role == "reviewer":
                 review_decision = self._capture_review_decision(request, transport_path)

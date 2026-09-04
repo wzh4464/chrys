@@ -670,3 +670,25 @@ def test_map_outcome_unfences_a_completed_reply() -> None:
     status, text, diagnostic = InProcessChrysAdapter._map_outcome(EndTurn(final_text='```json\n{"a": 1}\n```'))
 
     assert (status, text, diagnostic) == ("completed", '{"a": 1}', "")
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        'The campaign is blocked: deps missing.\n\n```json\n{"schema": "x", "action": "request_replan"}\n```',
+        'Reasoning first. {"schema": "x", "action": "request_replan"} And a closing remark.',
+        '```json\n{"schema": "x", "action": "request_replan"}\n```',
+    ],
+)
+def test_a_json_protocol_reply_is_reduced_to_its_object(text: str) -> None:
+    from chrys.pact.role_runner import _protocol_payload
+
+    assert json.loads(_protocol_payload(text)) == {"schema": "x", "action": "request_replan"}
+
+
+def test_a_reply_without_any_object_is_left_for_the_repair_pass() -> None:
+    from chrys.pact.role_runner import _protocol_payload
+
+    assert _protocol_payload("Removed the stray fields; the plan is otherwise unchanged.") == (
+        "Removed the stray fields; the plan is otherwise unchanged."
+    )
