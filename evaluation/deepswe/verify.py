@@ -12,7 +12,7 @@ the base commit.
 from __future__ import annotations
 
 import re
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 VERIFY_BY_LANGUAGE: dict[str, str] = {
     "go": "go test ./...",
@@ -195,7 +195,7 @@ def _mentions_hidden_test(line: str, hidden: list[str]) -> bool:
     names = set()
     for path in hidden:
         names.add(path)
-        names.add(Path(path).name)
+        names.add(PurePosixPath(path).name)
     return any(name in rest for name in names)
 
 
@@ -282,10 +282,11 @@ def sanitize_runner(script: str, hidden: list[str]) -> str:
     for path in hidden:
         if path == "test.sh":
             continue
-        name = Path(path).name
-        suffix = "".join(Path(name).suffixes)
+        name = PurePosixPath(path).name
+        suffix = "".join(PurePosixPath(name).suffixes)
         placeholder = f"__hidden__{suffix}"
-        replacements.append((path, str(Path(path).with_name(placeholder))))
+        # Patch paths are POSIX; keep them so on every host (Path would write backslashes on Windows).
+        replacements.append((path, str(PurePosixPath(path).with_name(placeholder))))
         replacements.append((name, placeholder))
     # Longest first so a full path is rewritten before its basename.
     replacements.sort(key=lambda pair: len(pair[0]), reverse=True)
