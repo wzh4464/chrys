@@ -104,6 +104,16 @@ def test_bridge_does_not_delta_against_intermediate_agent_text() -> None:
     assert [update.content.text for update in updates] == ["Plan", "Plan complete"]
 
 
+def test_bridge_labels_requirement_baseline_and_emits_repair_in_full() -> None:
+    bridge = AcpEventBridge()
+
+    provisional = bridge.updates_for_event(AgentMessage(text="baseline", is_final=False, is_provisional=True))
+    repaired = bridge.updates_for_event(AgentMessage(text="final repair", is_final=True))
+
+    assert provisional[0].content.text == "_Baseline candidate (provisional)_\n\nbaseline"
+    assert repaired[0].content.text == "final repair"
+
+
 def test_bridge_keeps_rejected_provisional_text_and_resets_the_stream_baseline() -> None:
     bridge = AcpEventBridge()
 

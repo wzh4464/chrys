@@ -47,6 +47,7 @@ from chrys.service.profiles.models.resolver import (
     loaded_with_active_model_profile,
     resolve_profile_selector,
 )
+from chrys.service.semantic_search.output import load_report
 
 _MAX_TRANSIENT_RETRIES_INVALID = msg(
     "settings.max_transient_retries_invalid",
@@ -132,6 +133,11 @@ def build_parser() -> argparse.ArgumentParser:
         dest="cwd",
         default=None,
         help="Working directory for the run",
+    )
+    parser.add_argument(
+        "--localization-file",
+        metavar="FILE",
+        help="Append an existing semantic-localization report to this run",
     )
     parser.add_argument("--json", action="store_true", help="Emit JSON output")
     return parser
@@ -387,10 +393,29 @@ def _restore_delta_warnings(loaded: LoadedSettings, pending: Iterable[Warning]) 
     ]
 
 
+def _append_localization_context(prompt: str, report_file: str | None) -> str:
+    """Append one bounded localization report while preserving the original requirement."""
+    if not report_file:
+        return prompt
+    report = load_report(Path(report_file).expanduser().resolve())
+    if not report.strip():
+        return prompt
+    return (
+        f"{prompt.rstrip()}\n\n"
+        "<semantic-code-localization>\n"
+        "The following report contains inspection candidates only. "
+        "The original user requirement is authoritative. Read and verify source before editing; "
+        "do not edit every listed file.\n\n"
+        f"{report}\n"
+        "</semantic-code-localization>"
+    )
+
+
 async def run_command(args: argparse.Namespace, holder: PreparedRuntimeHolder) -> int:
     """Execute parsed ``chrys run`` args."""
     cwd = _apply_cwd(args.cwd)
     prompt = _resolve_prompt(args)
+    prompt = _append_localization_context(prompt, args.localization_file)
     # Normalized once, to the host's own reading of the flag: the host strips
     # the id and treats a blank one as "no session", and a project-free
     # bootstrap for a run that then starts fresh would silently drop the

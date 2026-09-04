@@ -298,6 +298,8 @@ class _Host:
         self._turn_state.pending_retry = PendingRetry(text="stale", session_generation=self.session_generation)
         self._hook_manager = _PromptHookManager(decision)
         self._agent_profile = None
+        self._requirement_clarification_workflow = None
+        self._requirement_enrichment_workflow = None
         self._memory_files = ["AGENTS.md"]
         self._workspace = None
         self._trajectory_recorder = _TrajectoryRecorder()

@@ -579,6 +579,12 @@ class AcpEventBridge:
         text = event.text
         if not text:
             return ""
+        if event.is_provisional:
+            # ACP has no provisional/retractable assistant block. Present P0
+            # as an explicitly labelled snapshot and reset cumulative-delta
+            # tracking so the later P1 is emitted in full.
+            self._last_streaming_agent_text = ""
+            return f"_Baseline candidate (provisional)_\n\n{text}"
         if event.is_intermediate:
             self._last_streaming_agent_text = ""
             return text

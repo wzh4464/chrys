@@ -80,6 +80,9 @@ dev = [
 [tool.hatch.build.targets.wheel]
 packages = ["src/chrys"]
 
+[tool.hatch.build.targets.wheel.force-include]
+".agents/skills/semantic-search" = "chrys/_skills/semantic-search"
+
 [tool.hatch.build]
 # Include vendored assets that are gitignored (downloaded at build time)
 artifacts = ["src/chrys/foundation/vendor/ripgrep/*"]

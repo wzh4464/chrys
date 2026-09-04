@@ -1568,3 +1568,17 @@ def test_missing_model_selection_without_available_profiles_binds_short_display_
     assert run_cli._exception_message(excinfo.value) == "Model profile not found: Missing"
     assert excinfo.value.display_message is not None
     assert excinfo.value.display_message.definition is run_cli._MODEL_PROFILE_NOT_FOUND
+
+
+def test_localization_file_is_bounded_and_appended_as_advisory_context(tmp_path: Path) -> None:
+    report = tmp_path / "code-localization.md"
+    report.write_text("# Candidate\n- src/parser.py\n", encoding="utf-8")
+    args = run_cli.build_parser().parse_args(
+        ["implement parser", "--agent", "Code", "--localization-file", str(report)]
+    )
+
+    enriched = run_cli._append_localization_context(args.prompt, args.localization_file)
+
+    assert enriched.startswith("implement parser\n\n<semantic-code-localization>")
+    assert "src/parser.py" in enriched
+    assert "original user requirement is authoritative" in enriched

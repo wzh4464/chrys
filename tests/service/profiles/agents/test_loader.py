@@ -55,6 +55,132 @@ def test_load_minimal_yaml(tmp_path: Path) -> None:
     assert profile.instructions == ""
     assert profile.tools.builtins == []
     assert profile.sub_agents.max_total_concurrency == 3
+    assert profile.requirement_clarification.clarification_timeout_seconds == 1800.0
+    assert profile.requirement_clarification.initial_timeout_seconds == 5400.0
+    assert profile.requirement_clarification.repair_timeout_seconds == 5400.0
+    assert profile.requirement_clarification.strategy == "legacy-v1-stabilized"
+    assert profile.requirement_enrichment.enabled is False
+    assert profile.requirement_enrichment.localization_mode == "auto"
+
+
+def test_load_requirement_clarification_exact_legacy_strategy(tmp_path: Path) -> None:
+    path = tmp_path / "clarification-exact.yaml"
+    path.write_text(
+        "name: clarification\nrequirement_clarification:\n  enabled: true\n  strategy: legacy-v1-exact\n",
+        encoding="utf-8",
+    )
+
+    profile = load_profile_from_yaml(path)
+
+    assert profile.requirement_clarification.strategy == "legacy-v1-exact"
+
+
+def test_load_requirement_clarification_rejects_unknown_strategy(tmp_path: Path) -> None:
+    path = tmp_path / "clarification-invalid-strategy.yaml"
+    path.write_text(
+        "name: clarification\nrequirement_clarification:\n  enabled: true\n  strategy: v6-placeholder\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(AgentProfileLoadError, match=r"requirement_clarification\.strategy"):
+        load_profile_from_yaml(path)
+
+
+def test_load_requirement_clarification_phase_timeouts(tmp_path: Path) -> None:
+    path = tmp_path / "clarification.yaml"
+    path.write_text(
+        "name: clarification\nrequirement_clarification:\n  enabled: true\n"
+        "  clarification_timeout_seconds: 6\n  initial_timeout_seconds: 12\n  repair_timeout_seconds: 34.5\n",
+        encoding="utf-8",
+    )
+
+    profile = load_profile_from_yaml(path)
+
+    assert profile.requirement_clarification.enabled is True
+    assert profile.requirement_clarification.clarification_timeout_seconds == 6.0
+    assert profile.requirement_clarification.initial_timeout_seconds == 12.0
+    assert profile.requirement_clarification.repair_timeout_seconds == 34.5
+
+
+def test_load_requirement_clarification_reuses_workspace_as_p0(tmp_path: Path) -> None:
+    path = tmp_path / "clarification-imported-p0.yaml"
+    path.write_text(
+        "name: clarification\nrequirement_clarification:\n  enabled: true\n  reuse_workspace_as_p0: true\n",
+        encoding="utf-8",
+    )
+
+    profile = load_profile_from_yaml(path)
+
+    assert profile.requirement_clarification.reuse_workspace_as_p0 is True
+
+
+def test_load_requirement_clarification_only_mode(tmp_path: Path) -> None:
+    path = tmp_path / "clarification-only.yaml"
+    path.write_text(
+        "name: clarification\nrequirement_clarification:\n  enabled: true\n  clarification_only: true\n",
+        encoding="utf-8",
+    )
+
+    profile = load_profile_from_yaml(path)
+
+    assert profile.requirement_clarification.clarification_only is True
+
+
+@pytest.mark.parametrize("value", ["0", "-1", "true", '"90"'])
+def test_load_requirement_clarification_rejects_invalid_phase_timeout(tmp_path: Path, value: str) -> None:
+    path = tmp_path / "clarification-invalid.yaml"
+    path.write_text(
+        f"name: clarification\nrequirement_clarification:\n  enabled: true\n  repair_timeout_seconds: {value}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(AgentProfileLoadError, match="repair_timeout_seconds"):
+        load_profile_from_yaml(path)
+
+
+def test_load_parallel_requirement_enrichment(tmp_path: Path) -> None:
+    path = tmp_path / "enrichment.yaml"
+    path.write_text(
+        "name: enrichment\nrequirement_enrichment:\n  enabled: true\n"
+        "  clarification_strategy: legacy-v1-exact\n"
+        "  clarification_timeout_seconds: 30\n"
+        "  localization_mode: fallback\n"
+        "  localization_timeout_seconds: 9\n"
+        "  localization_model_profile: local-model\n",
+        encoding="utf-8",
+    )
+
+    profile = load_profile_from_yaml(path)
+
+    assert profile.requirement_enrichment.enabled is True
+    assert profile.requirement_enrichment.clarification_strategy == "legacy-v1-exact"
+    assert profile.requirement_enrichment.clarification_timeout_seconds == 30.0
+    assert profile.requirement_enrichment.localization_mode == "fallback"
+    assert profile.requirement_enrichment.localization_timeout_seconds == 9.0
+    assert profile.requirement_enrichment.localization_model_profile == "local-model"
+
+
+def test_load_requirement_enrichment_rejects_legacy_workflow_conflict(tmp_path: Path) -> None:
+    path = tmp_path / "conflict.yaml"
+    path.write_text(
+        "name: conflict\nrequirement_clarification:\n  enabled: true\nrequirement_enrichment:\n  enabled: true\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(AgentProfileLoadError, match="cannot enable requirement_clarification"):
+        load_profile_from_yaml(path)
+
+
+@pytest.mark.parametrize("field", ["clarification_timeout_seconds", "localization_timeout_seconds"])
+def test_load_requirement_enrichment_rejects_invalid_timeout(tmp_path: Path, field: str) -> None:
+    path = tmp_path / "invalid-enrichment.yaml"
+    path.write_text(
+        f"name: invalid\nrequirement_enrichment:\n  enabled: true\n  {field}: 0\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(AgentProfileLoadError, match=field):
+        load_profile_from_yaml(path)
 
 
 def test_load_sub_agents_uses_default_concurrency_limits(tmp_path: Path) -> None:

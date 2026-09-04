@@ -207,6 +207,8 @@ class _Host:
         self._workspace = None
         self._hook_manager = _PromptHookManager()
         self._agent_profile = None
+        self._requirement_clarification_workflow = None
+        self._requirement_enrichment_workflow = None
         self._trajectory_recorder = TrajectoryRecorder()
         self._shutting_down = False
         self._turn_number = 1

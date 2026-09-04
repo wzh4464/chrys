@@ -430,6 +430,9 @@ def create_client(
         A chat client instance compatible with Chrys' kernel runtime.
     """
     provider = profile.provider
+    from chrys.service.llm.model_lock import enforce_model_lock
+
+    enforce_model_lock(profile, effective_base_url=effective_model_base_url(profile))
     api_key = _resolve_profile_api_key(profile)
     headers = _build_default_headers(
         session_id,

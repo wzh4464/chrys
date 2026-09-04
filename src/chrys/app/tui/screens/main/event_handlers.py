@@ -71,6 +71,8 @@ from chrys.foundation.events.types import (
     PresentationAttemptAccepted,
     PresentationAttemptRejected,
     QuestionToUser,
+    RequirementClarificationPhaseChanged,
+    RequirementEnrichmentPhaseChanged,
     RetryAttempt,
     SessionReady,
     SettingsReloaded,
@@ -132,6 +134,54 @@ _APPROVAL_MODE_CHANGED = msg("tui.approval.mode_changed", fallback="Approval mod
 _WARNING_TITLE = msg("tui.warning.title", fallback="Warning")
 _UNKNOWN_ERROR = msg("tui.error.unknown", fallback="Unknown error")
 _AGENT_FAILED_TO_LOAD = msg("tui.agent_load.failed", fallback="Agent failed to load.")
+_BASELINE_PROVISIONAL = msg(
+    "tui.requirement_clarification.baseline_provisional",
+    fallback="Baseline candidate (provisional)",
+)
+_REQUIREMENT_CLARIFICATION_SNAPSHOT = msg(
+    "tui.requirement_clarification.snapshot",
+    fallback="Freezing the turn workspace…",
+)
+_REQUIREMENT_CLARIFICATION_INITIAL = msg(
+    "tui.requirement_clarification.initial",
+    fallback="Building an initial implementation…",
+)
+_REQUIREMENT_CLARIFICATION_ANALYZING = msg(
+    "tui.requirement_clarification.clarification",
+    fallback="Clarifying repository requirements…",
+)
+_REQUIREMENT_CLARIFICATION_REPAIR = msg(
+    "tui.requirement_clarification.repair",
+    fallback="Repairing the initial implementation…",
+)
+_REQUIREMENT_CLARIFICATION_FINALIZING = msg(
+    "tui.requirement_clarification.finalizing",
+    fallback="Finalizing the implementation…",
+)
+_REQUIREMENT_PHASE_STATUS = {
+    "snapshot": _REQUIREMENT_CLARIFICATION_SNAPSHOT,
+    "initial_implementation": _REQUIREMENT_CLARIFICATION_INITIAL,
+    "clarification": _REQUIREMENT_CLARIFICATION_ANALYZING,
+    "repair": _REQUIREMENT_CLARIFICATION_REPAIR,
+    "finalizing": _REQUIREMENT_CLARIFICATION_FINALIZING,
+}
+_REQUIREMENT_ENRICHMENT_SNAPSHOT = msg(
+    "tui.requirement_enrichment.snapshot",
+    fallback="Freezing the turn workspace…",
+)
+_REQUIREMENT_ENRICHMENT_ANALYZING = msg(
+    "tui.requirement_enrichment.analyzing",
+    fallback="Clarifying the requirement and locating relevant code…",
+)
+_REQUIREMENT_ENRICHMENT_EXECUTING = msg(
+    "tui.requirement_enrichment.executing",
+    fallback="Implementing the enriched requirement…",
+)
+_REQUIREMENT_ENRICHMENT_PHASE_STATUS = {
+    "snapshot": _REQUIREMENT_ENRICHMENT_SNAPSHOT,
+    "analyzing": _REQUIREMENT_ENRICHMENT_ANALYZING,
+    "executing": _REQUIREMENT_ENRICHMENT_EXECUTING,
+}
 _CONTEXT_PRESSURE_CONVERSATION = msg(
     "tui.context_pressure.conversation.generic",
     fallback="Conversation context compaction stopped because {reason}. The active task may exceed its model window.",
@@ -1079,7 +1129,16 @@ class BackendEventHandler:
 
         ui = self._ui()
 
-        if event.is_intermediate:
+        if event.is_provisional:
+            label = format_message(_BASELINE_PROVISIONAL)
+            await ui.add_agent_message(
+                f"_{label}_\n\n{event.text}",
+                is_final=True,
+                is_intermediate=True,
+                created_at=event.timestamp,
+            )
+            s.debug("AgentMessage", f"(provisional, {len(event.text)} chars)")
+        elif event.is_intermediate:
             await ui.add_agent_message(
                 event.text,
                 is_final=True,
@@ -1116,6 +1175,26 @@ class BackendEventHandler:
         else:
             ui.show_status(STATUS_STREAMING.bind())
             await ui.add_agent_message(event.text, is_final=False, created_at=event.timestamp)
+
+    async def on_requirement_clarification_phase(
+        self,
+        event: RequirementClarificationPhaseChanged,
+    ) -> None:
+        """Reflect internal workflow progress without closing the active turn."""
+        status = _REQUIREMENT_PHASE_STATUS.get(event.phase)
+        if status is not None and self.agent_running:
+            self._ui().show_status(status.bind())
+        self.debug("RequirementClarification", f"{event.phase} revision={event.revision}")
+
+    async def on_requirement_enrichment_phase(
+        self,
+        event: RequirementEnrichmentPhaseChanged,
+    ) -> None:
+        """Reflect parallel enrichment progress without closing the active turn."""
+        status = _REQUIREMENT_ENRICHMENT_PHASE_STATUS.get(event.phase)
+        if status is not None and self.agent_running:
+            self._ui().show_status(status.bind())
+        self.debug("RequirementEnrichment", f"{event.phase} revision={event.revision}")
 
     async def on_presentation_attempt_accepted(self, event: PresentationAttemptAccepted) -> None:
         """Commit canonical provisional text and remove rejected siblings."""

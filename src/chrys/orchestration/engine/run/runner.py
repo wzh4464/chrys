@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable, Mapping
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Protocol
 
@@ -23,6 +23,8 @@ from chrys.orchestration.engine.run.turn_hooks import TurnHookDispatcher
 from chrys.service.trajectory.preparation import PreparationOutcome, PreparationScope, PreparationTrace
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from chrys.foundation.config.settings import Settings
     from chrys.foundation.events.bus import EventBus
     from chrys.foundation.events.types import AgentRuntimeDetails, RuntimeSkillDetails
@@ -52,6 +54,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 PromptContentPreparerFactory = Callable[["TurnRunnerHost"], PromptContentPreparer]
+BeforeExecutionHook = Callable[[], Awaitable[None]]
 
 
 class TurnRunnerHost(Protocol):
@@ -91,11 +94,18 @@ class TurnRunnerHost(Protocol):
     _sub_agent_tools: SubAgentTools | None
     _on_successful_turn: Callable[[], None]
     _on_turn_started: Callable[[], None]
+    _requirement_clarification_workflow: Any | None
+    _requirement_enrichment_workflow: Any | None
+
+    def _accumulate_side_call_usage(self, usage_details: Mapping[str, Any]) -> None: ...
 
     @property
     def _settings(self) -> Settings:
         """Read-only: settings change through the handle, not the holder."""
         ...
+
+    @property
+    def _session_dir(self) -> Path | None: ...
 
     @property
     def session_generation(self) -> int: ...
@@ -145,7 +155,81 @@ class TurnRunner:
         injection_window: CurrentRunInjectionWindow | None = None,
         admission_preparation: PreparationTrace | None = None,
     ) -> None:
-        """Execute a fresh agent turn and finalize it."""
+        """Execute a fresh agent turn, optionally through clarification."""
+        profile = self._host._agent_profile
+        clarification_enabled = bool(profile is not None and profile.requirement_clarification.enabled)
+        enrichment_enabled = bool(profile is not None and profile.requirement_enrichment.enabled)
+        if not clarification_enabled and not enrichment_enabled:
+            await self._run_fresh_standard(
+                text,
+                created_at=created_at,
+                contents=contents,
+                run_scope=run_scope,
+                injection_window=injection_window,
+                admission_preparation=admission_preparation,
+            )
+            return
+        if contents is None:
+            contents = await self._prepare_user_contents(text)
+            if contents is None:
+                if admission_preparation is not None:
+                    await admission_preparation.finished(outcome=PreparationOutcome.PREPARATION_FAILED)
+                return
+        if enrichment_enabled and profile is not None:
+            from chrys.orchestration.engine.run.requirement_enrichment import RequirementEnrichmentWorkflow
+            from chrys.service.semantic_search import SemanticSearchMode
+
+            config = profile.requirement_enrichment
+            await RequirementEnrichmentWorkflow(
+                self._host,
+                self,
+                strategy=config.clarification_strategy,
+                clarification_timeout_seconds=config.clarification_timeout_seconds,
+                localization_mode=SemanticSearchMode(config.localization_mode),
+                localization_timeout_seconds=config.localization_timeout_seconds,
+                localization_model_profile=config.localization_model_profile,
+            ).run(
+                text,
+                created_at=created_at,
+                contents=contents,
+                run_scope=run_scope,
+                injection_window=injection_window,
+                admission_preparation=admission_preparation,
+            )
+            return
+        from chrys.orchestration.engine.run.requirement_clarification import RequirementClarificationWorkflow
+
+        await RequirementClarificationWorkflow(
+            self._host,
+            self,
+            strategy=profile.requirement_clarification.strategy,
+            reuse_workspace_as_p0=profile.requirement_clarification.reuse_workspace_as_p0,
+            clarification_only=profile.requirement_clarification.clarification_only,
+            clarification_timeout_seconds=profile.requirement_clarification.clarification_timeout_seconds,
+            initial_timeout_seconds=profile.requirement_clarification.initial_timeout_seconds,
+            repair_timeout_seconds=profile.requirement_clarification.repair_timeout_seconds,
+        ).run(
+            text,
+            created_at=created_at,
+            contents=contents,
+            run_scope=run_scope,
+            injection_window=injection_window,
+            admission_preparation=admission_preparation,
+        )
+
+    async def _run_fresh_standard(
+        self,
+        text: str,
+        created_at: datetime | str | None = None,
+        contents: list[Any] | None = None,
+        *,
+        run_scope: CurrentRunScope | None = None,
+        injection_window: CurrentRunInjectionWindow | None = None,
+        admission_preparation: PreparationTrace | None = None,
+        finalize: bool = True,
+        before_execution: BeforeExecutionHook | None = None,
+    ) -> None:
+        """Execute the ordinary fresh pass, with optional deferred finalization."""
         _ = injection_window
         host = self._host
         if contents is None:
@@ -186,6 +270,8 @@ class TurnRunner:
             await asyncio.to_thread(write_rollback_snapshot)
             await self._refresh_runtime_skills(update_active_turn=False)
             self._queue_skill_reference_reminder(text, for_next_turn=True)
+            if before_execution is not None:
+                await before_execution()
             if host._reminder_middleware is not None:
                 if run_scope is not None:
                     host._reminder_middleware.prepare_turn(
@@ -216,7 +302,7 @@ class TurnRunner:
             else:
                 await host._executor.run(contents, created_at=created_at)
         finally:
-            if run_scope is not None:
+            if run_scope is not None and finalize:
                 host._turn_state.close_injection_admission(run_scope)
             # The tracker was drained at prepare_turn; any pass ending before
             # a model request carried the notice (Stop, load/hook failure,
@@ -227,7 +313,71 @@ class TurnRunner:
                 text, created_at=created_at, contents=contents, item_id=self._opening_item_id
             )
         self._tag_consumed_profile_switch()
-        await self.finalize_current_run()
+        if finalize:
+            await self.finalize_current_run()
+
+    async def _prepare_fresh_without_execution(
+        self,
+        text: str,
+        *,
+        created_at: datetime | str | None,
+        contents: list[Any],
+        run_scope: CurrentRunScope | None,
+        admission_preparation: PreparationTrace | None,
+    ) -> None:
+        """Open a fresh turn while leaving an imported workspace P0 untouched."""
+        host = self._host
+        try:
+            await self.pre_run(
+                reset_batch_id=True,
+                preparation_scope_operation_id=self._preparation_operation_id(admission_preparation),
+            )
+            if admission_preparation is not None:
+                await admission_preparation.finished(outcome=PreparationOutcome.FRESH_TURN)
+        except asyncio.CancelledError:
+            if admission_preparation is not None:
+                admission_preparation.finished_soon(outcome=PreparationOutcome.CANCELLED)
+            raise
+        except BaseException:
+            if admission_preparation is not None:
+                admission_preparation.finished_soon(outcome=PreparationOutcome.PREPARATION_FAILED)
+            raise
+        preamble = self._open_turn_preamble()
+        try:
+            if preamble is not None:
+                await preamble.started()
+                self._bind_turn_preamble(preamble)
+            await self._fire_before_turn(
+                text,
+                target_operation_id=(
+                    preamble.operation_id if preamble is not None and preamble.start_committed else None
+                ),
+            )
+            await self._compute_workspace_notice(is_retry=False)
+            write_rollback_snapshot = host._capture_rollback_snapshot_writer()
+            await asyncio.to_thread(write_rollback_snapshot)
+            await self._refresh_runtime_skills(update_active_turn=False)
+            self._queue_skill_reference_reminder(text, for_next_turn=True)
+            if host._reminder_middleware is not None:
+                if run_scope is not None:
+                    host._reminder_middleware.prepare_turn(
+                        reminder_scope=run_scope.reminder_scope,
+                        usage=host._runtime_meta.last_usage_details or None,
+                    )
+                else:
+                    host._reminder_middleware.prepare_turn(usage=host._runtime_meta.last_usage_details or None)
+            host._executor.set_user_messages([text] if text else [])
+            host._turn_state.set_current_input(text, contents, created_at)
+            if preamble is not None:
+                await preamble.finished(outcome=PreparationOutcome.HANDOFF)
+        except asyncio.CancelledError:
+            if preamble is not None:
+                preamble.finished_soon(outcome=PreparationOutcome.INTERRUPTED)
+            raise
+        except BaseException:
+            if preamble is not None:
+                preamble.finished_soon(outcome=PreparationOutcome.FAILED)
+            raise
 
     async def run_retry(
         self,

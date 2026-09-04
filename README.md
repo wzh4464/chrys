@@ -86,6 +86,17 @@ the profile or in your shell. Chrys also reads `~/.chrys/.env`, whose values ove
 shell; `chrys acp` additionally loads the `.env` of the directory it is launched in. Keep
 keys out of any `.env` a repo might commit.
 
+Deployments that must never contact a different model can set a fail-closed wire-identity
+lock. The check runs in the shared client factory, so it also covers sub-agents, approval
+judges, session-title generation, compaction, and other side calls:
+
+```dotenv
+CHRYS_MODEL_LOCK='{"provider":"openai","api_style":"chat_completions","base_url":"https://openrouter.ai/api/v1","model_id":"deepseek/deepseek-v4-pro-0813"}'
+```
+
+An absent lock leaves normal profile selection unchanged. A present but malformed lock, or
+any mismatch in the four fields, stops client construction before a request is sent.
+
 ## Run it
 
 ```bash
@@ -133,6 +144,64 @@ approval:
   overrides:
     shell: require
 ```
+
+Native Chrys agents can opt into repository-grounded requirement clarification:
+
+```yaml
+requirement_clarification:
+  enabled: true
+  strategy: legacy-v1-stabilized
+```
+
+It is off by default. When enabled, Chrys first produces a provisional baseline, derives
+clarification guidance from a frozen turn-start workspace, then runs a fresh repair over the
+baseline files. Only the repaired response is terminal; if clarification or repair fails,
+Chrys safely promotes the baseline. External ACP agent profiles cannot enable this workflow.
+
+For a single implementation pass enriched by parallel clarification and code localization,
+enable the separate workflow instead:
+
+```yaml
+requirement_enrichment:
+  enabled: true
+  clarification_strategy: legacy-v1-stabilized
+  localization_mode: auto
+```
+
+The two workflows are mutually exclusive and off by default. Enrichment freezes one turn-start
+snapshot, runs clarification and localization concurrently, then injects their bounded advisory
+result as a system reminder before the normal agent run. External ACP agent profiles cannot enable it.
+The standalone `chrys locate "<requirement>" -C <repo>` command writes the same localization
+artifacts without starting an agent turn; pass `--json` for its machine-readable result.
+
+See the [Requirement Clarification Guide](REQUIREMENT-CLARIFICATION-GUIDE.md) for enablement,
+the execution flow, the complete artifact tree, and which files downstream agents should consume.
+The deeper implementation and recovery contract is documented in
+[REQUIREMENT-CLARIFICATION-INTEGRATION.md](REQUIREMENT-CLARIFICATION-INTEGRATION.md).
+
+For a local DeepSWE checkout, the maintained runner can select tasks in stable
+alphabetical order and exercise the native enrichment workflow without a
+separate localization preflight:
+
+```bash
+uv run python scripts/deepswe_runner.py \
+  --dataset /path/to/deep-swe \
+  --output-dir /path/to/run \
+  --chrys-home /path/to/prepared-eval-home \
+  --order alphabetical --limit 20 \
+  --run-enrichment --agent DeepSWESmoke --model MODEL_PROFILE
+
+uv run python scripts/deepswe_verify.py \
+  --dataset /path/to/deep-swe \
+  --run-dir /path/to/run \
+  --order alphabetical --limit 20
+```
+
+The selected agent profile must enable `requirement_enrichment`. Use
+`--run-agent` instead when supplying a standalone localization report to an
+agent profile that does not enable native enrichment. The prepared home must
+contain the selected profiles under `.chrys/agents` and `.chrys/models`;
+provider credentials remain inherited environment variables.
 
 Drop a file of the same shape into `~/.chrys/agents/` and it shows up in the picker and in
 `chrys agents`. Reuse a built-in's name and yours shadows it. The same file can attach MCP

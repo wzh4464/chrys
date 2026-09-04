@@ -339,6 +339,8 @@ class AgentEngine:
         self._paused_sub_agents: set[str] = set()
         self._intermediate_texts: dict[int, str] = {}
         self._consumed_injections: list[ConsumedInjection] = []
+        self._requirement_clarification_workflow: Any | None = None
+        self._requirement_enrichment_workflow: Any | None = None
         self._injection_notify_task: asyncio.Task[None] | None = None
         self._usage_tasks: set[asyncio.Task[None]] = set()
         self._usage_publish_tail: asyncio.Task[None] | None = None

@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Chrys semantic-search code localization",
+  "type": "object",
+  "required": ["format", "schema_version", "locations", "summary"],
+  "properties": {
+    "format": {"const": "semantic-search-code-localization"},
+    "schema_version": {"const": "semantic-search-code-localization.v2"},
+    "locations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "rank",
+          "role",
+          "repo",
+          "file",
+          "file_path",
+          "symbol",
+          "class_name",
+          "function_name",
+          "start_line",
+          "end_line",
+          "reason",
+          "evidence",
+          "confidence",
+          "must_verify"
+        ],
+        "properties": {
+          "rank": {"type": "integer", "minimum": 1},
+          "role": {"enum": ["primary", "propagation", "validation"]},
+          "repo": {"type": "string"},
+          "file": {"type": "string", "minLength": 1},
+          "file_path": {"type": "string", "minLength": 1},
+          "symbol": {"type": "string"},
+          "class_name": {"type": "string"},
+          "function_name": {"type": "string"},
+          "start_line": {"type": ["integer", "null"]},
+          "end_line": {"type": ["integer", "null"]},
+          "reason": {"type": "string"},
+          "evidence": {"type": "object"},
+          "confidence": {"enum": ["high", "medium", "low"]},
+          "must_verify": {"const": true}
+        }
+      }
+    },
+    "summary": {"type": "object"}
+  }
+}

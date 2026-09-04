@@ -292,6 +292,8 @@ class _Host:
         )
         self._hook_manager = None
         self._agent_profile = None
+        self._requirement_clarification_workflow = None
+        self._requirement_enrichment_workflow = None
         self._active_profile = None
         self._runtime_meta = SessionRuntimeMetadata()
         self._reminder_middleware = None
