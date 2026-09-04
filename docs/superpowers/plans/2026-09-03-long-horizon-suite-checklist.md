@@ -235,6 +235,12 @@ uv run pytest -m "not integration and not gc_calibration"
   `agent_out/`，普通用户删不掉，用 alpine 容器删。
 - lh 被杀过的运行留下的工作区会让 `--resume` 后的重跑撞 `index.lock`（langchain 就是这样失败的）；
   排队分片对应的 5 个旧工作区已清理，langchain 的失败记录删掉让它重跑。
+- **完整性标准（用户 09-04 17:20 定）：campaign 非零才算完整**。runner 路径那 10 题在"按语言派生验证命令"
+  之前启动、campaign 全为 0，不计入；已停掉 runner 跑批，把 LoLBench 生成（每题带 `CHRYS_PACT_VERIFY_COMMAND`、
+  澄清结果进 PACT）从 2 并发提到 5 重启。报告汇总表首列改为"complete (campaign completed)"。
+- LoLBench 首题 superjson 暴露三处捕获问题（`90b3b8e3`）：pact-agent 子进程没继承 `CHRYS_SESSION_ROOT_DIR`
+  （role 会话随容器丢失）；`.pact/.pact-io` 混进捕获的 diff；chrys 在工作区里的提交对 `git diff --cached` 不可见
+  （run.sh 捕获前软重置到起始 HEAD）。容器内工作区统一是 /app，用 `CHRYS_MEMORY_REPO_LABEL=$INSTANCE_ID` 标记归属。
 
 ## 7. 交付状态（09-03 收尾）
 
