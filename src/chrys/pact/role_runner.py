@@ -44,7 +44,9 @@ SemanticRole = Literal["worker", "reviewer", "planner", "manager"]
 SendUpdate = Callable[[SessionUpdate], Awaitable[None]]
 
 _OUTPUT_SOURCE = "chrys_in_process"
-_DEFAULT_CLEANUP_GRACE_SECONDS = 5.0
+# Bounds a role host's cancel and shutdown. A host still tears down MCP
+# servers and drains hooks here; five seconds was not enough for a live one.
+_DEFAULT_CLEANUP_GRACE_SECONDS = 30.0
 _REVIEW_DECISION_RELATIVE_PATH = Path(".pact-io") / "reviewer-decision.json"
 _REVIEW_TRANSPORT_EPILOGUE = """
 
@@ -125,8 +127,20 @@ def _derive_turn_settings(workdir: Path, base: LoadedSettings) -> LoadedSettings
     )
     loaded, _deferred = route_restart_settings(reattribute_command_line(candidate, base), base)
     # A role host must never route: it already runs inside a campaign, and a
-    # long-horizon decision here would try to start another one.
-    return dataclasses.replace(loaded, settings=dataclasses.replace(loaded.settings, routing_mode="off"))
+    # long-horizon decision here would try to start another one. It has no
+    # memory of its own either: the campaign's outcome is deposited by the
+    # session that delegated it, and a Manager turn that autostarted the
+    # graph's MCP server and then flushed a deposit at session end blew
+    # through the cleanup grace period -- the first live campaign died there.
+    return dataclasses.replace(
+        loaded,
+        settings=dataclasses.replace(
+            loaded.settings,
+            routing_mode="off",
+            memory_mcp_enabled=False,
+            memory_writeback_on_session_end=False,
+        ),
+    )
 
 
 def _not_applicable_review_decision() -> ReviewDecisionCapture:

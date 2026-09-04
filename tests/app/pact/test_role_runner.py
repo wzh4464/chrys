@@ -593,11 +593,18 @@ def test_role_host_settings_never_route(tmp_path) -> None:
     from chrys.foundation.config.settings_store import LoadedSettings
     from chrys.pact.role_runner import _derive_turn_settings
 
-    base = LoadedSettings(settings=Settings(routing_mode="always"), provenance={})
+    base = LoadedSettings(
+        settings=Settings(routing_mode="always", memory_mcp_enabled=True, memory_writeback_on_session_end=True),
+        provenance={},
+    )
 
     derived = _derive_turn_settings(tmp_path, base)
 
     assert derived.settings.routing_mode == "off"
+    # The delegating session deposits the campaign; a role host carries no
+    # memory server to tear down and no deposit to flush at shutdown.
+    assert derived.settings.memory_mcp_enabled is False
+    assert derived.settings.memory_writeback_on_session_end is False
 
 
 async def test_a_directory_where_the_decision_belongs_does_not_fail_the_turn(tmp_path: Path) -> None:
