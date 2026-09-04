@@ -61,6 +61,17 @@ INSTALL="$(sed -e "s|__CHRYS_SRC_URL__|http://$BRIDGE_IP:$CHRYS_SRV_PORT/chrys_s
                -e "s|__CHRYS_PIN__|$PIN|" "$HERE/agent/install.sh")"
 INSTALL_CMD="printf '%s' '$(printf '%s' "$INSTALL" | base64 | tr -d '\n')' | base64 -d | bash"
 
+# PROBE=1: build the agent image once on the first instance's task image and run
+# `chrys --help` in it -- proves the in-container install (uv, Python 3.14, the chrys
+# source, rg, CodeGraph, the profile) before spending a model call on anything.
+if [ "${PROBE:-0}" = "1" ]; then
+  IMG="$(python3 -c "import json,glob; print(json.load(open(sorted(glob.glob('$BENCH_ROOT/dockers/*/spec.json'))[0]))['docker_image'])")"
+  echo "### probe: building the chrys agent image on $IMG ###"
+  printf 'FROM %s\nRUN %s\n' "$IMG" "$INSTALL_CMD" | docker build -t deepswe-chrys-probe:1 - 2>&1 | tail -15
+  docker run --rm --entrypoint bash deepswe-chrys-probe:1 -c 'export PATH=/root/.local/bin:$PATH; /opt/chrys/.venv/bin/chrys --help | head -3; /opt/chrys/.venv/bin/python -c "from chrys.foundation.vendor import find_rg; print(\"rg:\", find_rg())"; codegraph --version; ls /root/.chrys/models; test -x /opt/chrys_run.sh && echo "run.sh ok"'
+  exit $?
+fi
+
 if [ "$INSTANCES" = "all" ]; then
   INSTANCES="$(python3 - "$BENCH_ROOT" <<'PY'
 import csv, sys
