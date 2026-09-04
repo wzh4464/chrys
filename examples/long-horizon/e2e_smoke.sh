@@ -17,6 +17,14 @@ trap 'rm -rf "$WORKDIR"' EXIT
 fail() { printf 'FAIL: %s\n' "$*" >&2; exit 1; }
 note() { printf '==> %s\n' "$*"; }
 
+# `Code` routes long-horizon work to the built-in LongHorizon profile, which is
+# the switch this test is here to exercise. Override either when running the
+# smoke against a different setup.
+AGENT="${CHRYS_SMOKE_AGENT:-Code}"
+MODEL="${CHRYS_SMOKE_MODEL:-}"
+MODEL_ARGS=()
+[ -n "$MODEL" ] && MODEL_ARGS=(-m "$MODEL")
+
 # ---------------------------------------------------------------- workspace
 note "preparing a throwaway workspace at $WORKDIR"
 mkdir -p "$WORKDIR/src" "$WORKDIR/tests" "$WORKDIR/.chrys"
@@ -34,11 +42,42 @@ from src.parser import parse_value
 def test_parse_value():
     assert parse_value("1") == "1"
 PY
+# The workspace owns its own interpreter and dependencies, through uv. Leaning
+# on a system `python3` that happens to have pytest makes the campaign's verify
+# depend on the host rather than on the repository under test -- and on a
+# Homebrew/uv machine there is often no bare `python` at all.
+cat > "$WORKDIR/pyproject.toml" <<'TOML'
+[project]
+name = "long-horizon-smoke"
+version = "0"
+requires-python = ">=3.11"
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+# The tests import `src.parser`, so the workspace root has to be importable
+# regardless of how pytest was invoked.
+pythonpath = ["."]
+TOML
+printf '.venv/\n__pycache__/\n.pytest_cache/\n' > "$WORKDIR/.gitignore"
+
 # A verify command is what makes the workspace able to carry a campaign at all.
-cat > "$WORKDIR/.chrys/settings.yaml" <<'YAML'
+VERIFY="uv run --frozen pytest -q"
+cat > "$WORKDIR/.chrys/settings.yaml" <<YAML
 pact:
-  verify_command: "python -m pytest -q"
+  verify_command: "$VERIFY"
 YAML
+# The project layer is off unless the user turned it on, and a smoke test must
+# not need them to grant a throwaway directory configuration authority. Export
+# the same command so this runs either way.
+export CHRYS_PACT_VERIFY_COMMAND="$VERIFY"
+
+note "provisioning the workspace interpreter with uv"
+(cd "$WORKDIR" && uv sync --quiet) || fail "could not provision the smoke workspace with uv"
+(cd "$WORKDIR" && uv run --frozen pytest -q >/dev/null) \
+  || fail "the workspace verify command does not pass on the untouched baseline"
+
 git -C "$WORKDIR" init -q
 git -C "$WORKDIR" add -A
 git -C "$WORKDIR" -c user.email=smoke@example.invalid -c user.name=Smoke commit -qm "baseline"
@@ -52,8 +91,8 @@ BAND="$(cd "$CHRYS_REPO" && uv run chrys debug router --json -C "$WORKDIR" "$PRO
 # --------------------------------------------------------------------- turn
 note "running one routed turn (this calls a real model and takes a while)"
 OUT="$WORKDIR/run.json"
-(cd "$CHRYS_REPO" && uv run chrys run --route long-horizon --json -C "$WORKDIR" "$PROMPT") > "$OUT" \
-  || fail "the routed run did not complete"
+(cd "$CHRYS_REPO" && uv run chrys run -a "$AGENT" "${MODEL_ARGS[@]}" --route long-horizon --json \
+  -C "$WORKDIR" "$PROMPT") > "$OUT" || fail "the routed run did not complete"
 SESSION="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["session_id"])' "$OUT")"
 TRACK="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("route",{}).get("track",""))' "$OUT")"
 [ "$TRACK" = "long_horizon" ] || fail "the run reported track=$TRACK"
