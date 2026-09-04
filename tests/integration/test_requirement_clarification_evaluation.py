@@ -414,9 +414,11 @@ def test_fixed_p0_postflight_rejects_empty_patch(tmp_path: Path) -> None:
     with pytest.raises(RuntimeError, match=r"non-empty model\.patch"):
         _validate_collected_patches(job, {"task-one"})
 
-    patch.write_text("complete P1\n", encoding="utf-8")
+    # Bytes, not text: on Windows write_text would turn the newline into two bytes and
+    # the recorded size is the file's byte size.
+    patch.write_bytes(b"complete P1\n")
     records = _validate_collected_patches(job, {"task-one"})
-    assert records["task-one"]["size"] == len("complete P1\n")
+    assert records["task-one"]["size"] == len(b"complete P1\n")
 
 
 def test_fixed_p0_materialization_uses_control_patch_and_candidate_delta(tmp_path: Path) -> None:

@@ -5,15 +5,20 @@
 from __future__ import annotations
 
 import argparse
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any
 
+# Resolved once through PATH: a fixed /usr/bin/git does not exist on Windows, and the
+# evaluation tests run there too.
+_GIT = shutil.which("git") or "/usr/bin/git"
+
 
 def _git(workspace: Path, *args: str, stdout: Any = None) -> None:
     subprocess.run(  # noqa: S603
-        ["/usr/bin/git", "-C", str(workspace), *args],
+        [_GIT, "-C", str(workspace), *args],
         check=True,
         stdout=stdout,
     )
@@ -22,7 +27,7 @@ def _git(workspace: Path, *args: str, stdout: Any = None) -> None:
 def record_base(workspace: Path, output: Path) -> str:
     """Persist the exact commit that predates both P0 and P1."""
     result = subprocess.run(  # noqa: S603
-        ["/usr/bin/git", "-C", str(workspace), "rev-parse", "HEAD"],
+        [_GIT, "-C", str(workspace), "rev-parse", "HEAD"],
         check=True,
         capture_output=True,
         text=True,
