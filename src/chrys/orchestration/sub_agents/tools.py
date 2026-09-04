@@ -1243,6 +1243,12 @@ class SubAgentTools:
                 # command, the child was spawned into a clean environment and
                 # refused to start without one.
                 env["CHRYS_PACT_VERIFY_COMMAND"] = self._pact_verify_command
+            session_root = os.environ.get("CHRYS_SESSION_ROOT_DIR", "").strip()
+            if is_self and session_root and "CHRYS_SESSION_ROOT_DIR" not in env:
+                # The campaign's role sessions belong with this session's store: a
+                # harness that captures the store must get them too, not a default
+                # directory inside a container that is gone when the run ends.
+                env["CHRYS_SESSION_ROOT_DIR"] = session_root
             if is_self and self._active_model_profile and "CHRYS_MODEL_PROFILE" not in env:
                 # Same reason: a session run with `-m` would otherwise hand the
                 # campaign to whatever the global pointer says, or to nothing.

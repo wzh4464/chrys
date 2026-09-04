@@ -333,6 +333,11 @@ def repo_label(cwd: str | None) -> str:
     repository found none of it. Inside a git checkout the label is the main
     repository's directory (worktrees share it); elsewhere, the directory.
     """
+    # Inside a benchmark container the workspace is a generic /app; the harness names
+    # the task instead, so recall by repository still finds this task's own deposits.
+    override = os.environ.get("CHRYS_MEMORY_REPO_LABEL", "").strip()
+    if override:
+        return override
     if not cwd:
         return "general"
     path = Path(cwd)

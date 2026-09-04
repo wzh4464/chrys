@@ -273,3 +273,10 @@ def test_repo_label_outside_git_is_the_directory_and_nothing_is_general(tmp_path
     assert deposit.repo_label(str(plain)) == "scratch"
     assert deposit.repo_label(None) == "general"
     assert deposit.repo_label("") == "general"
+
+
+def test_repo_label_honours_the_harness_override(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CHRYS_MEMORY_REPO_LABEL", "superjson-error-stack-serialization")
+
+    assert deposit.repo_label(str(tmp_path)) == "superjson-error-stack-serialization"
+    assert deposit.repo_label(None) == "superjson-error-stack-serialization"
