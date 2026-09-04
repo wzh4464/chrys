@@ -289,6 +289,11 @@ uv run pytest -m "not integration and not gc_calibration"
 - **第二轮的镜像替换**：LoLBench 按实例懒构建代理镜像，且源码包由宿主 HTTP 服务提供；把服务目录里的
   `chrys_src.tgz` 原子替换即可让尚未启动的实例用上新代码（已启动的 8 个仍是旧包，未完成者进第三轮）。
 
+- **容器内 OOM**（`724ae0fe` + LoLBench 补丁）：sql-formatter 在 P0 阶段 rc=137——容器 `--cpus 4 --memory 7g`，
+  但 jest 按宿主 96 核起 95 个 worker。run.sh 现在限制 Go/Cargo/make/vitest 并行度；LoLBench 引擎打了一个补丁
+  （`evaluation/deepswe/lolbench/patches/lolbench_eval-cpuset.diff`）给代理容器按实例分配 `--cpuset-cpus`，
+  Node 的 `availableParallelism()` 随亲和掩码变为 4。对已在跑的第二轮无效，第三轮起生效。
+
 ## 7. 交付状态（09-03 收尾）
 
 - 36 个 task 全部完成并 commit 在本地 `integration/long-horizon-suite`（`origin/main..HEAD` 共 96 个

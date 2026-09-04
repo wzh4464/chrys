@@ -42,6 +42,12 @@ DeepSWE tasks/<id>/            gen_instances.py            LoLBench benchmarks/d
   recall; deposits are swept from the host afterwards because the ContextGraph worker
   lives there (`CONTEXTGRAPH_REPO`).
 - `socat`, `python3` on the host.
+- One patch to the LoLBench engine, `patches/lolbench_eval-cpuset.diff` (apply with
+  `patch -p1 < …` in the LoLBench checkout): the agent container is pinned to a block of
+  cores (`--cpuset-cpus`) chosen by a stable hash of the instance id. `--cpus` alone
+  leaves `os.availableParallelism()` at the host's core count, and jest sized its worker
+  pool at 95 on a 96-core host under the 7 GiB memory limit and was OOM-killed mid-run.
+  `LOLBENCH_CPUSET_CORES` bounds the pool of cores used for the blocks.
 
 ## 1. Materialize the benchmark root
 
