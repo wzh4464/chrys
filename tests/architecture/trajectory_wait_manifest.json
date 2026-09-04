@@ -1118,7 +1118,7 @@
       "primitive": "async_iteration",
       "qualname": "AgentResponse.from_update_generator",
       "source_column": 8,
-      "source_line": 3311,
+      "source_line": 3373,
       "wrapper_target": null
     },
     {
@@ -1138,7 +1138,7 @@
       "primitive": "async_iteration",
       "qualname": "ChatResponse.from_update_generator",
       "source_column": 8,
-      "source_line": 2836,
+      "source_line": 2898,
       "wrapper_target": null
     },
     {
@@ -1158,7 +1158,7 @@
       "primitive": "wrapper",
       "qualname": "ResponseStream.__anext__",
       "source_column": 29,
-      "source_line": 3725,
+      "source_line": 3787,
       "wrapper_target": "chrys.kernel._types.ResponseStream._get_stream"
     },
     {
@@ -1178,7 +1178,7 @@
       "primitive": "awaitable",
       "qualname": "ResponseStream.__anext__",
       "source_column": 34,
-      "source_line": 3727,
+      "source_line": 3789,
       "wrapper_target": null
     },
     {
@@ -1198,7 +1198,7 @@
       "primitive": "wrapper",
       "qualname": "ResponseStream.__anext__",
       "source_column": 12,
-      "source_line": 3730,
+      "source_line": 3792,
       "wrapper_target": "chrys.kernel._types.ResponseStream._run_cleanup_hooks"
     },
     {
@@ -1218,7 +1218,7 @@
       "primitive": "wrapper",
       "qualname": "ResponseStream.__anext__",
       "source_column": 12,
-      "source_line": 3731,
+      "source_line": 3793,
       "wrapper_target": "chrys.kernel._types.ResponseStream.get_final_response"
     },
     {
@@ -1238,7 +1238,7 @@
       "primitive": "wrapper",
       "qualname": "ResponseStream.__anext__",
       "source_column": 16,
-      "source_line": 3735,
+      "source_line": 3797,
       "wrapper_target": "chrys.kernel._types.ResponseStream.aclose"
     },
     {
@@ -1258,7 +1258,7 @@
       "primitive": "wrapper",
       "qualname": "ResponseStream.__anext__",
       "source_column": 16,
-      "source_line": 3742,
+      "source_line": 3804,
       "wrapper_target": "chrys.kernel._types.ResponseStream._run_cleanup_hooks"
     },
     {
@@ -1278,7 +1278,7 @@
       "primitive": "wrapper",
       "qualname": "ResponseStream.__anext__",
       "source_column": 21,
-      "source_line": 3747,
+      "source_line": 3809,
       "wrapper_target": "chrys.kernel._types._resolve_maybe_awaitable"
     },
     {
@@ -1298,7 +1298,7 @@
       "primitive": "wrapper",
       "qualname": "ResponseStream.__anext__",
       "source_column": 21,
-      "source_line": 3756,
+      "source_line": 3818,
       "wrapper_target": "chrys.kernel._types._resolve_maybe_awaitable"
     },
     {
@@ -1318,7 +1318,7 @@
       "primitive": "wrapper",
       "qualname": "ResponseStream.__await__._wrap",
       "source_column": 12,
-      "source_line": 3849,
+      "source_line": 3911,
       "wrapper_target": "chrys.kernel._types.ResponseStream._resolve_stream_with_pull_contexts"
     },
     {
@@ -1338,7 +1338,7 @@
       "primitive": "wrapper",
       "qualname": "ResponseStream._get_stream",
       "source_column": 27,
-      "source_line": 3694,
+      "source_line": 3756,
       "wrapper_target": "chrys.kernel._types._resolve_stream_source"
     },
     {
@@ -1358,7 +1358,7 @@
       "primitive": "wrapper",
       "qualname": "ResponseStream._resolve_stream_with_pull_contexts",
       "source_column": 19,
-      "source_line": 3841,
+      "source_line": 3903,
       "wrapper_target": "chrys.kernel._types.ResponseStream._get_stream"
     },
     {
@@ -1378,7 +1378,7 @@
       "primitive": "wrapper",
       "qualname": "ResponseStream._resolve_stream_with_pull_contexts",
       "source_column": 19,
-      "source_line": 3845,
+      "source_line": 3907,
       "wrapper_target": "chrys.kernel._types.ResponseStream._get_stream"
     },
     {
@@ -1398,7 +1398,7 @@
       "primitive": "awaitable",
       "qualname": "ResponseStream._run_cleanup_hooks",
       "source_column": 20,
-      "source_line": 4038,
+      "source_line": 4100,
       "wrapper_target": null
     },
     {
@@ -1418,7 +1418,7 @@
       "primitive": "awaitable",
       "qualname": "ResponseStream.aclose",
       "source_column": 24,
-      "source_line": 3794,
+      "source_line": 3856,
       "wrapper_target": null
     },
     {
@@ -1438,7 +1438,7 @@
       "primitive": "awaitable",
       "qualname": "ResponseStream.aclose",
       "source_column": 28,
-      "source_line": 3800,
+      "source_line": 3862,
       "wrapper_target": null
     },
     {
@@ -1458,7 +1458,7 @@
       "primitive": "awaitable",
       "qualname": "ResponseStream.aclose",
       "source_column": 36,
-      "source_line": 3820,
+      "source_line": 3882,
       "wrapper_target": null
     },
     {
@@ -1478,7 +1478,7 @@
       "primitive": "wrapper",
       "qualname": "ResponseStream.aclose",
       "source_column": 16,
-      "source_line": 3825,
+      "source_line": 3887,
       "wrapper_target": "chrys.kernel._types.ResponseStream._run_cleanup_hooks"
     },
     {
@@ -1498,7 +1498,7 @@
       "primitive": "wrapper",
       "qualname": "ResponseStream.get_final_response",
       "source_column": 16,
-      "source_line": 3880,
+      "source_line": 3942,
       "wrapper_target": "chrys.kernel._types.ResponseStream._resolve_stream_with_pull_contexts"
     },
     {
@@ -1518,7 +1518,7 @@
       "primitive": "async_iteration",
       "qualname": "ResponseStream.get_final_response",
       "source_column": 16,
-      "source_line": 3885,
+      "source_line": 3947,
       "wrapper_target": null
     },
     {
@@ -1538,7 +1538,7 @@
       "primitive": "wrapper",
       "qualname": "ResponseStream.get_final_response",
       "source_column": 39,
-      "source_line": 3897,
+      "source_line": 3959,
       "wrapper_target": "chrys.kernel._types._resolve_maybe_awaitable"
     },
     {
@@ -1558,7 +1558,7 @@
       "primitive": "wrapper",
       "qualname": "ResponseStream.get_final_response",
       "source_column": 40,
-      "source_line": 3904,
+      "source_line": 3966,
       "wrapper_target": "chrys.kernel._types._resolve_maybe_awaitable"
     },
     {
@@ -1578,7 +1578,7 @@
       "primitive": "wrapper",
       "qualname": "ResponseStream.get_final_response",
       "source_column": 35,
-      "source_line": 3916,
+      "source_line": 3978,
       "wrapper_target": "chrys.kernel._types._resolve_maybe_awaitable"
     },
     {
@@ -1598,7 +1598,7 @@
       "primitive": "wrapper",
       "qualname": "ResponseStream.get_final_response",
       "source_column": 40,
-      "source_line": 3924,
+      "source_line": 3986,
       "wrapper_target": "chrys.kernel._types._resolve_maybe_awaitable"
     },
     {
@@ -1618,7 +1618,7 @@
       "primitive": "async_iteration",
       "qualname": "ResponseStream.get_final_response",
       "source_column": 12,
-      "source_line": 3932,
+      "source_line": 3994,
       "wrapper_target": null
     },
     {
@@ -1638,7 +1638,7 @@
       "primitive": "wrapper",
       "qualname": "ResponseStream.get_final_response",
       "source_column": 25,
-      "source_line": 3939,
+      "source_line": 4001,
       "wrapper_target": "chrys.kernel._types._resolve_maybe_awaitable"
     },
     {
@@ -1658,7 +1658,7 @@
       "primitive": "wrapper",
       "qualname": "ResponseStream.get_final_response",
       "source_column": 36,
-      "source_line": 3945,
+      "source_line": 4007,
       "wrapper_target": "chrys.kernel._types._resolve_maybe_awaitable"
     },
     {
@@ -1678,7 +1678,7 @@
       "primitive": "awaitable",
       "qualname": "_resolve_maybe_awaitable",
       "source_column": 25,
-      "source_line": 3499,
+      "source_line": 3561,
       "wrapper_target": null
     },
     {
@@ -1698,7 +1698,7 @@
       "primitive": "awaitable",
       "qualname": "_resolve_stream_source",
       "source_column": 11,
-      "source_line": 3511,
+      "source_line": 3573,
       "wrapper_target": null
     },
     {
@@ -1718,7 +1718,7 @@
       "primitive": "wrapper",
       "qualname": "validate_chat_options",
       "source_column": 26,
-      "source_line": 4194,
+      "source_line": 4256,
       "wrapper_target": "chrys.kernel._types.validate_tools"
     },
     {
@@ -1738,7 +1738,7 @@
       "primitive": "awaitable",
       "qualname": "validate_tools",
       "source_column": 19,
-      "source_line": 4272,
+      "source_line": 4334,
       "wrapper_target": null
     },
     {
@@ -14298,7 +14298,7 @@
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow._degraded",
       "source_column": 8,
-      "source_line": 795,
+      "source_line": 807,
       "wrapper_target": null
     },
     {
@@ -14318,7 +14318,7 @@
       "primitive": "wrapper",
       "qualname": "RequirementClarificationWorkflow._degraded",
       "source_column": 8,
-      "source_line": 802,
+      "source_line": 814,
       "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._phase"
     },
     {
@@ -14338,7 +14338,7 @@
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow._deliver_p0",
       "source_column": 12,
-      "source_line": 754,
+      "source_line": 766,
       "wrapper_target": null
     },
     {
@@ -14358,7 +14358,7 @@
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow._deliver_p0",
       "source_column": 8,
-      "source_line": 763,
+      "source_line": 775,
       "wrapper_target": null
     },
     {
@@ -14378,7 +14378,7 @@
       "primitive": "wrapper",
       "qualname": "RequirementClarificationWorkflow._deliver_p0",
       "source_column": 8,
-      "source_line": 764,
+      "source_line": 776,
       "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._phase"
     },
     {
@@ -14398,7 +14398,7 @@
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow._deliver_p0",
       "source_column": 8,
-      "source_line": 765,
+      "source_line": 777,
       "wrapper_target": null
     },
     {
@@ -14418,7 +14418,7 @@
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow._deliver_p0",
       "source_column": 8,
-      "source_line": 773,
+      "source_line": 785,
       "wrapper_target": null
     },
     {
@@ -14438,7 +14438,7 @@
       "primitive": "wrapper",
       "qualname": "RequirementClarificationWorkflow._deliver_p0",
       "source_column": 8,
-      "source_line": 792,
+      "source_line": 804,
       "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._phase"
     },
     {
@@ -14458,7 +14458,7 @@
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow._end_turn_with_error",
       "source_column": 8,
-      "source_line": 730,
+      "source_line": 742,
       "wrapper_target": null
     },
     {
@@ -14478,7 +14478,7 @@
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow._phase",
       "source_column": 8,
-      "source_line": 836,
+      "source_line": 848,
       "wrapper_target": null
     },
     {
@@ -15138,7 +15138,7 @@
       "primitive": "timeout",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 35,
-      "source_line": 489,
+      "source_line": 501,
       "wrapper_target": null
     },
     {
@@ -15158,7 +15158,7 @@
       "primitive": "future",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 53,
-      "source_line": 500,
+      "source_line": 512,
       "wrapper_target": null
     },
     {
@@ -15178,7 +15178,7 @@
       "primitive": "wrapper",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 28,
-      "source_line": 508,
+      "source_line": 520,
       "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._deliver_p0"
     },
     {
@@ -15198,7 +15198,7 @@
       "primitive": "wrapper",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 20,
-      "source_line": 541,
+      "source_line": 553,
       "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._deliver_p0"
     },
     {
@@ -15218,7 +15218,7 @@
       "primitive": "wrapper",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 20,
-      "source_line": 544,
+      "source_line": 556,
       "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._deliver_p0"
     },
     {
@@ -15238,7 +15238,7 @@
       "primitive": "wrapper",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 20,
-      "source_line": 561,
+      "source_line": 573,
       "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._deliver_p0"
     },
     {
@@ -15258,7 +15258,7 @@
       "primitive": "wrapper",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 20,
-      "source_line": 568,
+      "source_line": 580,
       "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._deliver_p0"
     },
     {
@@ -15278,7 +15278,7 @@
       "primitive": "thread_pool",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 23,
-      "source_line": 574,
+      "source_line": 586,
       "wrapper_target": null
     },
     {
@@ -15298,7 +15298,7 @@
       "primitive": "wrapper",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 20,
-      "source_line": 575,
+      "source_line": 587,
       "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._deliver_p0"
     },
     {
@@ -15318,7 +15318,7 @@
       "primitive": "wrapper",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 16,
-      "source_line": 583,
+      "source_line": 595,
       "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._phase"
     },
     {
@@ -15338,7 +15338,7 @@
       "primitive": "timeout",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 31,
-      "source_line": 595,
+      "source_line": 607,
       "wrapper_target": null
     },
     {
@@ -15358,7 +15358,7 @@
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 24,
-      "source_line": 596,
+      "source_line": 608,
       "wrapper_target": null
     },
     {
@@ -15378,7 +15378,7 @@
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 24,
-      "source_line": 599,
+      "source_line": 611,
       "wrapper_target": null
     },
     {
@@ -15398,7 +15398,7 @@
       "primitive": "thread_pool",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 24,
-      "source_line": 625,
+      "source_line": 637,
       "wrapper_target": null
     },
     {
@@ -15418,7 +15418,7 @@
       "primitive": "wrapper",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 24,
-      "source_line": 629,
+      "source_line": 641,
       "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._phase"
     },
     {
@@ -15438,7 +15438,7 @@
       "primitive": "wrapper",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 24,
-      "source_line": 635,
+      "source_line": 647,
       "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._end_turn_with_error"
     },
     {
@@ -15458,7 +15458,7 @@
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 24,
-      "source_line": 636,
+      "source_line": 648,
       "wrapper_target": null
     },
     {
@@ -15478,7 +15478,7 @@
       "primitive": "thread_pool",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 24,
-      "source_line": 644,
+      "source_line": 656,
       "wrapper_target": null
     },
     {
@@ -15498,7 +15498,7 @@
       "primitive": "wrapper",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 24,
-      "source_line": 648,
+      "source_line": 660,
       "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._phase"
     },
     {
@@ -15518,7 +15518,7 @@
       "primitive": "wrapper",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 24,
-      "source_line": 654,
+      "source_line": 666,
       "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._end_turn_with_error"
     },
     {
@@ -15538,7 +15538,7 @@
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 24,
-      "source_line": 655,
+      "source_line": 667,
       "wrapper_target": null
     },
     {
@@ -15558,7 +15558,7 @@
       "primitive": "wrapper",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 20,
-      "source_line": 667,
+      "source_line": 679,
       "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._deliver_p0"
     },
     {
@@ -15578,7 +15578,7 @@
       "primitive": "wrapper",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 12,
-      "source_line": 673,
+      "source_line": 685,
       "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._phase"
     },
     {
@@ -15598,7 +15598,7 @@
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 12,
-      "source_line": 674,
+      "source_line": 686,
       "wrapper_target": null
     },
     {
@@ -15618,7 +15618,7 @@
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 12,
-      "source_line": 682,
+      "source_line": 694,
       "wrapper_target": null
     },
     {
@@ -15638,7 +15638,7 @@
       "primitive": "wrapper",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 12,
-      "source_line": 700,
+      "source_line": 712,
       "wrapper_target": "chrys.orchestration.engine.run.requirement_clarification.RequirementClarificationWorkflow._phase"
     },
     {
@@ -15658,7 +15658,7 @@
       "primitive": "thread_pool",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 16,
-      "source_line": 708,
+      "source_line": 720,
       "wrapper_target": null
     },
     {
@@ -15678,7 +15678,7 @@
       "primitive": "thread_pool",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 16,
-      "source_line": 710,
+      "source_line": 722,
       "wrapper_target": null
     },
     {
@@ -15698,7 +15698,7 @@
       "primitive": "future",
       "qualname": "_settle",
       "source_column": 8,
-      "source_line": 871,
+      "source_line": 883,
       "wrapper_target": null
     },
     {
@@ -15718,7 +15718,7 @@
       "primitive": "sleep",
       "qualname": "_settle_executor",
       "source_column": 8,
-      "source_line": 928,
+      "source_line": 940,
       "wrapper_target": null
     },
     {
@@ -23778,7 +23778,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._fire_pre_compact_hook",
       "source_column": 8,
-      "source_line": 2042,
+      "source_line": 2062,
       "wrapper_target": null
     },
     {
@@ -23798,7 +23798,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._fire_sub_agent_hook",
       "source_column": 8,
-      "source_line": 2035,
+      "source_line": 2055,
       "wrapper_target": null
     },
     {
@@ -24118,7 +24118,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._make_tool._invoke",
       "source_column": 20,
-      "source_line": 1534,
+      "source_line": 1554,
       "wrapper_target": null
     },
     {
@@ -24138,7 +24138,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._make_tool._invoke",
       "source_column": 42,
-      "source_line": 1568,
+      "source_line": 1588,
       "wrapper_target": null
     },
     {
@@ -24158,7 +24158,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentTools._make_tool._invoke",
       "source_column": 20,
-      "source_line": 1574,
+      "source_line": 1594,
       "wrapper_target": "chrys.orchestration.sub_agents.tools.SubAgentTools._refresh_skill_catalog"
     },
     {
@@ -24178,7 +24178,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._make_tool._invoke",
       "source_column": 20,
-      "source_line": 1584,
+      "source_line": 1604,
       "wrapper_target": null
     },
     {
@@ -24198,7 +24198,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentTools._make_tool._invoke",
       "source_column": 16,
-      "source_line": 1593,
+      "source_line": 1613,
       "wrapper_target": "chrys.orchestration.sub_agents.tools.SubAgentTools._fire_sub_agent_hook"
     },
     {
@@ -24218,7 +24218,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._make_tool._invoke",
       "source_column": 29,
-      "source_line": 1889,
+      "source_line": 1909,
       "wrapper_target": null
     },
     {
@@ -24238,7 +24238,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentTools._make_tool._invoke",
       "source_column": 20,
-      "source_line": 1900,
+      "source_line": 1920,
       "wrapper_target": "chrys.orchestration.sub_agents.tools._finish_cancellation_cleanup"
     },
     {
@@ -24258,7 +24258,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._make_tool._invoke",
       "source_column": 24,
-      "source_line": 1903,
+      "source_line": 1923,
       "wrapper_target": null
     },
     {
@@ -24278,7 +24278,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._make_tool._invoke",
       "source_column": 24,
-      "source_line": 1913,
+      "source_line": 1933,
       "wrapper_target": null
     },
     {
@@ -24298,7 +24298,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._make_tool._invoke",
       "source_column": 24,
-      "source_line": 1931,
+      "source_line": 1951,
       "wrapper_target": null
     },
     {
@@ -24318,7 +24318,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._make_tool._invoke",
       "source_column": 24,
-      "source_line": 1938,
+      "source_line": 1958,
       "wrapper_target": null
     },
     {
@@ -24338,7 +24338,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentTools._make_tool._invoke",
       "source_column": 24,
-      "source_line": 1947,
+      "source_line": 1967,
       "wrapper_target": "chrys.orchestration.sub_agents.tools.SubAgentTools._fire_sub_agent_hook"
     },
     {
@@ -24358,7 +24358,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._make_tool._invoke",
       "source_column": 24,
-      "source_line": 1988,
+      "source_line": 2008,
       "wrapper_target": null
     },
     {
@@ -24378,7 +24378,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._make_tool._invoke._publish_validation_retry",
       "source_column": 24,
-      "source_line": 1763,
+      "source_line": 1783,
       "wrapper_target": null
     },
     {
@@ -24398,7 +24398,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentTools._make_tool._make_invocation_runtime._on_pre_compact",
       "source_column": 16,
-      "source_line": 1355,
+      "source_line": 1375,
       "wrapper_target": "chrys.orchestration.sub_agents.tools.SubAgentTools._fire_pre_compact_hook"
     },
     {
@@ -24418,7 +24418,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentTools._make_tool._make_invocation_runtime._publish_compaction_status",
       "source_column": 16,
-      "source_line": 1433,
+      "source_line": 1453,
       "wrapper_target": "chrys.orchestration.sub_agents.tools.SubAgentTools._publish_sub_agent_compaction_status"
     },
     {
@@ -24438,7 +24438,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._make_tool._make_invocation_runtime._publish_last_words_retry",
       "source_column": 16,
-      "source_line": 1413,
+      "source_line": 1433,
       "wrapper_target": null
     },
     {
@@ -24458,7 +24458,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._publish_sub_agent_compaction_status",
       "source_column": 12,
-      "source_line": 2077,
+      "source_line": 2097,
       "wrapper_target": null
     },
     {
@@ -24478,7 +24478,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._publish_sub_agent_compaction_status",
       "source_column": 12,
-      "source_line": 2090,
+      "source_line": 2110,
       "wrapper_target": null
     },
     {
@@ -24498,7 +24498,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._publish_sub_agent_compaction_status",
       "source_column": 8,
-      "source_line": 2099,
+      "source_line": 2119,
       "wrapper_target": null
     },
     {
@@ -24558,7 +24558,7 @@
       "primitive": "gather",
       "qualname": "SubAgentTools.cascade_abort_all",
       "source_column": 18,
-      "source_line": 2403,
+      "source_line": 2423,
       "wrapper_target": null
     },
     {
@@ -24578,7 +24578,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools.cleanup",
       "source_column": 16,
-      "source_line": 2426,
+      "source_line": 2446,
       "wrapper_target": null
     },
     {
@@ -24598,7 +24598,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools.cleanup",
       "source_column": 16,
-      "source_line": 2432,
+      "source_line": 2452,
       "wrapper_target": null
     },
     {
@@ -37898,7 +37898,7 @@
       "primitive": "awaitable",
       "qualname": "ChrysClarificationModel._run",
       "source_column": 8,
-      "source_line": 760,
+      "source_line": 774,
       "wrapper_target": null
     },
     {
@@ -37911,14 +37911,14 @@
           "when": "all_paths"
         }
       ],
-      "expression": "await agent.run(prompt, stream=False, options=_stateless_options(self._profile, response_format, required_tool_name=required_tool_name))",
+      "expression": "await agent.run(prompt, stream=False, options=options)",
       "identity": "chrys.service.requirement_clarification.model:ChrysClarificationModel._run:2",
       "module": "chrys.service.requirement_clarification.model",
       "ordinal": 2,
       "primitive": "awaitable",
       "qualname": "ChrysClarificationModel._run",
-      "source_column": 23,
-      "source_line": 762,
+      "source_column": 31,
+      "source_line": 786,
       "wrapper_target": null
     },
     {
@@ -37938,7 +37938,7 @@
       "primitive": "awaitable",
       "qualname": "ChrysClarificationModel._run",
       "source_column": 12,
-      "source_line": 779,
+      "source_line": 809,
       "wrapper_target": null
     },
     {
@@ -37951,14 +37951,14 @@
           "when": "all_paths"
         }
       ],
-      "expression": "await self._run(prompt, response_format=PactGoalContract, instructions=pact_goal_contract_instructions(), route_kind='requirement-clarification-pact-goal-contract', route_part='1')",
+      "expression": "await self._run(prompt, response_format=PactGoalContract, instructions=pact_goal_contract_instructions(), route_kind='requirement-clarification-pact-goal-contract', route_part='1', tool_choice_none=True)",
       "identity": "chrys.service.requirement_clarification.model:ChrysClarificationModel.generate_pact_goal_contract:1",
       "module": "chrys.service.requirement_clarification.model",
       "ordinal": 1,
       "primitive": "wrapper",
       "qualname": "ChrysClarificationModel.generate_pact_goal_contract",
       "source_column": 15,
-      "source_line": 721,
+      "source_line": 732,
       "wrapper_target": "chrys.service.requirement_clarification.model.ChrysClarificationModel._run"
     },
     {
@@ -37971,14 +37971,14 @@
           "when": "all_paths"
         }
       ],
-      "expression": "await self._run(prompt, response_format=PactInitialPlan, instructions=pact_initial_plan_instructions(), route_kind='requirement-clarification-pact-initial-plan', route_part='1')",
+      "expression": "await self._run(prompt, response_format=PactInitialPlan, instructions=pact_initial_plan_instructions(), route_kind='requirement-clarification-pact-initial-plan', route_part='1', tool_choice_none=True)",
       "identity": "chrys.service.requirement_clarification.model:ChrysClarificationModel.generate_pact_initial_plan:1",
       "module": "chrys.service.requirement_clarification.model",
       "ordinal": 1,
       "primitive": "wrapper",
       "qualname": "ChrysClarificationModel.generate_pact_initial_plan",
       "source_column": 15,
-      "source_line": 730,
+      "source_line": 742,
       "wrapper_target": "chrys.service.requirement_clarification.model.ChrysClarificationModel._run"
     },
     {
@@ -37998,7 +37998,7 @@
       "primitive": "awaitable",
       "qualname": "ChrysClarificationModel.propose",
       "source_column": 8,
-      "source_line": 527,
+      "source_line": 538,
       "wrapper_target": null
     },
     {
@@ -38018,7 +38018,7 @@
       "primitive": "awaitable",
       "qualname": "ChrysClarificationModel.propose",
       "source_column": 20,
-      "source_line": 551,
+      "source_line": 562,
       "wrapper_target": null
     },
     {
@@ -38038,7 +38038,7 @@
       "primitive": "awaitable",
       "qualname": "ChrysClarificationModel.propose",
       "source_column": 35,
-      "source_line": 592,
+      "source_line": 603,
       "wrapper_target": null
     },
     {
@@ -38058,7 +38058,7 @@
       "primitive": "awaitable",
       "qualname": "ChrysClarificationModel.propose",
       "source_column": 12,
-      "source_line": 682,
+      "source_line": 693,
       "wrapper_target": null
     },
     {
@@ -38078,7 +38078,7 @@
       "primitive": "awaitable",
       "qualname": "ChrysClarificationModel.propose.run_stage",
       "source_column": 23,
-      "source_line": 484,
+      "source_line": 495,
       "wrapper_target": null
     },
     {
@@ -38098,7 +38098,7 @@
       "primitive": "wrapper",
       "qualname": "ChrysClarificationModel.propose_legacy_v1",
       "source_column": 15,
-      "source_line": 700,
+      "source_line": 711,
       "wrapper_target": "chrys.service.requirement_clarification.model.ChrysClarificationModel._run"
     },
     {
@@ -38118,7 +38118,7 @@
       "primitive": "wrapper",
       "qualname": "ChrysClarificationModel.select",
       "source_column": 15,
-      "source_line": 685,
+      "source_line": 696,
       "wrapper_target": "chrys.service.requirement_clarification.model.ChrysClarificationModel._run"
     },
     {
@@ -38138,7 +38138,7 @@
       "primitive": "wrapper",
       "qualname": "ChrysClarificationModel.select_legacy_v1",
       "source_column": 15,
-      "source_line": 711,
+      "source_line": 722,
       "wrapper_target": "chrys.service.requirement_clarification.model.ChrysClarificationModel._run"
     },
     {
@@ -38158,7 +38158,7 @@
       "primitive": "thread_pool",
       "qualname": "ClarificationService._clarify_legacy_v1",
       "source_column": 24,
-      "source_line": 256,
+      "source_line": 282,
       "wrapper_target": null
     },
     {
@@ -38178,7 +38178,7 @@
       "primitive": "gather",
       "qualname": "ClarificationService._clarify_legacy_v1",
       "source_column": 27,
-      "source_line": 264,
+      "source_line": 290,
       "wrapper_target": null
     },
     {
@@ -38198,7 +38198,7 @@
       "primitive": "awaitable",
       "qualname": "ClarificationService._clarify_legacy_v1",
       "source_column": 36,
-      "source_line": 270,
+      "source_line": 296,
       "wrapper_target": null
     },
     {
@@ -38218,7 +38218,7 @@
       "primitive": "wrapper",
       "qualname": "ClarificationService.clarify",
       "source_column": 19,
-      "source_line": 74,
+      "source_line": 75,
       "wrapper_target": "chrys.service.requirement_clarification.service.ClarificationService._clarify_legacy_v1"
     },
     {
@@ -38238,7 +38238,7 @@
       "primitive": "thread_pool",
       "qualname": "ClarificationService.clarify",
       "source_column": 24,
-      "source_line": 80,
+      "source_line": 81,
       "wrapper_target": null
     },
     {
@@ -38258,7 +38258,7 @@
       "primitive": "gather",
       "qualname": "ClarificationService.clarify",
       "source_column": 31,
-      "source_line": 88,
+      "source_line": 89,
       "wrapper_target": null
     },
     {
@@ -38278,7 +38278,7 @@
       "primitive": "awaitable",
       "qualname": "ClarificationService.clarify",
       "source_column": 47,
-      "source_line": 185,
+      "source_line": 186,
       "wrapper_target": null
     },
     {
@@ -38298,7 +38298,7 @@
       "primitive": "awaitable",
       "qualname": "ClarificationService.generate_pact_input",
       "source_column": 36,
-      "source_line": 312,
+      "source_line": 338,
       "wrapper_target": null
     },
     {
@@ -38318,7 +38318,7 @@
       "primitive": "thread_pool",
       "qualname": "ClarificationService.generate_pact_input",
       "source_column": 24,
-      "source_line": 315,
+      "source_line": 341,
       "wrapper_target": null
     },
     {
@@ -38338,7 +38338,7 @@
       "primitive": "awaitable",
       "qualname": "ClarificationService.generate_pact_input",
       "source_column": 43,
-      "source_line": 340,
+      "source_line": 366,
       "wrapper_target": null
     },
     {
