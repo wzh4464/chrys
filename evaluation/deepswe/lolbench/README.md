@@ -84,9 +84,14 @@ agent_out/chrys/<session>/long_horizon/turn_1/{brief.md,memory-prior.md,semantic
 agent_out/chrys/<session>/sub_agents/sessions/chrys_pact_*      only when the workspace had a verify command
 ```
 
-DeepSWE tasks carry no uniform verification command, so `pact.verify_command` is unset
-and the track ends at the repaired baseline (no campaign) unless you set
-`CHRYS_PACT_VERIFY_COMMAND` for a task family whose test runner you trust.
+A campaign runs only when the workspace has a deterministic verification command, and
+DeepSWE tasks carry none of their own — so the wrapper image sets
+`CHRYS_PACT_VERIFY_COMMAND` from the task's language (`evaluation/deepswe/verify.py`:
+`go test ./...`, `python -m pytest -q -x`, `npm test --silent`, `cargo test -q`), which is
+what the campaign's Worker/Reviewer loop runs to accept each mission. Clarification's goal
+contract and initial plan (`06-pact-input/`, copied to `.pact-io/chrys-pact/<id>/` in the
+workspace) are the campaign's input. A repository whose own suite fails at the base commit
+blocks its campaign; the turn then answers with the repaired baseline.
 
 ## 3. Grade with the Harbor verifier
 
