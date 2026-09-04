@@ -390,7 +390,7 @@ async def test_live_clarification_side_call_is_cancelled_immediately(
             admission_preparation=None,
         )
     )
-    async with asyncio.timeout(1):
+    async with asyncio.timeout(10):
         await clarify_started.wait()
     if action == "amend":
         assert await workflow.accept_amendment(

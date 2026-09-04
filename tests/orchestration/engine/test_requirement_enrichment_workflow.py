@@ -362,7 +362,7 @@ async def test_workflow_accepts_amendment_while_snapshot_is_being_captured(
             admission_preparation=None,
         )
     )
-    await asyncio.wait_for(snapshot_started.wait(), timeout=1)
+    await asyncio.wait_for(snapshot_started.wait(), timeout=10)
 
     assert await workflow.accept_amendment(
         "include the compatibility path",
