@@ -6,12 +6,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import re
 from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any, Literal, Protocol, TypeVar, cast
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from chrys.foundation.models.session_env import SessionEnvironment
 from chrys.kernel import CONVERSATION_HANDLE_KEYS, Agent
@@ -104,6 +105,16 @@ def _stateless_options[ResponseT: BaseModel](
             clean_extra["store"] = False
         options["extra_body"] = clean_extra
     return options
+
+
+logger = logging.getLogger(__name__)
+
+_STRUCTURED_REPLY_ATTEMPTS = 2
+_STRUCTURED_REPLY_REMINDER = (
+    "Your previous reply was not the required JSON object (prose, a fence, or tool-call "
+    "markup instead of the object). This turn has no tools to call. Reply with exactly one "
+    "JSON object matching the schema, and nothing else."
+)
 
 
 _PLACEHOLDER_PATTERNS = (
@@ -759,22 +770,33 @@ class ChrysClarificationModel:
         )
         await agent.__aenter__()
         try:
-            response = await agent.run(
-                prompt,
-                stream=False,
-                options=_stateless_options(
-                    self._profile,
-                    response_format,
-                    required_tool_name=required_tool_name,
-                ),
-            )
-            value = response.value
-            if not isinstance(value, response_format):
-                raise ValueError(f"clarification side call returned no {response_format.__name__}")
-            usage = dict(response.usage_details or {})
-            if usage and self._report_usage is not None:
-                self._report_usage(usage)
-            return value, usage
+            options = _stateless_options(self._profile, response_format, required_tool_name=required_tool_name)
+            attempts = 0
+            while True:
+                attempts += 1
+                try:
+                    response = await agent.run(prompt, stream=False, options=options)
+                    value = response.value
+                    if not isinstance(value, response_format):
+                        raise ValueError(f"clarification side call returned no {response_format.__name__}")
+                except (ValidationError, ValueError) as exc:
+                    # A reply that is not the object -- prose, a fenced block the adapter
+                    # could not unwrap, or a provider's raw tool-call markup in a turn
+                    # that has no tools -- gets exactly one more chance with the format
+                    # spelled out; anything else is the caller's failure to report.
+                    if attempts > _STRUCTURED_REPLY_ATTEMPTS - 1:
+                        raise
+                    logger.warning(
+                        "Clarification side call %s returned no %s; asking once more",
+                        route_kind,
+                        response_format.__name__,
+                    )
+                    prompt = f"{prompt}\n\n{_STRUCTURED_REPLY_REMINDER}\nThe error was: {str(exc)[:600]}"
+                    continue
+                usage = dict(response.usage_details or {})
+                if usage and self._report_usage is not None:
+                    self._report_usage(usage)
+                return value, usage
         finally:
             await agent.__aexit__(None, None, None)
 

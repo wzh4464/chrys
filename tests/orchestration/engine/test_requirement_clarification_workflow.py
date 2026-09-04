@@ -505,3 +505,83 @@ async def test_a_baseline_pass_that_runs_out_of_budget_keeps_its_partial_work(
     assert executor.last_response_text == "P1"  # the turn's answer is the repair, not nothing
     assert executor.was_interrupted is False
     assert runner.finalized == 1
+
+
+@pytest.mark.asyncio
+async def test_a_degraded_clarification_still_generates_the_pact_input(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No valid proposal is no reason to skip the campaign: the requirement alone carries the contract."""
+
+    async def _direct(function, /, *args, **kwargs):
+        return function(*args, **kwargs)
+
+    generation_calls: list[str] = []
+
+    class _Service:
+        def __init__(self, _model, **_kwargs) -> None:
+            return
+
+        async def clarify(self, **_kwargs):
+            return ClarificationResult(
+                strategy_version="test-v1",
+                revision=1,
+                delta="",
+                selection=ClarificationSelection(),
+                status="degraded",
+                empty_reason="insufficient_valid_proposals",
+            )
+
+        async def generate_pact_input(self, *, result, **_kwargs):
+            generation_calls.append(result.status)
+            raise RuntimeError("simulated PACT failure after degradation")
+
+    monkeypatch.setattr(workflow_module.asyncio, "to_thread", _direct)
+    monkeypatch.setattr(workflow_module, "ClarificationService", _Service)
+    monkeypatch.setattr(workflow_module, "ChrysClarificationModel", lambda **_kwargs: object())
+
+    workspace_root = tmp_path / "workspace"
+    workspace_root.mkdir()
+    workspace_file = workspace_root / "value.txt"
+    workspace_file.write_text("S0\n", encoding="utf-8")
+    executor = _Executor(workspace_file)
+    history = SessionHistoryManager()
+    history.bind(executor.history_state)
+    host = SimpleNamespace(
+        _active_profile=object(),
+        _agent_profile_fingerprint="agent-fp",
+        _model_profile_fingerprint="model-fp",
+        _bus=EventBus(),
+        _consumed_injections=[],
+        _executor=executor,
+        _history=history,
+        _intermediate_texts={},
+        _reminder_middleware=_Reminder(),
+        _session_id="session",
+        _turn_number=0,
+        _turn_state=SimpleNamespace(close_injection_admission=lambda _scope: None),
+        _workspace=Workspace.from_cwd(str(workspace_root)),
+        _session_dir=tmp_path / "session",
+        _requirement_clarification_workflow=None,
+        _accumulate_side_call_usage=lambda _usage: None,
+    )
+    runner = _Runner(host, workspace_file)
+    workflow = RequirementClarificationWorkflow(host, runner, clarification_only=True)
+    workflow._snapshotter = _Snapshotter(workspace_file)
+
+    await workflow.run(
+        "implement it",
+        created_at=None,
+        contents=["implement it"],
+        run_scope=None,
+        injection_window=None,
+        admission_preparation=None,
+    )
+
+    assert generation_calls == ["degraded"]
+    artifact_root = host._session_dir / "requirement_clarification/turn_1"
+    generation = json.loads((artifact_root / "06-pact-input/generation.private.json").read_text(encoding="utf-8"))
+    assert generation["status"] == "failed"
+    assert "simulated PACT failure after degradation" in generation["error"]
+    assert generation["clarification_status"] == "degraded"
+    assert any("generated from the requirement alone" in warning for warning in generation["warnings"])

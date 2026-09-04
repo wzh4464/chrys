@@ -6,6 +6,7 @@ import hashlib
 import json
 
 import pytest
+from pydantic import BaseModel
 
 from chrys.kernel import AgentResponse, Content, Message
 from chrys.service.profiles.models.schema import ModelProfile
@@ -395,3 +396,78 @@ def test_proposal_semantics_reject_unresolved_confirmation_note() -> None:
     )
 
     assert _proposal_errors(proposal, calls) == ["proposal contains placeholder or unfinished investigation text"]
+
+
+class _Reply(BaseModel):
+    ok: bool
+
+
+class _RunAgent:
+    """An agent for ``_run``: replies in order, records prompts."""
+
+    def __init__(self, responses: list[object]) -> None:
+        self._responses = iter(responses)
+        self.prompts: list[str] = []
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, _exc_type, _exc_value, _traceback) -> None:
+        return None
+
+    async def run(self, message: str, *, stream: bool, options: dict[str, object]):
+        assert stream is False
+        self.prompts.append(message)
+        response = next(self._responses)
+        if isinstance(response, Exception):
+            raise response
+        return response
+
+
+def _model_for_run(monkeypatch: pytest.MonkeyPatch, agent: _RunAgent) -> ChrysClarificationModel:
+    model = ChrysClarificationModel(
+        profile=_profile(),
+        snapshot=WorkspaceSnapshot(
+            snapshot_id="s0", artifact_root="/snapshot", roots=(), manifest_hash="abc", total_bytes=0, entry_count=0
+        ),
+        session_id="parent",
+        session_dir=None,
+    )
+    monkeypatch.setattr(model, "_create_agent", lambda **_kwargs: agent)
+    return model
+
+
+@pytest.mark.asyncio
+async def test_a_structured_side_call_that_returns_no_object_is_asked_once_more(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from pydantic import ValidationError as _ValidationError
+
+    try:
+        _Reply.model_validate_json("Based on the requirement, here is the contract")
+    except _ValidationError as error:
+        invalid = error
+    agent = _RunAgent([invalid, AgentResponse(value=_Reply(ok=True))])
+    model = _model_for_run(monkeypatch, agent)
+
+    value, _usage = await model._run(
+        "Produce the object.", response_format=_Reply, instructions="i", route_kind="k", route_part="1"
+    )
+
+    assert value == _Reply(ok=True)
+    assert len(agent.prompts) == 2
+    assert agent.prompts[1].startswith("Produce the object.")
+    assert "Reply with exactly one JSON object" in agent.prompts[1]
+    assert "The error was:" in agent.prompts[1]
+
+
+@pytest.mark.asyncio
+async def test_a_structured_side_call_gives_up_after_the_second_miss(monkeypatch: pytest.MonkeyPatch) -> None:
+    agent = _RunAgent([AgentResponse(value="prose"), AgentResponse(value="still prose")])
+    model = _model_for_run(monkeypatch, agent)
+
+    with pytest.raises(ValueError, match="returned no _Reply"):
+        await model._run(
+            "Produce the object.", response_format=_Reply, instructions="i", route_kind="k", route_part="1"
+        )
+    assert len(agent.prompts) == 2

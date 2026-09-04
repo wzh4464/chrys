@@ -2578,8 +2578,10 @@ def _parse_structured_response_value(text: str, response_format: Any | None) -> 
                 raise
             try:
                 return response_format.model_validate_json(embedded)
-            except ValueError:
-                raise exc from None
+            except ValueError as embedded_exc:
+                # The object was there but wrong: that error names the field, the
+                # original one only says the preamble is not JSON.
+                raise embedded_exc from exc
     if isinstance(response_format, Mapping):
         try:
             return json.loads(text)

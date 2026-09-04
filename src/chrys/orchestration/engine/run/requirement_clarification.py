@@ -475,7 +475,19 @@ class RequirementClarificationWorkflow:
                         detail=f"clarification result persistence failed: {exc}",
                     )
                     return
-                if result.status == "completed":
+                # A degraded clarification (no valid proposal, a failed selector) still
+                # leaves the requirement itself: the Goal Contract derives from it alone,
+                # and the Initial Plan can be built without proposals. Without this, the
+                # long-horizon turn ends at the baseline and the campaign never starts.
+                if result.status == "degraded":
+                    result = replace(
+                        result,
+                        warnings=(
+                            *result.warnings,
+                            "clarification degraded; PACT input generated from the requirement alone",
+                        ),
+                    )
+                if result.status in ("completed", "degraded"):
                     pact_service = ClarificationService(
                         ChrysClarificationModel(
                             profile=model_profile,
@@ -523,7 +535,7 @@ class RequirementClarificationWorkflow:
                 else:
                     result = replace(
                         result,
-                        pact_generation_error="clarification degraded before PACT generation",
+                        pact_generation_error="clarification did not finish before PACT generation",
                     )
                 if revision.number != self._revision.number:
                     continue

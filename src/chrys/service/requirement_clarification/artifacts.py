@@ -276,13 +276,9 @@ class ClarificationArtifactStore:
             "usage_details": list(result.usage_details),
             "warnings": list(result.warnings),
         }
-        if result.status == "degraded":
-            metadata.update(
-                {
-                    "status": "skipped",
-                    "error": result.pact_generation_error or "clarification degraded before PACT generation",
-                }
-            )
+        metadata["clarification_status"] = result.status
+        if result.pact_input is None and result.status == "degraded" and not result.pact_generation_error:
+            metadata.update({"status": "skipped", "error": "clarification degraded before PACT generation"})
             self._save_json(Path(PACT_INPUT_PHASE_DIR) / "generation.private.json", metadata)
             return
         if result.pact_input is None:
