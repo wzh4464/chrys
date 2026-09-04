@@ -295,13 +295,17 @@ def render(runs_dir: Path, grades_dir: Path | None, *, verbose: bool = False) ->
                 f"- patch: {'%d bytes' % patch.stat().st_size if patch is not None and patch.is_file() else 'none'}; not graded"
             )
         lines.append("")
+    # "complete" is the whole track: a campaign ran to completion on the clarified plan.
     lines.insert(
-        3, "| tasks | clarified | degraded | prior recalled | patches | campaigns (completed) | graded | resolved |"
+        3,
+        "| tasks | complete (campaign completed) | campaigns started | clarified | degraded "
+        "| prior recalled | patches | graded | resolved |",
     )
-    lines.insert(4, "|---:|---:|---:|---:|---:|---:|---:|---:|")
+    lines.insert(4, "|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
     lines.insert(
         5,
-        f"| {totals['tasks']} | {totals['clarified']} | {totals['degraded']} | {totals['prior']} | {totals['patches']} | {totals['campaigns']} ({totals['campaign_completed']}) | {totals['graded']} | {totals['resolved']} |",
+        f"| {totals['tasks']} | {totals['campaign_completed']} | {totals['campaigns']} | {totals['clarified']} "
+        f"| {totals['degraded']} | {totals['prior']} | {totals['patches']} | {totals['graded']} | {totals['resolved']} |",
     )
     lines.insert(6, "")
     return "\n".join(lines) + "\n"
