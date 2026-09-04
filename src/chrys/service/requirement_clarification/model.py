@@ -735,6 +735,7 @@ class ChrysClarificationModel:
             instructions=pact_goal_contract_instructions(),
             route_kind="requirement-clarification-pact-goal-contract",
             route_part="1",
+            tool_choice_none=True,
         )
 
     async def generate_pact_initial_plan(self, prompt: str) -> tuple[PactInitialPlan, dict[str, object]]:
@@ -744,6 +745,7 @@ class ChrysClarificationModel:
             instructions=pact_initial_plan_instructions(),
             route_kind="requirement-clarification-pact-initial-plan",
             route_part="1",
+            tool_choice_none=True,
         )
 
     async def _run(
@@ -756,6 +758,7 @@ class ChrysClarificationModel:
         route_part: str,
         required_tool_name: str | None = None,
         bounded: bool = True,
+        tool_choice_none: bool = False,
     ) -> tuple[ResponseT, dict[str, object]]:
         route_session_id = derive_llm_route_session_id(
             self._session_id,
@@ -771,6 +774,11 @@ class ChrysClarificationModel:
         await agent.__aenter__()
         try:
             options = _stateless_options(self._profile, response_format, required_tool_name=required_tool_name)
+            if tool_choice_none:
+                # Pure synthesis: the prompt carries every input. Telling the provider
+                # so keeps a model from "calling" a tool as raw markup in its text
+                # (DeepSeek's <|DSML|tool_calls> blocks arrived instead of the object).
+                options["tool_choice"] = "none"
             attempts = 0
             while True:
                 attempts += 1

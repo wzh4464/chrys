@@ -125,6 +125,7 @@ atomic externally observable acceptance criteria with stable descriptive ids, an
 Do not add repository implementation details, file names, functions, missions, test commands, hidden grader details, or
 requirements inferred only from repository conventions. Use an empty non_goals array when none are stated or clearly
 bounded by the user's request. Return exactly the closed pact-runtime/goal-contract/v1 shape.
+This turn has no tools: everything you need is in the prompt; reply with the JSON object and nothing else.
 """
 
 _PACT_INITIAL_PLAN_INSTRUCTIONS = """You generate a PACT Runtime Initial Plan v1 as schema JSON only.
@@ -134,6 +135,7 @@ every acceptance criterion must be covered. Dependencies must reference mission 
 implementation invariants in constraints. verification_intent describes public evidence to collect, never hidden
 grader commands. Do not emit runtime-owned state or extra fields. Return exactly the closed
 pact-runtime/initial-plan/v1 shape.
+This turn has no tools: everything you need is in the prompt; reply with the JSON object and nothing else.
 """
 
 _FOCUSES = (

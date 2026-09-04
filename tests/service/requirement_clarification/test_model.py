@@ -408,6 +408,7 @@ class _RunAgent:
     def __init__(self, responses: list[object]) -> None:
         self._responses = iter(responses)
         self.prompts: list[str] = []
+        self.options: list[dict[str, object]] = []
 
     async def __aenter__(self):
         return self
@@ -418,6 +419,7 @@ class _RunAgent:
     async def run(self, message: str, *, stream: bool, options: dict[str, object]):
         assert stream is False
         self.prompts.append(message)
+        self.options.append(dict(options))
         response = next(self._responses)
         if isinstance(response, Exception):
             raise response
@@ -471,3 +473,43 @@ async def test_a_structured_side_call_gives_up_after_the_second_miss(monkeypatch
             "Produce the object.", response_format=_Reply, instructions="i", route_kind="k", route_part="1"
         )
     assert len(agent.prompts) == 2
+
+
+@pytest.mark.asyncio
+async def test_the_goal_contract_and_plan_are_pure_synthesis_calls(monkeypatch: pytest.MonkeyPatch) -> None:
+    from chrys.service.requirement_clarification.types import (
+        PactAcceptanceCriterion,
+        PactGoalContract,
+        PactInitialPlan,
+        PactMission,
+    )
+
+    contract = PactGoalContract(
+        schema="pact-runtime/goal-contract/v1",
+        goal="Add the option.",
+        acceptance_criteria=[PactAcceptanceCriterion(id="ac-option", text="The option takes effect.")],
+        non_goals=[],
+    )
+    plan = PactInitialPlan(
+        schema="pact-runtime/initial-plan/v1",
+        constraints=[],
+        missions=[
+            PactMission(
+                id="wire-option",
+                objective="Wire the option end to end.",
+                target_ac_ids=["ac-option"],
+                dependencies=[],
+                verification_intent="Exercise the option through its public path.",
+            )
+        ],
+    )
+    agent = _RunAgent([AgentResponse(value=contract), AgentResponse(value=plan)])
+    model = _model_for_run(monkeypatch, agent)
+
+    assert (await model.generate_pact_goal_contract("contract prompt"))[0] == contract
+    assert (await model.generate_pact_initial_plan("plan prompt"))[0] == plan
+    assert [options["tool_choice"] for options in agent.options] == ["none", "none"]
+    assert all(
+        options["response_format"] is kind
+        for options, kind in zip(agent.options, (PactGoalContract, PactInitialPlan), strict=True)
+    )
