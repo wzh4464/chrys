@@ -169,13 +169,18 @@ _JSON_PROTOCOL_ROLES = frozenset({"manager", "planner"})
 _ROLE_PROTOCOL_REMINDERS = {
     "planner": (
         "Protocol constraints (the runtime rejects proposals that break them):\n"
-        "- Never delete or rename an existing mission. To replace one, add a NEW mission whose "
+        "- Never delete, rename or edit an existing mission. To replace one, add a NEW mission whose "
         "`supersedes` lists the old id and add a matching `supersede_mission` operation; the "
-        "old mission stays in the graph.\n"
+        "old mission stays in the graph unchanged. A challenged or blocked mission MUST be "
+        "superseded this way.\n"
+        "- `constraints` are copied from the current plan unchanged; a proposal that edits them is "
+        "rejected (R3).\n"
         "- A mission has exactly these fields: id, objective, target_ac_ids, dependencies, "
         "supersedes, verification_intent. No successors, no status, no notes.\n"
         '- `operations` items are exactly `{"op":"add_mission","mission_id":...}` or '
         '`{"op":"supersede_mission","mission_id":<old>,"replacement_mission_ids":[...]}`.\n'
+        "- Use `parent_plan_revision` and `input_work_state_revision` exactly as given in the input, "
+        "and change something material (a proposal identical to the current plan is rejected).\n"
         "- Reply with the JSON object as the text of your message: no prose before or after it, "
         "no Markdown fence, and never written to a file instead of the reply."
     ),

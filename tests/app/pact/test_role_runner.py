@@ -700,8 +700,9 @@ def test_a_reply_without_any_object_is_left_for_the_repair_pass() -> None:
 def test_planner_and_manager_prompts_carry_the_protocol_constraints() -> None:
     from chrys.pact.role_runner import _ROLE_PROTOCOL_REMINDERS
 
-    assert "Never delete or rename an existing mission" in _ROLE_PROTOCOL_REMINDERS["planner"]
+    assert "Never delete, rename or edit an existing mission" in _ROLE_PROTOCOL_REMINDERS["planner"]
     assert "supersedes" in _ROLE_PROTOCOL_REMINDERS["planner"]
+    assert "`constraints` are copied from the current plan unchanged" in _ROLE_PROTOCOL_REMINDERS["planner"]
     assert "JSON decision object as the text of your message" in _ROLE_PROTOCOL_REMINDERS["manager"]
     assert set(_ROLE_PROTOCOL_REMINDERS) == {"planner", "manager"}
 
