@@ -678,3 +678,38 @@ def test_pact_pair_validation_rejects_cycles() -> None:
 
     with pytest.raises(ValueError, match="contains a cycle"):
         validate_pact_runtime_input(goal_contract, initial_plan)
+
+
+@pytest.mark.asyncio
+async def test_candidates_the_selector_never_reviews_are_rejected_not_fatal(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A selector that reviews most candidates twice still yields a selection.
+
+    On a benchmark task the selector reviewed twenty-four of twenty-nine
+    candidates in both passes, and the whole clarification was thrown away for
+    the five it skipped. An unreviewed candidate is not selected; the reviewed
+    ones stand.
+    """
+    model = _FakeModel(_decision(candidate_ids=("p1-g1", "p2-g1"), selected_ids=("p1-g1",)))
+    monkeypatch.setattr(
+        "chrys.service.requirement_clarification.service.collect_base_evidence",
+        lambda _snapshot, _requirement: "packet",
+    )
+
+    result = await ClarificationService(model).clarify(
+        revision=RequirementRevision(number=1, messages=("Add the option.",)),
+        background="",
+        snapshot=_snapshot(tmp_path),
+    )
+
+    assert model.selector_calls == 2
+    assert result.status == "completed"
+    assert [point.statement for point in result.selection.guidance_points] == [
+        _proposal(1).guidance_points[0].statement
+    ]
+    assert result.raw_selection is not None
+    unreviewed = [review for review in result.raw_selection.reviews if review.candidate_id == "p3-g1"]
+    assert [review.decision for review in unreviewed] == ["reject"]
+    assert any("treated as rejected: p3-g1" in warning for warning in result.warnings)

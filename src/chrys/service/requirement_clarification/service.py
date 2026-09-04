@@ -49,6 +49,7 @@ from chrys.service.requirement_clarification.types import (
 _RENDER_CONFIDENCE_THRESHOLD = 0.75
 _PROCESS_MARKERS = ("confidence:", "source:", "evidence:", "gate:")
 _SELECTOR_REVIEW_BATCH_SIZE = 6
+_NOT_REVIEWED = "candidate ids were not reviewed: "
 
 
 class ClarificationService:
@@ -197,6 +198,31 @@ class ClarificationService:
                         break
                 except Exception as exc:
                     selector_errors = [f"{type(exc).__name__}: {exc}"[:600]]
+            if decision is not None and selector_errors and all(e.startswith(_NOT_REVIEWED) for e in selector_errors):
+                # Two passes and the selector still skipped some ids. Its verdicts on
+                # the rest are sound; an unreviewed candidate is simply not selected.
+                # Failing the whole selection here promoted P0 on a benchmark task
+                # whose selector had reviewed twenty-four of twenty-nine candidates.
+                reviewed = {review.candidate_id for review in decision.reviews}
+                missing = [candidate_id for candidate_id in batch_ids if candidate_id not in reviewed]
+                warnings.append(
+                    "clarification selector left candidates unreviewed after two passes; treated as rejected: "
+                    + ", ".join(missing)
+                )
+                decision = ClarificationSelectorDecision(
+                    reviews=[
+                        *decision.reviews,
+                        *(
+                            SelectorCandidateReview(
+                                candidate_id=candidate_id,
+                                decision="reject",
+                                rationale="Not reviewed by the selector in two passes; not selected.",
+                            )
+                            for candidate_id in missing
+                        ),
+                    ]
+                )
+                selector_errors = []
             if decision is None or selector_errors:
                 break
             reviews.extend(decision.reviews)
@@ -434,7 +460,7 @@ def _selector_errors(
         errors.append("duplicate candidate ids are not allowed")
     missing = sorted(set(candidates) - set(ids))
     if missing:
-        errors.append("candidate ids were not reviewed: " + ", ".join(missing))
+        errors.append(_NOT_REVIEWED + ", ".join(missing))
     return errors
 
 
