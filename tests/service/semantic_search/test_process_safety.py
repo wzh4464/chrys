@@ -29,16 +29,18 @@ async def test_bounded_codegraph_process_kills_grandchild_on_timeout(
     driver.write_text(
         "import subprocess, sys, time\n"
         "subprocess.Popen([sys.executable, '-c', "
-        "\"import pathlib,sys,time; time.sleep(0.4); pathlib.Path(sys.argv[1]).write_text('alive')\", "
+        "\"import pathlib,sys,time; time.sleep(3.0); pathlib.Path(sys.argv[1]).write_text('alive')\", "
         "sys.argv[1]])\n"
-        "time.sleep(10)\n",
+        "time.sleep(30)\n",
         encoding="utf-8",
     )
 
+    # The timeout lands while the grandchild is certainly alive (a loaded CI runner
+    # takes a few hundred ms to start the driver and spawn it), well before it writes.
     returncode, _stdout, _stderr, timed_out = run_process_bounded(
         [sys.executable, str(driver), str(marker)],
         cwd=tmp_path,
-        timeout=0.1,
+        timeout=1.0,
         max_chars=1000,
     )
 
@@ -46,5 +48,5 @@ async def test_bounded_codegraph_process_kills_grandchild_on_timeout(
     assert returncode != 0
     assert not await wait_until(
         marker.exists,
-        timeout=0.8,
+        timeout=3.0,
     )
