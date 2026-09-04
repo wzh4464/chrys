@@ -175,6 +175,8 @@ ignore = [
 # output, urllib against a configured base URL, sha1 as a content hash,
 # subprocess with code-owned arguments. Rules that presume library code.
 "src/chrys/service/semantic_search/skill/scripts/*" = ["T20", "PERF", "S310", "S324", "S603", "B904", "C401", "FURB", "PIE", "ISC", "SIM"]
+# Evaluation harness scripts: CLI tools that print, shell out to docker/git and hash ids.
+"evaluation/deepswe/**/*.py" = ["T20", "PERF", "S324", "S603", "S607", "UP031", "RUF001"]
 # Buddy sprites/types — ASCII art intentionally uses special characters
 "src/chrys/app/features/buddy/sprites.py" = ["RUF001", "RUF003"]
 "src/chrys/app/features/buddy/types.py" = ["RUF003"]

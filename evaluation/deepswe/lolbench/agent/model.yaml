@@ -1,0 +1,22 @@
+# chrys model profile baked into the in-container agent image for DeepSWE runs:
+# DeepSeek V4 Pro over OpenRouter at reasoning effort "high".
+#
+# - provider deepseek-openai: the reasoning-aware OpenAI-compatible client; the
+#   generic `openai` provider deadlocks the agent loop on reasoning models.
+# - api_key is an env template resolved at runtime from OPENROUTER_API_KEY, which
+#   lolbench forwards into the container; nothing secret is baked into the image.
+# - stream + a long read timeout so a slow reasoning turn survives.
+id: deepswe-lh
+name: DeepSeek V4 Pro (OpenRouter, DeepSWE long-horizon)
+provider: deepseek-openai
+api_style: chat_completions
+model_id: deepseek/deepseek-v4-pro
+base_url: https://openrouter.ai/api/v1
+api_key: "{{OPENROUTER_API_KEY}}"
+max_context_tokens: 200000
+max_output_tokens: 32000
+http_connect_timeout: 10
+http_read_timeout: 1800.0
+http_max_retries: 3
+stream: true
+chat_options: '{"extra_body": {"reasoning": {"effort": "high"}}}'

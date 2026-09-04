@@ -262,7 +262,14 @@ pact:
 ```
 
 See [examples/long-horizon/](examples/long-horizon/) for the full walkthrough, the artifact
-tree, and a live smoke test.
+tree, and a live smoke test, and [docs/long-horizon/README.md](docs/long-horizon/README.md)
+for the map of the whole suite: how the router decides, how the PACT campaign is driven
+over ACP, how the memory graph is recalled and written back, and every setting involved.
+
+A ready-made memory graph is published as a Docker image
+(`wzh4464/contextgraph:capbench-harbor`, the CAPBench selected-Harbor graph with 2,525
+canonical rules); `docker run -d -p 7705:7687 -e NEO4J_AUTH=neo4j/contextgraph123
+wzh4464/contextgraph:capbench-harbor` and the settings in that guide are all it takes.
 
 Chrys can also keep long-term memory in a locally deployed ContextGraph: every agent gets a
 retrieval tool it decides for itself when to use, and completed turns are deposited back
