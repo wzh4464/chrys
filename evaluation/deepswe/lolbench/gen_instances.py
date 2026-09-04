@@ -38,15 +38,19 @@ import sys
 import tomllib
 from pathlib import Path
 
+from evaluation.deepswe.verify import verify_command_for
 
-def image_tag(instance_id: str) -> str:
+
+def image_tag(instance_id: str, dockerfile: str) -> str:
     """A docker tag for the wrapper image.
 
     Hex only: the evaluator treats any tag containing ``-base`` or ``-coverage`` as a
     helper image and would leave an instance such as ``arcane-drift-detection-baselines``
-    without a primary tag.
+    without a primary tag. The Dockerfile's content is part of the tag, so a regenerated
+    root with a different recipe is rebuilt instead of served from the old image.
     """
-    return "lolbench-deepswe-" + hashlib.sha1(instance_id.encode("utf-8")).hexdigest()[:12] + ":1"
+    digest = hashlib.sha1((instance_id + "\n" + dockerfile).encode("utf-8")).hexdigest()[:12]
+    return f"lolbench-deepswe-{digest}:1"
 
 
 def load_task(task_dir: Path) -> dict:
@@ -89,15 +93,22 @@ def write_instance(task_dir: Path, out: Path, *, force: bool) -> dict:
     if docker_dir.exists() and not force:
         return {"instance_id": iid, "docker_dir": iid, "source_mapping": f"{iid}.md", "base_commit": base_commit}
     docker_dir.mkdir(parents=True, exist_ok=True)
-    tag = image_tag(iid)
-    (docker_dir / "Dockerfile").write_text(
+    language = str(meta.get("language", "")).lower()
+    verify = verify_command_for(language)
+    dockerfile = (
         f"# DeepSWE task {iid}: the prebuilt Harbor image, repo at base commit {base_commit[:12]}.\n"
         f"FROM {image}\n"
         "# The evaluator's in-container convention is /workspace/<repo>; the Harbor image keeps\n"
         "# the repository at /app. One symlink, discovered by `ls -1 /workspace`.\n"
-        "RUN mkdir -p /workspace && ln -sfn /app /workspace/app\n",
-        encoding="utf-8",
+        "RUN mkdir -p /workspace && ln -sfn /app /workspace/app\n"
     )
+    if verify:
+        dockerfile += (
+            f"# {language}: what a PACT campaign runs to accept a mission (pact.verify_command).\n"
+            f'ENV CHRYS_PACT_VERIFY_COMMAND="{verify}"\n'
+        )
+    tag = image_tag(iid, dockerfile)
+    (docker_dir / "Dockerfile").write_text(dockerfile, encoding="utf-8")
     (docker_dir / "README.md").write_text(
         f"# {iid}\n\n"
         f"Wrapper over the DeepSWE task image `{image}`.\n\n"
@@ -121,6 +132,7 @@ def write_instance(task_dir: Path, out: Path, *, force: bool) -> dict:
             {
                 "instance_id": iid,
                 "language": meta.get("language", ""),
+                "verify_command": verify,
                 "timeout_s": int(task.get("agent", {}).get("timeout_sec", 5400)),
                 "verifier_timeout_s": int(verifier.get("timeout_sec", 1800)),
                 "verifier_network_mode": verifier.get("network_mode", "no-network"),

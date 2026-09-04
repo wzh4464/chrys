@@ -25,6 +25,8 @@ import tomllib
 from pathlib import Path
 from typing import Any
 
+from evaluation.deepswe.verify import verify_command_for
+
 
 def _read_tasks(path: Path) -> list[dict[str, Any]]:
     """Read a DeepSWE checkout or retain the historical JSON/JSONL input."""
@@ -273,6 +275,7 @@ def _run_agent(
     model: str,
     timeout: float,
     route: str = "",
+    verify_command: str = "",
 ) -> tuple[int, str, str]:
     command = [
         *command_prefix,
@@ -295,6 +298,10 @@ def _run_agent(
     # empty global pointer even when an isolated model profile is present.
     if model:
         command.extend(["--model", model])
+    if verify_command:
+        # A campaign needs a deterministic verification to accept a mission; the
+        # task's language decides what that is (evaluation.deepswe.verify).
+        env = {**env, "CHRYS_PACT_VERIFY_COMMAND": verify_command}
     completed = subprocess.run(  # noqa: S603
         command,
         stdin=subprocess.DEVNULL,
@@ -468,6 +475,9 @@ def main(argv: list[str] | None = None) -> int:
                         model=args.model,
                         timeout=args.agent_timeout,
                         route="long-horizon" if args.run_long_horizon else "",
+                        verify_command=(
+                            verify_command_for(_task_metadata(task).get("language")) if args.run_long_horizon else ""
+                        ),
                     )
                 except subprocess.TimeoutExpired as exc:
                     agent_rc = None
