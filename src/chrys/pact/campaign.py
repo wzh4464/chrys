@@ -172,6 +172,7 @@ class CampaignCoordinator:
         loaded_settings: LoadedSettings,
         verify_command: str | None,
         allow_unverified: bool,
+        max_rounds: int = 3,
         control_plane: CampaignRunner | None = None,
         adapter_factory: RoleAdapterFactory | None = None,
         projection_loader: ProjectionLoader = load_dashboard_projection,
@@ -181,6 +182,7 @@ class CampaignCoordinator:
         self._loaded_settings = loaded_settings
         self._verify_command = verify_command
         self._allow_unverified = allow_unverified
+        self._max_rounds = max_rounds
         self._control_plane = control_plane or CampaignControlPlane()
         self._adapter_factory = adapter_factory or _default_adapter_factory
         self._projection_loader = projection_loader
@@ -254,6 +256,7 @@ class CampaignCoordinator:
             reviewer=reviewer,
             verify_command=self._verify_command,
             allow_unverified=self._allow_unverified,
+            max_rounds=self._max_rounds,
             campaign_id=campaign_id,
             worktree_root=self._worktree_root,
             planning_provider=AdapterPlanningProvider(planner),

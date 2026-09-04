@@ -65,6 +65,6 @@ def test_the_builtin_pact_profile_uses_the_self_command() -> None:
     assert profile is not None
     assert profile.acp is not None
     assert profile.acp.command == "chrys"
-    assert profile.acp.args == ["pact-agent", "--agent", "Code", "--verify-from-settings"]
+    assert profile.acp.args == ["pact-agent", "--agent", "Code", "--max-rounds", "2", "--verify-from-settings"]
     assert profile.acp.max_depth == 1
     assert profile.acp.idle_timeout_seconds == 0

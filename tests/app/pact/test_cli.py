@@ -113,3 +113,29 @@ def _patch_run_command(
 
     monkeypatch.setattr(cli, "default_server", _default_server)
     monkeypatch.setattr(cli.acp_sdk, "run_agent", _run_agent)
+
+
+# ── --max-rounds ────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_max_rounds_reaches_the_server(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+    _patch_run_command(monkeypatch, captured, verify_command="pytest -q")
+
+    await cli.run_command(cli.build_parser().parse_args(["--max-rounds", "2", "--verify", "python -m pytest -q"]))
+
+    assert captured["max_rounds"] == 2
+    assert captured["verify_command"] == "python -m pytest -q"
+
+
+@pytest.mark.asyncio
+async def test_max_rounds_defaults_to_three_and_rejects_zero(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+    _patch_run_command(monkeypatch, captured, verify_command="pytest -q")
+
+    await cli.run_command(cli.build_parser().parse_args(["--verify-from-settings"]))
+    assert captured["max_rounds"] == 3
+
+    with pytest.raises(ValueError, match="max-rounds"):
+        await cli.run_command(cli.build_parser().parse_args(["--max-rounds", "0", "--verify-from-settings"]))

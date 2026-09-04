@@ -417,3 +417,24 @@ async def test_wait_closed_can_be_bounded_when_the_client_is_already_gone() -> N
         thread.join(timeout=5)
 
     assert await coordinator.wait_closed(5) is True
+
+
+async def test_coordinator_bounds_the_rounds_a_mission_may_take(tmp_path: Path) -> None:
+    contract, plan = _inputs(tmp_path)
+    control_plane = _FakeControlPlane(tmp_path)
+
+    coordinator = CampaignCoordinator(
+        profile_name="Code",
+        loaded_settings=cast(LoadedSettings, object()),
+        verify_command="pytest",
+        allow_unverified=False,
+        max_rounds=2,
+        control_plane=control_plane,
+        adapter_factory=_AdapterFactory(),
+        worktree_root=tmp_path / "pact-worktrees",
+    )
+
+    await coordinator.run(workspace=tmp_path, contract_file=contract, plan_file=plan, send_update=_UpdateCollector())
+
+    assert control_plane.request is not None
+    assert control_plane.request.max_rounds == 2

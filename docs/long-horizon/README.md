@@ -149,10 +149,22 @@ verification cannot disturb the session that delegated it. The mechanics:
   ```yaml
   acp:
     command: chrys                     # resolves to THIS executable / interpreter
-    args: ["pact-agent", "--agent", "Code", "--verify-from-settings"]
+    args: ["pact-agent", "--agent", "Code", "--max-rounds", "2", "--verify-from-settings"]
     result_mode: last_segment
     idle_timeout_seconds: 0            # a campaign runs as long as the work takes
     max_depth: 1                       # a role can never start another campaign
+  ```
+
+  `chrys pact-agent` takes the role profile (`--agent`), the Worker/Reviewer rounds a
+  mission may take before the campaign stops (`--max-rounds`, default 3), and exactly
+  one verification choice: `--verify '<command>'` names it outright,
+  `--verify-from-settings` reads `pact.verify_command` (project or user settings, or
+  `CHRYS_PACT_VERIFY_COMMAND`), and `--allow-unverified` runs with none. The builtin
+  reads settings because the command is the workspace's, not the profile's; a
+  profile of your own can pin one:
+
+  ```bash
+  chrys pact-agent --agent Code --max-rounds 2 --verify 'python -m pytest -q'
   ```
 
   `command: chrys` is special-cased (`_resolve_self_command`): a source checkout runs
@@ -181,10 +193,11 @@ verification cannot disturb the session that delegated it. The mechanics:
   (`parse_campaign_report`) and records `campaign` on the route marker. A pass that
   ends without a report degrades to the repaired baseline with a warning.
 
-Run a campaign by hand for debugging:
+Run a campaign by hand for debugging (it speaks ACP on stdio; a client such as
+`chrys acp`'s sub-agent runner or any ACP client drives it):
 
 ```bash
-chrys pact-agent --agent Code --verify "uv run pytest -q"   # an ACP agent on stdio
+chrys pact-agent --agent Code --max-rounds 2 --verify 'uv run pytest -q'
 ```
 
 ## ContextGraph memory

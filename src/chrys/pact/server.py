@@ -328,6 +328,7 @@ def default_server(
     loaded_settings: LoadedSettings,
     verify_command: str | None,
     allow_unverified: bool,
+    max_rounds: int = 3,
 ) -> ChrysPactServer:
     """Build the production server while keeping tests dependency-injected."""
     return ChrysPactServer(
@@ -336,5 +337,6 @@ def default_server(
             loaded_settings=loaded_settings,
             verify_command=verify_command,
             allow_unverified=allow_unverified,
+            max_rounds=max_rounds,
         )
     )

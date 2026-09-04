@@ -26,6 +26,13 @@ def build_parser() -> argparse.ArgumentParser:
         description="Run one PACT Campaign as an ACP stdio agent.",
     )
     parser.add_argument("--agent", default="Code", help="Chrys agent profile used for every PACT role")
+    parser.add_argument(
+        "--max-rounds",
+        type=int,
+        default=3,
+        metavar="N",
+        help="Worker/Reviewer rounds a mission may take before the campaign stops (default 3)",
+    )
     verification = parser.add_mutually_exclusive_group(required=True)
     verification.add_argument("--verify", metavar="COMMAND", help="Deterministic verification command")
     verification.add_argument(
@@ -88,12 +95,15 @@ async def run_command(args: argparse.Namespace) -> int:
                 "--verify-from-settings requires pact.verify_command to be set "
                 "(project .chrys/settings.yaml, user settings, or CHRYS_PACT_VERIFY_COMMAND)."
             )
+    if args.max_rounds < 1:
+        raise ValueError("--max-rounds must be at least 1.")
     profile_name = _resolve_profile_name(args.agent)
     server = default_server(
         profile_name=profile_name,
         loaded_settings=loaded_settings,
         verify_command=verify_command,
         allow_unverified=args.allow_unverified,
+        max_rounds=args.max_rounds,
     )
     try:
         await acp_sdk.run_agent(cast(acp_sdk.Agent, server), use_unstable_protocol=True)

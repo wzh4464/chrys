@@ -8,7 +8,9 @@ acp:
   # ``chrys`` resolves to this very executable (the packaged binary, or this
   # interpreter running the package) rather than whatever is first on PATH.
   command: chrys
-  args: ["pact-agent", "--agent", "Code", "--verify-from-settings"]
+  # Two Worker/Reviewer rounds per mission: a mission the Worker cannot land in
+  # two reviewed attempts is better re-planned than retried a third time.
+  args: ["pact-agent", "--agent", "Code", "--max-rounds", "2", "--verify-from-settings"]
   result_mode: last_segment
   # A campaign runs for as long as the work takes; an idle timeout would kill
   # it mid-verification.
