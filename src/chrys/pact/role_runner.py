@@ -7,6 +7,7 @@ from __future__ import annotations
 import asyncio
 import dataclasses
 import math
+import re
 import threading
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
@@ -138,6 +139,21 @@ def _not_applicable_review_decision() -> ReviewDecisionCapture:
 def _bounded_diagnostic(error: BaseException) -> str:
     detail = str(error).strip() or type(error).__name__
     return detail[-4000:]
+
+
+_FENCED_WHOLE = re.compile(r"\A\s*```[A-Za-z0-9_+-]*[ \t]*\r?\n(.*?)\r?\n[ \t]*```\s*\Z", re.DOTALL)
+
+
+def _unfenced(text: str) -> str:
+    """Return the body of a response that is exactly one Markdown code fence.
+
+    The Manager and Planner protocols want a bare JSON object; models keep
+    wrapping it in ```json anyway, and the first live campaign was blocked
+    with ``manager_protocol_error`` on a decision that was otherwise correct.
+    A response with anything outside the fence is left alone.
+    """
+    match = _FENCED_WHOLE.match(text)
+    return match.group(1) if match else text
 
 
 class InProcessChrysAdapter:
@@ -448,7 +464,7 @@ class InProcessChrysAdapter:
     def _map_outcome(outcome: TurnOutcome | None) -> tuple[TurnStatus, str, str]:
         if isinstance(outcome, EndTurn):
             if outcome.final_text.strip():
-                return "completed", outcome.final_text, ""
+                return "completed", _unfenced(outcome.final_text), ""
             return "output_missing", "", "Chrys role turn returned an empty final response"
         if isinstance(outcome, Cancelled):
             raise RoleTurnCancelled(outcome.reason or "PACT role turn cancelled")

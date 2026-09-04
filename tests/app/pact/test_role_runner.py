@@ -623,3 +623,43 @@ async def test_a_directory_where_the_decision_belongs_does_not_fail_the_turn(tmp
     assert result.final_text == "review evidence"
     assert result.review_decision.verdict_status == "malformed"
     assert misplaced.is_dir()
+
+
+# ── fenced role replies ──────────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        '```json\n{"schema": "pact-runtime/manager-decision-proposal/v1"}\n```',
+        '```\n{"schema": "pact-runtime/manager-decision-proposal/v1"}\n```\n',
+        '  ```json  \r\n{"schema": "pact-runtime/manager-decision-proposal/v1"}\r\n```  ',
+    ],
+)
+def test_a_reply_that_is_exactly_one_fence_is_unwrapped(text: str) -> None:
+    from chrys.pact.role_runner import _unfenced
+
+    assert _unfenced(text) == '{"schema": "pact-runtime/manager-decision-proposal/v1"}'
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        '{"schema": "bare"}',
+        'Here you go:\n```json\n{"schema": "x"}\n```',
+        '```json\n{"schema": "x"}\n```\nDone.',
+        "prose with ``` inside ``` it",
+    ],
+)
+def test_anything_else_is_left_alone(text: str) -> None:
+    from chrys.pact.role_runner import _unfenced
+
+    assert _unfenced(text) == text
+
+
+def test_map_outcome_unfences_a_completed_reply() -> None:
+    from chrys.pact.role_runner import InProcessChrysAdapter
+
+    status, text, diagnostic = InProcessChrysAdapter._map_outcome(EndTurn(final_text='```json\n{"a": 1}\n```'))
+
+    assert (status, text, diagnostic) == ("completed", '{"a": 1}', "")

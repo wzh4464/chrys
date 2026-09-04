@@ -122,6 +122,8 @@ _PLACEHOLDER_PATTERNS = (
 )
 _INVESTIGATION_MAX_ITERATIONS = 10
 _INVESTIGATION_MAX_FUNCTION_CALLS = 10
+MAX_RECORDED_TOOL_CALLS = 100  # ProposalInvestigation.tool_calls max_length
+
 _INVESTIGATION_PAIRING_POLICY = PairingPolicy(
     call_types=frozenset({"function_call"}),
     include_informational_calls=False,
@@ -514,7 +516,10 @@ class ChrysClarificationModel:
                 input_token_count=_usage_total(usage_details, "input_token_count", "input_tokens"),
                 output_token_count=_usage_total(usage_details, "output_token_count", "output_tokens"),
                 total_token_count=_usage_total(usage_details, "total_token_count", "total_tokens"),
-                tool_calls=calls,
+                # The record keeps the tail of a long trace; the schema caps it at
+                # 100 and a 117-call investigation on a real repository was thrown
+                # away whole for exceeding that, coverage and evidence included.
+                tool_calls=calls[-MAX_RECORDED_TOOL_CALLS:],
                 verified_evidence=_verified_evidence(proposal, calls) if proposal is not None else [],
                 validation_errors=list(dict.fromkeys(validation_errors))[:20],
             )
