@@ -489,39 +489,39 @@ def _complete_missing_pact_coverage(
     goal_contract: PactGoalContract,
     initial_plan: PactInitialPlan,
 ) -> PactInitialPlan:
-    """Add authority-preserving missions only for acceptance criteria omitted by the model.
+    """Add one authority-preserving mission for the acceptance criteria the model omitted.
 
     Unknown target acceptance-criterion ids are removed before this helper runs. Other invalid
     plans, including duplicate ids and cycles, still fail closed. The generated mission repeats
-    the Goal Contract criterion verbatim and therefore cannot introduce a new completion
-    obligation.
+    the Goal Contract criteria verbatim and therefore cannot introduce a new completion
+    obligation. One mission, not one per criterion: every mission costs the campaign a
+    Worker/Reviewer loop of ten minutes or more, and a plan padded with a dozen
+    single-criterion missions ran past its time budget.
     """
     covered = {ac_id for mission in initial_plan.missions for ac_id in mission.target_ac_ids}
+    missing = [criterion for criterion in goal_contract.acceptance_criteria if criterion.id not in covered]
+    if not missing:
+        return initial_plan
     existing_ids = {mission.id for mission in initial_plan.missions}
-    additions: list[PactMission] = []
-    for index, criterion in enumerate(goal_contract.acceptance_criteria, start=1):
-        if criterion.id in covered:
-            continue
-        base_id = f"cover-missing-ac-{index}"
-        mission_id = base_id
-        suffix = 2
-        while mission_id in existing_ids:
-            mission_id = f"{base_id}-{suffix}"
-            suffix += 1
-        existing_ids.add(mission_id)
-        additions.append(
-            PactMission(
-                id=mission_id,
-                objective=criterion.text,
-                target_ac_ids=[criterion.id],
-                dependencies=[],
-                verification_intent=(
-                    f"Collect observable evidence for Goal Contract acceptance criterion {criterion.id}: "
-                    f"{criterion.text}"
-                ),
-            )
-        )
-    return initial_plan.model_copy(update={"missions": [*initial_plan.missions, *additions]})
+    mission_id = "cover-missing-acs"
+    suffix = 2
+    while mission_id in existing_ids:
+        mission_id = f"cover-missing-acs-{suffix}"
+        suffix += 1
+    objective = "Satisfy the remaining acceptance criteria: " + "; ".join(
+        f"[{criterion.id}] {criterion.text}" for criterion in missing
+    )
+    addition = PactMission(
+        id=mission_id,
+        objective=objective,
+        target_ac_ids=[criterion.id for criterion in missing],
+        dependencies=[],
+        verification_intent=(
+            "Collect observable evidence for each remaining Goal Contract acceptance criterion: "
+            + ", ".join(criterion.id for criterion in missing)
+        ),
+    )
+    return initial_plan.model_copy(update={"missions": [*initial_plan.missions, addition]})
 
 
 def _sanitize_pact_target_ac_ids(

@@ -130,7 +130,9 @@ This turn has no tools: everything you need is in the prompt; reply with the JSO
 
 _PACT_INITIAL_PLAN_INSTRUCTIONS = """You generate a PACT Runtime Initial Plan v1 as schema JSON only.
 Treat the supplied Goal Contract as immutable authority. Use the frozen-repository evidence and clarification results
-to create a small end-to-end mission graph. Every mission must cover at least one existing acceptance criterion, and
+to create a small end-to-end mission graph: three to six missions, each grouping the related acceptance criteria
+of one coherent change (every mission costs a full implement-and-review loop). Every mission must cover at least one
+existing acceptance criterion, and
 every acceptance criterion must be covered. Dependencies must reference mission ids and form a DAG. Put cross-mission
 implementation invariants in constraints. verification_intent describes public evidence to collect, never hidden
 grader commands. Do not emit runtime-owned state or extra fields. Return exactly the closed

@@ -392,9 +392,12 @@ async def test_pact_initial_plan_completes_only_missing_acceptance_criterion_cov
     assert len(pact_usage) == 3
     assert [mission.id for mission in pact_input.initial_plan.missions] == [
         "wire-option",
-        "cover-missing-ac-2",
+        "cover-missing-acs",
     ]
-    assert pact_input.initial_plan.missions[-1].objective == "The option is publicly visible."
+    assert pact_input.initial_plan.missions[-1].objective == (
+        "Satisfy the remaining acceptance criteria: [ac-visible] The option is publicly visible."
+    )
+    assert pact_input.initial_plan.missions[-1].target_ac_ids == ["ac-visible"]
     validate_pact_runtime_input(pact_input.goal_contract, pact_input.initial_plan)
 
 
