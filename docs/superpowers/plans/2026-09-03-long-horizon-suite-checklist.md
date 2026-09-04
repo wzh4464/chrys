@@ -276,6 +276,19 @@ uv run pytest -m "not integration and not gc_calibration"
   被 10200 s 内超时截断（4 个 mission 只推进到第一个，验证命令本身也不可用）。**尚无一题 campaign 完成**；
   第二轮（`second_pass.sh`，AGENT_TIMEOUT=10800）将在新树上重跑所有未完成的实例。
 
+### 09-05 凌晨（第二轮跑批前 8 题）暴露的偏差
+
+- **澄清降级就没有 campaign**（`1c553d07`）：awilix 的三个调查者全部证据校验失败（引用未经 `read_file` 的文件，
+  `verified_evidence: []`），澄清为空 → PACT 输入生成被跳过 → 长程回合止于基线。Goal Contract 本来只由需求
+  推导、Initial Plan 可以没有提案，现在降级时照样生成（带警告），campaign 得以启动。
+- **Goal Contract 回复不是对象**（`1c553d07`/`f7504d30`）：drizzle 是散文 + 字段拼错（`non_oals`）的对象，内核只报
+  "前言不是 JSON"、掩盖了真实原因；superjson/textual 收到的是 DeepSeek 的原始 `<｜DSML｜tool_calls>` 标记——
+  侧调用的 agent 注册了只读工具，模型伸手去调。现在：Goal Contract / Initial Plan 以 `tool_choice=none` 运行并在
+  指令里声明"本回合无工具"；结构化侧调用解析失败时带着错误信息再问一次；内核在内嵌对象校验失败时抛出对象自身
+  的错误。
+- **第二轮的镜像替换**：LoLBench 按实例懒构建代理镜像，且源码包由宿主 HTTP 服务提供；把服务目录里的
+  `chrys_src.tgz` 原子替换即可让尚未启动的实例用上新代码（已启动的 8 个仍是旧包，未完成者进第三轮）。
+
 ## 7. 交付状态（09-03 收尾）
 
 - 36 个 task 全部完成并 commit 在本地 `integration/long-horizon-suite`（`origin/main..HEAD` 共 96 个
