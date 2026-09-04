@@ -191,6 +191,28 @@ uv run pytest -m "not integration and not gc_calibration"
 | 09-04 | e2e | smoke 脚本用 shell 环境变量判断图是否配置，而图在 `~/.chrys/.env` 里由 chrys 自己加载 → 记忆那半在图真正活着的机器上被跳过 | 改问 `chrys memory doctor --json`（`1d2e5939`）；写回已手工验证：会话 1 轮待沉淀 → 沉淀 → 图中 `chrys_trajectories` 0→6 |
 | 09-04 | DeepSWE | `runs/first20-lh` 以 `--run-long-horizon` 启动（11:07），模型配置与基线一致，定位预算 1800 s；远端无 `pact.verify_command`，按设计不委派 campaign。第一题 P0 约 15–20 min（推理模型），预计每题 45–60 min | 每 10 min 核对；无需为 `8d87fdcc` 重启（它只影响 campaign 路径） |
 
+### 09-04 远端首轮跑批（lh + enrich，各 10 分片 × 2 题）暴露的偏差
+
+按"每 10 分钟核对一次"逐条抓到并修复，全部带回归测试，提交号见 git log：
+
+- **`--route long-horizon` 从未生效**（`66a19526`）：新会话的 `chrys run` 不调 `host.start()`，而
+  `RouteOverride` 的订阅在 `start()` 里注册，override 无人接收；远端 12 个会话 10 个走了标准轨，
+  本地 8 轮 e2e 之所以走长程只是因为 prompt 本身 `strong_long_horizon`。修后 10/10 `source: override`。
+- **campaign 子进程收不到 verify 命令**（`11ab6e6c`）与**模型 profile**（`66a19526`）：ACP 子进程环境是白名单，
+  `command: chrys` 的自启动子进程现在显式收到 `CHRYS_PACT_VERIFY_COMMAND` / `CHRYS_MODEL_PROFILE`。
+- **两条 run 的澄清 100% 降级**（`75f1e811`）：lh 树里是 rsync 过去的 macOS arm64 vendored `rg`
+  （Linux 上 `Exec format error`），enrich 树没有任何 rg；`SnapshotReadTools` 的 grep/glob 全部失败。
+  `find_rg` 现在用 `--version` 探测候选是否真能执行。服务器两棵树都放了 Linux musl 版 rg。
+- **Manager 决策被 ```json 围栏挡住**（`75f1e811`）：角色回复整体是一个围栏时先去壳再交给 pact_core。
+- **117 次工具调用的 investigation 被整个丢弃**（`75f1e811`）：记录保留尾部 100 条而不是校验失败。
+- **role 宿主关闭超时**（`14797d3e`）：Manager 调了图记忆工具，宿主里自启了 MCP server 又要在结束时写回，
+  5 s 宽限期不够。role 宿主现在不带记忆（委派方会沉淀 campaign 结果），宽限期 30 s。
+- 运维教训：`pkill -f` 会碰到同机其他用户的 deepswe 进程（改为 `-u "$USER"`）；清理目录时误删过
+  chrys-home（改为只清任务目录）；rsync 整棵树会带上本机的 vendored 二进制（排除 `vendor/ripgrep/*`）；
+  Python 重定向到文件要 `PYTHONUNBUFFERED=1` 否则分片日志为空。
+- 13:05 起 ali-server 的 sshd 在密钥交换后不再应答（TCP 22 通、ping 正常），与 20 个并发 agent 同时
+  运行相符，疑为内存/IO 压力；后台每分钟重试，进去后先看 `free`/`vmstat` 再决定是否降并发。
+
 ## 7. 交付状态（09-03 收尾）
 
 - 36 个 task 全部完成并 commit 在本地 `integration/long-horizon-suite`（`origin/main..HEAD` 共 96 个

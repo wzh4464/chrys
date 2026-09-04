@@ -203,3 +203,17 @@ LANG=en_US.UTF-8 uv run pytest -m "not integration and not gc_calibration" -q \
 ```
 
 `LANG` 必须显式设成 `en_US.UTF-8`：TUI 测试断言英文文案，`zh_CN.UTF-8` 环境下会产生上百条假失败。
+
+## 10. ripgrep 是隐性的硬依赖，且 vendored 二进制不跨平台
+
+`SnapshotReadTools` 的 grep/glob、以及澄清 investigation 的"至少一次成功 grep + read_file"门槛，
+都依赖 `rg`。`src/chrys/foundation/vendor/ripgrep/` 里的通用名 `rg` 是构建机的平台二进制；
+把源码树 rsync 到另一种平台，`find_rg` 会先命中它。09-04 之后 `find_rg` 会用 `--version` 探测候选，
+不能执行的回退到平台名或 PATH；但**没有任何 rg 的机器上澄清必然降级**，部署清单里要写明。
+
+## 11. PACT role 宿主不带记忆
+
+role 宿主（worker/reviewer/planner/manager）运行时 `memory.mcp.enabled` 与
+`memory.writeback.on_session_end` 强制为 off：委派它的会话负责沉淀 campaign 的结果。代价是 Manager/Planner
+拿不到图里的先验；如果以后要给它们召回，必须把 MCP server 的生命周期放到宿主之外，否则又会撞上
+关闭宽限期。
