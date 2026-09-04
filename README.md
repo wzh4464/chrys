@@ -222,6 +222,21 @@ clarification guidance from a frozen turn-start workspace, then runs a fresh rep
 baseline files. Only the repaired response is terminal; if clarification or repair fails,
 Chrys safely promotes the baseline. External ACP agent profiles cannot enable this workflow.
 
+The lighter alternative is requirement enrichment: one turn-start snapshot, clarification and
+code localization run concurrently over it, and their bounded advisory result is injected before
+a single normal run — no baseline pass, no repair:
+
+```yaml
+requirement_enrichment:
+  enabled: true
+  clarification_strategy: legacy-v1-stabilized
+  localization_mode: auto
+```
+
+The two workflows are mutually exclusive and off by default. The standalone
+`chrys locate "<requirement>" -C <repo>` writes the same localization artifacts without
+starting an agent turn; pass `--json` for its machine-readable result.
+
 See the [Requirement Clarification Guide](docs/design/requirement-clarification-guide.md) for enablement,
 the execution flow, the complete artifact tree, and which files downstream agents should consume.
 The deeper implementation and recovery contract is documented in
