@@ -94,6 +94,13 @@ class LongHorizonExtensions:
     def __init__(self, host: Any, decision: RouteDecision, *, runner: Any = None) -> None:
         self._host = host
         self._decision = decision
+        # Captured once, here, because ``_turn_number`` advances when the
+        # baseline pass starts. The clarification workflow numbers its
+        # artifacts from the same field one line later, so reading it again
+        # after P0 filed this turn's brief under the NEXT turn -- and made
+        # ``_clarified_requirement`` look for a requirement document that
+        # would never exist there.
+        self._turn = host._turn_number + 1
         # The workflow's own runner: the delegation pass is another executor
         # pass of the same turn, not a new turn with its own runner.
         self._turn_runner = runner
@@ -227,11 +234,7 @@ class LongHorizonExtensions:
         if session_dir is None:
             return None
         path = (
-            session_dir
-            / "requirement_clarification"
-            / f"turn_{self._host._turn_number + 1}"
-            / "05-outcome"
-            / "clarified-requirement.md"
+            session_dir / "requirement_clarification" / f"turn_{self._turn}" / "05-outcome" / "clarified-requirement.md"
         )
         try:
             return path.read_text(encoding="utf-8")
@@ -242,7 +245,7 @@ class LongHorizonExtensions:
         session_dir = self._host._session_dir
         if session_dir is None:
             return None
-        return session_dir / "long_horizon" / f"turn_{self._host._turn_number + 1}"
+        return session_dir / "long_horizon" / f"turn_{self._turn}"
 
     async def after_repair(self, outcome: RepairOutcome) -> None:
         """Hand the repaired baseline to a PACT campaign when one is warranted."""
@@ -448,7 +451,7 @@ class LongHorizonExtensions:
         session_dir = self._host._session_dir
         if session_dir is None:
             return None
-        return session_dir / "long_horizon" / f"turn_{self._host._turn_number + 1}" / "semantic-search"
+        return session_dir / "long_horizon" / f"turn_{self._turn}" / "semantic-search"
 
     async def _degrade(self, detail: str) -> None:
         """Record a localization failure without failing the turn.

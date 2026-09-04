@@ -102,6 +102,16 @@ class EvidenceAnchor(BaseModel):
         "ecosystem_prior",
     ]
     anchor: NonBlankText = Field(max_length=600)
+    """Free-form for most kinds; for ``current_repo`` the controller requires a
+    repository-relative path with at least one directory component, optionally
+    followed by ``:line`` or ``:start-end``.
+
+    Deliberately NOT a pydantic ``description``: ``legacy-v1-exact`` pins this
+    model's JSON schema hash to reproduce a historical run, so anything that
+    changes the wire schema breaks that equivalence. The stabilized strategy
+    states the contract in its synthesis instruction instead, which is also
+    where the gate that enforces it lives.
+    """
 
 
 class ProposalGuidancePoint(BaseModel):

@@ -97,10 +97,14 @@ SESSION="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["sess
 TRACK="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("route",{}).get("track",""))' "$OUT")"
 [ "$TRACK" = "long_horizon" ] || fail "the run reported track=$TRACK"
 
+# The reported session id is a UUID; the folder is its short derivation, and
+# `session_short_id` is the single owner of that mapping — reproducing it here
+# would be a second copy free to drift.
 SESSION_DIR="$(cd "$CHRYS_REPO" && uv run python -c '
 import sys
 from chrys.foundation.config.settings import resolve_sessions_dir
-print(resolve_sessions_dir(create=False) / sys.argv[1])
+from chrys.foundation.util.session_ids import session_short_id
+print(resolve_sessions_dir(create=False) / session_short_id(sys.argv[1]))
 ' "$SESSION")"
 
 # ---------------------------------------------------------------- artifacts

@@ -348,7 +348,14 @@ def _proposal_coverage_errors(
         errors.append("proposal has no current-repository evidence")
     uncited = [anchor.anchor for anchor in current_repo_anchors if not _anchor_read_paths(anchor.anchor, read_paths)]
     if uncited:
-        errors.append("current-repository evidence cites a file not inspected with read_file")
+        # Name them: the rejected proposal is not persisted, so without the
+        # offending anchors the artifact records that a gate fired but not
+        # what tripped it — and a bare file name looks identical to an
+        # invented one in the record.
+        errors.append(
+            "current-repository evidence cites a file not inspected with read_file: "
+            + ", ".join(sorted(dict.fromkeys(uncited))[:5])
+        )
     for point in proposal.guidance_points:
         if not any(anchor.kind in {"current_repo", "exact_ancestor"} for anchor in point.evidence):
             errors.append("guidance point has no current-repository or exact-ancestor evidence")
@@ -543,7 +550,9 @@ class ChrysClarificationModel:
                         synthesis_attempts += 1
                         message = (
                             "Investigation is complete. Synthesize the final proposal now from inspected evidence. "
-                            "Return schema JSON only. Every current_repo anchor must cite a file actually read. A "
+                            "Return schema JSON only. Every current_repo anchor must cite a file actually read, as a "
+                            "repository-relative path with at least one directory component (e.g. "
+                            "'src/parser.py:12-20'); a bare file name is rejected. A "
                             "requirement_complete verdict must summarize coverage and is valid only after checking a "
                             "second relevant surface or running a second targeted search."
                             if synthesis_pass == 1

@@ -130,3 +130,32 @@ def test_no_session_directory_means_no_brief_and_no_crash() -> None:
     extensions = LongHorizonExtensions(_Host(_session_dir=None), _decision())
 
     assert extensions.write_brief(baseline="p1") is None
+
+
+async def test_the_brief_is_filed_under_the_turn_the_clarification_used(tmp_path: Path) -> None:
+    """`_turn_number` advances when the baseline pass starts.
+
+    The clarification workflow numbers its artifacts before that; reading the
+    field again afterwards filed the brief under the NEXT turn and made
+    `_clarified_requirement` look for a document that could never be there —
+    so the brief told the campaign's roles "(clarification produced none)"
+    while the requirement sat one directory away.
+    """
+    host = _Host(_session_dir=tmp_path / "session")
+    host._turn_number = 0
+    extensions = LongHorizonExtensions(host, _decision())
+    extensions._requirement = "Add typed parsing"
+
+    # The baseline pass runs and advances the counter, exactly as it does live.
+    host._turn_number = 1
+
+    outcome = tmp_path / "session/requirement_clarification/turn_1/05-outcome"
+    outcome.mkdir(parents=True)
+    (outcome / "clarified-requirement.md").write_text("# Clarified\n- keep behaviour\n", encoding="utf-8")
+
+    path = extensions.write_brief(baseline="p0")
+
+    assert path == tmp_path / "session/long_horizon/turn_1/brief.md"
+    brief = path.read_text(encoding="utf-8")
+    assert "keep behaviour" in brief
+    assert "(clarification produced none)" not in brief

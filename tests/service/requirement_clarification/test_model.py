@@ -210,7 +210,7 @@ def test_proposal_coverage_rejects_uninspected_repository_anchor() -> None:
     )
 
     assert _proposal_coverage_errors(proposal, calls) == [
-        "current-repository evidence cites a file not inspected with read_file"
+        "current-repository evidence cites a file not inspected with read_file: src/registry.py:12"
     ]
 
 

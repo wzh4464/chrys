@@ -13318,7 +13318,7 @@
       "primitive": "awaitable",
       "qualname": "LongHorizonExtensions._degrade",
       "source_column": 8,
-      "source_line": 461,
+      "source_line": 468,
       "wrapper_target": null
     },
     {
@@ -13338,7 +13338,7 @@
       "primitive": "awaitable",
       "qualname": "LongHorizonExtensions._degrade_delegation",
       "source_column": 8,
-      "source_line": 347,
+      "source_line": 354,
       "wrapper_target": null
     },
     {
@@ -13358,7 +13358,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions._degrade_delegation",
       "source_column": 8,
-      "source_line": 355,
+      "source_line": 362,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._phase"
     },
     {
@@ -13378,7 +13378,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions._localize",
       "source_column": 12,
-      "source_line": 398,
+      "source_line": 405,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._degrade"
     },
     {
@@ -13398,7 +13398,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions._localize",
       "source_column": 12,
-      "source_line": 402,
+      "source_line": 409,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._degrade"
     },
     {
@@ -13418,7 +13418,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions._localize",
       "source_column": 12,
-      "source_line": 406,
+      "source_line": 413,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._degrade"
     },
     {
@@ -13438,7 +13438,7 @@
       "primitive": "thread_pool",
       "qualname": "LongHorizonExtensions._localize",
       "source_column": 21,
-      "source_line": 409,
+      "source_line": 416,
       "wrapper_target": null
     },
     {
@@ -13458,7 +13458,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions._localize",
       "source_column": 12,
-      "source_line": 422,
+      "source_line": 429,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._degrade"
     },
     {
@@ -13478,7 +13478,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions._localize",
       "source_column": 8,
-      "source_line": 427,
+      "source_line": 434,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._phase"
     },
     {
@@ -13498,7 +13498,7 @@
       "primitive": "awaitable",
       "qualname": "LongHorizonExtensions._phase",
       "source_column": 8,
-      "source_line": 470,
+      "source_line": 477,
       "wrapper_target": null
     },
     {
@@ -13518,7 +13518,7 @@
       "primitive": "timeout",
       "qualname": "LongHorizonExtensions._recall_prior",
       "source_column": 23,
-      "source_line": 177,
+      "source_line": 184,
       "wrapper_target": null
     },
     {
@@ -13538,7 +13538,7 @@
       "primitive": "thread_pool",
       "qualname": "LongHorizonExtensions._recall_prior",
       "source_column": 23,
-      "source_line": 178,
+      "source_line": 185,
       "wrapper_target": null
     },
     {
@@ -13558,7 +13558,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions.after_repair",
       "source_column": 12,
-      "source_line": 251,
+      "source_line": 258,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._phase"
     },
     {
@@ -13578,7 +13578,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions.after_repair",
       "source_column": 12,
-      "source_line": 261,
+      "source_line": 268,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._degrade_delegation"
     },
     {
@@ -13598,7 +13598,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions.after_repair",
       "source_column": 8,
-      "source_line": 274,
+      "source_line": 281,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._phase"
     },
     {
@@ -13618,7 +13618,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions.after_repair",
       "source_column": 12,
-      "source_line": 276,
+      "source_line": 283,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._degrade_delegation"
     },
     {
@@ -13638,7 +13638,7 @@
       "primitive": "awaitable",
       "qualname": "LongHorizonExtensions.after_repair",
       "source_column": 12,
-      "source_line": 279,
+      "source_line": 286,
       "wrapper_target": null
     },
     {
@@ -13658,7 +13658,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions.after_repair",
       "source_column": 12,
-      "source_line": 289,
+      "source_line": 296,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._phase"
     },
     {
@@ -13678,7 +13678,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions.after_repair",
       "source_column": 12,
-      "source_line": 294,
+      "source_line": 301,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._degrade_delegation"
     },
     {
@@ -13698,7 +13698,7 @@
       "primitive": "awaitable",
       "qualname": "LongHorizonExtensions.after_repair",
       "source_column": 12,
-      "source_line": 301,
+      "source_line": 308,
       "wrapper_target": null
     },
     {
@@ -13718,7 +13718,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions.after_repair",
       "source_column": 8,
-      "source_line": 308,
+      "source_line": 315,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._phase"
     },
     {
@@ -13738,7 +13738,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions.on_clarification_start",
       "source_column": 29,
-      "source_line": 123,
+      "source_line": 130,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._recall_prior"
     },
     {
@@ -13758,7 +13758,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions.on_clarification_start",
       "source_column": 8,
-      "source_line": 126,
+      "source_line": 133,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._phase"
     },
     {
@@ -13778,7 +13778,7 @@
       "primitive": "timeout",
       "qualname": "LongHorizonExtensions.on_clarification_start",
       "source_column": 12,
-      "source_line": 129,
+      "source_line": 136,
       "wrapper_target": null
     },
     {
@@ -13798,7 +13798,7 @@
       "primitive": "shield",
       "qualname": "LongHorizonExtensions.on_clarification_start",
       "source_column": 35,
-      "source_line": 129,
+      "source_line": 136,
       "wrapper_target": null
     },
     {
@@ -13818,7 +13818,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions.on_clarification_start",
       "source_column": 12,
-      "source_line": 132,
+      "source_line": 139,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._degrade"
     },
     {
@@ -13838,7 +13838,7 @@
       "primitive": "awaitable",
       "qualname": "LongHorizonExtensions.on_revision",
       "source_column": 8,
-      "source_line": 381,
+      "source_line": 388,
       "wrapper_target": null
     },
     {
@@ -36898,7 +36898,7 @@
       "primitive": "awaitable",
       "qualname": "ChrysClarificationModel._run",
       "source_column": 8,
-      "source_line": 723,
+      "source_line": 732,
       "wrapper_target": null
     },
     {
@@ -36918,7 +36918,7 @@
       "primitive": "awaitable",
       "qualname": "ChrysClarificationModel._run",
       "source_column": 23,
-      "source_line": 725,
+      "source_line": 734,
       "wrapper_target": null
     },
     {
@@ -36938,7 +36938,7 @@
       "primitive": "awaitable",
       "qualname": "ChrysClarificationModel._run",
       "source_column": 12,
-      "source_line": 742,
+      "source_line": 751,
       "wrapper_target": null
     },
     {
@@ -36958,7 +36958,7 @@
       "primitive": "wrapper",
       "qualname": "ChrysClarificationModel.generate_pact_goal_contract",
       "source_column": 15,
-      "source_line": 684,
+      "source_line": 693,
       "wrapper_target": "chrys.service.requirement_clarification.model.ChrysClarificationModel._run"
     },
     {
@@ -36978,7 +36978,7 @@
       "primitive": "wrapper",
       "qualname": "ChrysClarificationModel.generate_pact_initial_plan",
       "source_column": 15,
-      "source_line": 693,
+      "source_line": 702,
       "wrapper_target": "chrys.service.requirement_clarification.model.ChrysClarificationModel._run"
     },
     {
@@ -36998,7 +36998,7 @@
       "primitive": "awaitable",
       "qualname": "ChrysClarificationModel.propose",
       "source_column": 8,
-      "source_line": 492,
+      "source_line": 499,
       "wrapper_target": null
     },
     {
@@ -37018,7 +37018,7 @@
       "primitive": "awaitable",
       "qualname": "ChrysClarificationModel.propose",
       "source_column": 20,
-      "source_line": 516,
+      "source_line": 523,
       "wrapper_target": null
     },
     {
@@ -37038,7 +37038,7 @@
       "primitive": "awaitable",
       "qualname": "ChrysClarificationModel.propose",
       "source_column": 35,
-      "source_line": 555,
+      "source_line": 564,
       "wrapper_target": null
     },
     {
@@ -37058,7 +37058,7 @@
       "primitive": "awaitable",
       "qualname": "ChrysClarificationModel.propose",
       "source_column": 12,
-      "source_line": 645,
+      "source_line": 654,
       "wrapper_target": null
     },
     {
@@ -37078,7 +37078,7 @@
       "primitive": "awaitable",
       "qualname": "ChrysClarificationModel.propose.run_stage",
       "source_column": 23,
-      "source_line": 452,
+      "source_line": 459,
       "wrapper_target": null
     },
     {
@@ -37098,7 +37098,7 @@
       "primitive": "wrapper",
       "qualname": "ChrysClarificationModel.propose_legacy_v1",
       "source_column": 15,
-      "source_line": 663,
+      "source_line": 672,
       "wrapper_target": "chrys.service.requirement_clarification.model.ChrysClarificationModel._run"
     },
     {
@@ -37118,7 +37118,7 @@
       "primitive": "wrapper",
       "qualname": "ChrysClarificationModel.select",
       "source_column": 15,
-      "source_line": 648,
+      "source_line": 657,
       "wrapper_target": "chrys.service.requirement_clarification.model.ChrysClarificationModel._run"
     },
     {
@@ -37138,7 +37138,7 @@
       "primitive": "wrapper",
       "qualname": "ChrysClarificationModel.select_legacy_v1",
       "source_column": 15,
-      "source_line": 674,
+      "source_line": 683,
       "wrapper_target": "chrys.service.requirement_clarification.model.ChrysClarificationModel._run"
     },
     {
