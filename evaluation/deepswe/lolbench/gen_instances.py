@@ -39,13 +39,13 @@ import tomllib
 from pathlib import Path
 
 try:
-    from evaluation.deepswe.verify import verify_command_for
+    from evaluation.deepswe.verify import VERIFY_SCRIPT_PATH, verify_plan_for_task
 except ModuleNotFoundError:  # run by path from a LoLBench checkout, not from the chrys root
     sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
-    from evaluation.deepswe.verify import verify_command_for
+    from evaluation.deepswe.verify import VERIFY_SCRIPT_PATH, verify_plan_for_task
 
 
-def image_tag(instance_id: str, dockerfile: str) -> str:
+def image_tag(instance_id: str, dockerfile: str, extra: str = "") -> str:
     """A docker tag for the wrapper image.
 
     Hex only: the evaluator treats any tag containing ``-base`` or ``-coverage`` as a
@@ -53,7 +53,7 @@ def image_tag(instance_id: str, dockerfile: str) -> str:
     without a primary tag. The Dockerfile's content is part of the tag, so a regenerated
     root with a different recipe is rebuilt instead of served from the old image.
     """
-    digest = hashlib.sha1((instance_id + "\n" + dockerfile).encode("utf-8")).hexdigest()[:12]
+    digest = hashlib.sha1((instance_id + "\n" + dockerfile + "\n" + extra).encode("utf-8")).hexdigest()[:12]
     return f"lolbench-deepswe-{digest}:1"
 
 
@@ -98,7 +98,7 @@ def write_instance(task_dir: Path, out: Path, *, force: bool) -> dict:
         return {"instance_id": iid, "docker_dir": iid, "source_mapping": f"{iid}.md", "base_commit": base_commit}
     docker_dir.mkdir(parents=True, exist_ok=True)
     language = str(meta.get("language", "")).lower()
-    verify = verify_command_for(language)
+    verify, verify_script = verify_plan_for_task(task_dir, language)
     dockerfile = (
         f"# DeepSWE task {iid}: the prebuilt Harbor image, repo at base commit {base_commit[:12]}.\n"
         f"FROM {image}\n"
@@ -108,10 +108,13 @@ def write_instance(task_dir: Path, out: Path, *, force: bool) -> dict:
     )
     if verify:
         dockerfile += (
-            f"# {language}: what a PACT campaign runs to accept a mission (pact.verify_command).\n"
+            "# The task's own regression runner in base mode (hidden tests blanked): what a\n"
+            "# PACT campaign runs to accept a mission (pact.verify_command).\n"
+            f"COPY verify_base.sh {VERIFY_SCRIPT_PATH}\n"
             f'ENV CHRYS_PACT_VERIFY_COMMAND="{verify}"\n'
         )
-    tag = image_tag(iid, dockerfile)
+        (docker_dir / "verify_base.sh").write_text(verify_script, encoding="utf-8")
+    tag = image_tag(iid, dockerfile, verify_script)
     (docker_dir / "Dockerfile").write_text(dockerfile, encoding="utf-8")
     (docker_dir / "README.md").write_text(
         f"# {iid}\n\n"

@@ -85,9 +85,16 @@ agent_out/chrys/<session>/sub_agents/sessions/chrys_pact_*      only when the wo
 ```
 
 A campaign runs only when the workspace has a deterministic verification command, and
-DeepSWE tasks carry none of their own — so the wrapper image sets
-`CHRYS_PACT_VERIFY_COMMAND` from the task's language (`evaluation/deepswe/verify.py`:
-`go test ./...`, `python -m pytest -q -x`, `npm test --silent`, `cargo test -q`), which is
+DeepSWE tasks expose none to the agent — so the wrapper image ships the task's own
+regression runner: every hidden test patch adds a `test.sh` with `base` and `new`
+modes, and `gen_instances.py` copies it to `/opt/deepswe_verify.sh` with the hidden
+tests' names replaced by placeholder paths (`evaluation/deepswe/verify.py`:
+`sanitize_runner`), setting `CHRYS_PACT_VERIFY_COMMAND="bash /opt/deepswe_verify.sh base"`.
+A task without such a runner gets the base run parsed out of the verifier's
+`tests/test.sh`, else a language default (`go test ./...`, `python -m pytest -q -x`,
+`npm test --silent`, `cargo test -q`) — which, measured at the base commit, fails for
+half of the first twenty tasks (missing optional dependencies, `go.work` layouts,
+snapshot suites), blocking the campaign before it starts. That command is
 what the campaign's Worker/Reviewer loop runs to accept each mission (through
 `chrys.pact.verify_shim`, which lends pact_core's fresh verification worktrees the
 workspace's ignored `node_modules`/`.venv`/`target`). Clarification's goal
@@ -134,6 +141,10 @@ SMTP with an app password from the environment.
   (OpenRouter) and the host's graph stay reachable.
 - The hidden tests (`tests/test.patch`) are listed as `eval_tests.patch`, so their paths
   are excluded from the captured diff; the verifier applies them itself.
+- The agent image carries the task's regression runner in base mode
+  (`/opt/deepswe_verify.sh`, see step 2) with the hidden tests' names blanked. DeepSWE's
+  own protocol gives the agent no such script; chrys needs a verify command for the
+  campaign, and the repository's own suite is the least artificial one.
 - The agent runs with network for the model API; DeepSWE's own protocol runs the agent
   with `network_mode = "no-network"` and a Harbor-hosted model. Grading is identical to
   DeepSWE's (`tests/test.sh` in the verifier image, no network).
