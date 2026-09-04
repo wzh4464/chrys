@@ -19,6 +19,12 @@ export CHRYS_MEMORY_WRITEBACK_ON_END=0
 # The workspace is /app in every task image; label deposits and recall by the task instead.
 export CHRYS_MEMORY_REPO_LABEL="${INSTANCE_ID:-}"
 export CHRYS_SESSION_TITLE_AUTO=0
+# The container is capped at a few CPUs and 7 GiB, but toolchains size their worker
+# pools from the host's core count (jest spawned 95 workers on a 96-core host and
+# was OOM-killed). Node reads the CPU affinity mask (the engine's --cpuset-cpus);
+# Go, Cargo and make read these.
+export GOMAXPROCS="${GOMAXPROCS:-4}" CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-4}" MAKEFLAGS="${MAKEFLAGS:--j4}"
+export VITEST_MAX_THREADS="${VITEST_MAX_THREADS:-4}" VITEST_MAX_FORKS="${VITEST_MAX_FORKS:-4}"
 mkdir -p /agent_out/chrys
 
 # chrys run --json prints only the final result; keep lolbench's idle watchdog fed
