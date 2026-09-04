@@ -170,17 +170,39 @@ _ROLE_PROTOCOL_REMINDERS = {
     "planner": (
         "Protocol constraints (the runtime rejects proposals that break them):\n"
         "- Never delete or rename an existing mission. To replace one, add a NEW mission whose "
-        "`supersedes` names the mission it replaces; the old mission stays in the graph.\n"
+        "`supersedes` lists the old id and add a matching `supersede_mission` operation; the "
+        "old mission stays in the graph.\n"
         "- A mission has exactly these fields: id, objective, target_ac_ids, dependencies, "
         "supersedes, verification_intent. No successors, no status, no notes.\n"
-        "- Reply with the JSON object only: no prose before or after it, no Markdown fence."
+        '- `operations` items are exactly `{"op":"add_mission","mission_id":...}` or '
+        '`{"op":"supersede_mission","mission_id":<old>,"replacement_mission_ids":[...]}`.\n'
+        "- Reply with the JSON object as the text of your message: no prose before or after it, "
+        "no Markdown fence, and never written to a file instead of the reply."
     ),
     "manager": (
-        "Protocol constraints: reply with the JSON decision object only -- no prose before or "
-        "after it, no Markdown fence. Use `expected_plan_revision` and "
-        "`expected_work_state_revision` exactly as given in the input."
+        "Protocol constraints: reply with the JSON decision object as the text of your message "
+        "-- no prose before or after it, no Markdown fence, never written to a file instead of "
+        "the reply. Use `expected_plan_revision` and `expected_work_state_revision` exactly as "
+        "given in the input."
     ),
 }
+
+# A Planner asked for a format repair once wrote the repaired object to a file and
+# replied with nothing; the runtime parsed "" and blocked the campaign. One follow-up
+# in the same session recovers that turn at the cost of a single model call.
+_JSON_FOLLOWUP_PROMPT = (
+    "Your previous message contained no JSON object in its text (an object written to a file "
+    "does not reach the runtime). Reply now with exactly one JSON object as the message text: "
+    "no prose, no Markdown fence. If you prepared the object in a file, paste its contents."
+)
+_JSON_FOLLOWUP_TIMEOUT_SECONDS = 600.0
+
+
+def _is_json_object(text: str) -> bool:
+    try:
+        return isinstance(json.loads(text), dict)
+    except ValueError:
+        return False
 
 
 def _protocol_payload(text: str) -> str:
@@ -371,6 +393,32 @@ class InProcessChrysAdapter:
                 status, final_text, diagnostic = self._map_outcome(host.last_turn_outcome)
                 if status == "completed" and self.semantic_role in _JSON_PROTOCOL_ROLES:
                     final_text = _protocol_payload(final_text)
+                if (
+                    self.semantic_role in _JSON_PROTOCOL_ROLES
+                    and status in ("completed", "output_missing")
+                    and not _is_json_object(final_text)
+                ):
+                    turn_task = asyncio.create_task(
+                        self._consume_turn(host, prompt=_JSON_FOLLOWUP_PROMPT, namespace=f"{namespace}:followup")
+                    )
+                    self._active_turn_task = turn_task
+                    followup_timeout = min(request.timeout_seconds, _JSON_FOLLOWUP_TIMEOUT_SECONDS)
+                    if not await self._wait_for_task(turn_task, timeout=followup_timeout):
+                        try:
+                            await self._cancel_and_drain_timed_out_turn(host, turn_task)
+                        except RoleRuntimeUnresponsive:
+                            preserve_runtime = True
+                            raise
+                        status = "timeout"
+                        diagnostic = "TimeoutError"
+                    else:
+                        try:
+                            turn_task.result()
+                        except asyncio.CancelledError as error:
+                            raise RoleTurnCancelled("PACT role turn was cancelled") from error
+                        status, final_text, diagnostic = self._map_outcome(host.last_turn_outcome)
+                        if status == "completed":
+                            final_text = _protocol_payload(final_text)
             session_id = host.session_id
             if self.semantic_role == "reviewer":
                 review_decision = self._capture_review_decision(request, transport_path)

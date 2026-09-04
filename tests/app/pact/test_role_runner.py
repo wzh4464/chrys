@@ -48,6 +48,7 @@ class _HostScript:
     never_finishes: bool = False
     shield_cancel_cleanup: bool = False
     session_id: str = "inner-session"
+    followup_outcome: TurnOutcome | None = None
 
 
 class _FakeHost:
@@ -97,6 +98,8 @@ class _FakeHost:
         for event in self._script.events:
             yield event
         self._last_turn_outcome = self._script.outcome
+        if len(self.prompts) > 1 and self._script.followup_outcome is not None:
+            self._last_turn_outcome = self._script.followup_outcome
 
     async def cancel_current_turn(self) -> None:
         self.cancelled = True
@@ -699,5 +702,48 @@ def test_planner_and_manager_prompts_carry_the_protocol_constraints() -> None:
 
     assert "Never delete or rename an existing mission" in _ROLE_PROTOCOL_REMINDERS["planner"]
     assert "supersedes" in _ROLE_PROTOCOL_REMINDERS["planner"]
-    assert "JSON decision object only" in _ROLE_PROTOCOL_REMINDERS["manager"]
+    assert "JSON decision object as the text of your message" in _ROLE_PROTOCOL_REMINDERS["manager"]
     assert set(_ROLE_PROTOCOL_REMINDERS) == {"planner", "manager"}
+
+
+@pytest.mark.asyncio
+async def test_planner_turn_without_json_text_is_asked_once_more_in_the_same_session(tmp_path: Path) -> None:
+    from chrys.pact.role_runner import _JSON_FOLLOWUP_PROMPT
+
+    factory = _FakeHostFactory(
+        [
+            _HostScript(
+                outcome=EndTurn(final_text=""),
+                followup_outcome=EndTurn(final_text='Here it is:\n```json\n{"schema": "plan", "missions": []}\n```'),
+            )
+        ]
+    )
+    base = _base_settings()
+    updates: list[object] = []
+    adapter = _adapter(semantic_role="planner", base_settings=base, factory=factory, updates=updates)
+
+    with patch("chrys.pact.role_runner.load_settings", autospec=True, return_value=base):
+        result = await asyncio.to_thread(adapter.run_turn, _request(tmp_path / "planner"))
+
+    assert result.status == "completed"
+    assert json.loads(result.final_text) == {"schema": "plan", "missions": []}
+    host = factory.hosts[0]
+    assert len(factory.hosts) == 1
+    assert host.prompts[1] == _JSON_FOLLOWUP_PROMPT
+    assert host.shutdown_called
+
+
+@pytest.mark.asyncio
+async def test_worker_turn_without_text_is_not_asked_again(tmp_path: Path) -> None:
+    factory = _FakeHostFactory(
+        [_HostScript(outcome=EndTurn(final_text=""), followup_outcome=EndTurn(final_text="late"))]
+    )
+    base = _base_settings()
+    updates: list[object] = []
+    adapter = _adapter(semantic_role="worker", base_settings=base, factory=factory, updates=updates)
+
+    with patch("chrys.pact.role_runner.load_settings", autospec=True, return_value=base):
+        result = await asyncio.to_thread(adapter.run_turn, _request(tmp_path / "worker"))
+
+    assert result.status == "output_missing"
+    assert len(factory.hosts[0].prompts) == 1
