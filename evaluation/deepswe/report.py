@@ -158,7 +158,7 @@ def _runner_sessions(runs_dir: Path, task_id: str) -> Path | None:
     store = runs_dir / "chrys-home" / ".chrys" / "sessions"
     for session in reversed(_sessions(store)):
         meta = (_load(session / "session.json") or {}).get("meta", {})
-        cwd = str(meta.get("cwd", ""))
+        cwd = str(meta.get("primary_cwd") or meta.get("cwd") or "")
         if cwd.rstrip("/").endswith(task_id) and (
             (session / "requirement_clarification").is_dir() or (session / "long_horizon").is_dir()
         ):

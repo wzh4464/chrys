@@ -229,3 +229,29 @@ def test_init_requires_a_contextgraph_checkout(
 def test_unknown_subcommand_is_rejected() -> None:
     with pytest.raises(SystemExit):
         memory_cli.main(["nonsense"])
+
+
+# ── repository labels for swept sessions ─────────────────────────────
+
+
+def test_a_swept_session_is_labelled_by_its_workspace(tmp_path: Path) -> None:
+    from chrys.app.cli.memory import _repo_label
+
+    workspace = tmp_path / "parser-kit"
+    workspace.mkdir()
+    session_file = tmp_path / "sessions" / "abc" / "session.json"
+    session_file.parent.mkdir(parents=True)
+    # The envelope records the workspace as ``primary_cwd``.
+    session_file.write_text(json.dumps({"meta": {"primary_cwd": str(workspace)}, "state": {}}), encoding="utf-8")
+
+    assert _repo_label(session_file) == "parser-kit"
+
+
+def test_a_swept_session_without_a_workspace_is_general(tmp_path: Path) -> None:
+    from chrys.app.cli.memory import _repo_label
+
+    session_file = tmp_path / "session.json"
+    session_file.write_text(json.dumps({"meta": {}, "state": {}}), encoding="utf-8")
+
+    assert _repo_label(session_file) == "general"
+    assert _repo_label(tmp_path / "missing.json") == "general"

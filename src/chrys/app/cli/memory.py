@@ -202,7 +202,9 @@ def _repo_label(session_file: Path) -> str:
     except OSError, json.JSONDecodeError:
         return "general"
     meta = envelope.get("meta") if isinstance(envelope, dict) else None
-    cwd = meta.get("cwd") if isinstance(meta, dict) else None
+    # The envelope records the workspace as ``primary_cwd``; reading ``cwd`` labelled
+    # every swept session "general", which is why recall by repository found nothing.
+    cwd = (meta.get("primary_cwd") or meta.get("cwd")) if isinstance(meta, dict) else None
     # Same label the live hook uses, so a swept session and a deposited one
     # land under one repository name.
     return repo_label(cwd if isinstance(cwd, str) else None)
