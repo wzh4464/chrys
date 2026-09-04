@@ -248,6 +248,34 @@ uv run pytest -m "not integration and not gc_calibration"
   同样；之前只对"整条回复就是一个围栏"去壳。JSON 协议角色的回复现在抽取其中的 JSON 对象（围栏内/裸对象），没有对象
   的原样交给运行时自己的修复提示。
 
+### 09-04 晚（LoLBench 首批 5 题 + 探测运行）暴露的偏差
+
+- **Planner 语义违规**（`3bec73d3`）：textual 的 campaign 跑 56 分钟后 `Planner proposal cannot delete existing
+  Missions`——模型把 M1 并进 M2 并删掉 M1；superjson 的 Planner 给 mission 加了 schema 之外的 `successors`。
+  Planner/Manager 的提示末尾现在明说 pact_core 的规则：mission 只能通过 `supersedes` + `supersede_mission`
+  操作替换、Mission 字段白名单、`operations` 的两种形状、回复必须是消息正文里的 JSON。
+- **修复轮写文件不回话**（`5537df53`）：superjson 的 Planner 结构化修复轮把修好的 JSON 写到
+  `/tmp/pact-planner-*/repaired-output.json` 然后回复空串，运行时解析 "" → `Expecting value` → campaign 阻塞。
+  JSON 协议角色的回合若正文里没有 JSON 对象，现在在同一会话里追问一次再上报。
+- **验证在 worktree 里找不到工具**（`73ecfb77`/`51da4635`）：pact_core 每个 checkpoint 在新建的 `git worktree`
+  里验证，worktree 没有 `node_modules`，`npm test` → `vitest: not found`（exit 127），Worker 做完、Reviewer 说
+  complete，gate 却因 verification failed 强制继续，直到 max_rounds。验证命令现在经 `chrys.pact.verify_shim`
+  运行：先把主检出里被 git 忽略的目录软链进 worktree，再原地执行。
+- **语言默认验证命令一半在基线就失败**（`e0d6c96c`）：在 20 个任务镜像里于 base commit 探测——缺 orjson /
+  pytest、`go.work` 布局下 `go test ./...` 报错、textual 快照套件、mnamer 网络 e2e、drizzle 需要数据库的包……
+  7/13 失败，会被 pact_core 的 baseline gate 直接拦住。每个任务的隐藏测试补丁都带一个 `base|new` 两模式的
+  `test.sh`，现在把它脱敏（隐藏测试名换成占位路径）后装进镜像作 `/opt/deepswe_verify.sh`，验证命令统一为
+  `bash /opt/deepswe_verify.sh base`；没有该脚本时解析 verifier `tests/test.sh` 的 base 行，再退到语言默认。
+- **macOS CI 进程组测试**（`62ec1cfc`/`9242c02e`）：`run_process_bounded` 的 killpg 与驱动进程 fork 孙进程恰好
+  同时，孙进程漏杀。等待 leader 退出后再清扫一次进程组；测试时序放宽。补杀要放在单个 wait 之后，否则
+  签名的 wait 清单（Architecture 检查）失配。
+- **门禁被管道吞掉退出码**：一条 `pytest … | tail -1 && git commit && git push` 把带语法错误的
+  `verify_shim.py` 推到了三个远端和 PR，两次补丁才修好。此后门禁链一律 `set -o pipefail`。
+- **首批 5 题的结局**：awilix/koota 卡在 clarification 的散文前言（已修，`af18bac7`，探测运行验证中）；
+  textual / superjson 的 campaign 各跑 40–56 分钟后死于上述 Planner 问题；drizzle 的 campaign 在 m-1 两次尝试后
+  被 10200 s 内超时截断（4 个 mission 只推进到第一个，验证命令本身也不可用）。**尚无一题 campaign 完成**；
+  第二轮（`second_pass.sh`，AGENT_TIMEOUT=10800）将在新树上重跑所有未完成的实例。
+
 ## 7. 交付状态（09-03 收尾）
 
 - 36 个 task 全部完成并 commit 在本地 `integration/long-horizon-suite`（`origin/main..HEAD` 共 96 个
