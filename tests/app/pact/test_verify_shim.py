@@ -76,7 +76,7 @@ def test_main_links_then_runs_the_command_in_place(tmp_path: Path, monkeypatch: 
         )
         == 0
     )
-    assert main(["--", f"{sys.executable} -c 'raise SystemExit(3)'"]) == 3
+    assert main(["--", f'{sys.executable} -c "raise SystemExit(3)"']) == 3
 
 
 def test_a_primary_checkout_is_left_alone(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -87,7 +87,7 @@ def test_a_primary_checkout_is_left_alone(tmp_path: Path, monkeypatch: pytest.Mo
     plain.mkdir()
     assert link_ignored_dependencies(plain) == []
     monkeypatch.chdir(plain)
-    assert main(["--", f"{sys.executable} -c 'raise SystemExit(0)'"]) == 0
+    assert main(["--", f'{sys.executable} -c "raise SystemExit(0)"']) == 0
     assert main([]) == 2
 
 
