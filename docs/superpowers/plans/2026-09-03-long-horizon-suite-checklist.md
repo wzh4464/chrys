@@ -213,6 +213,24 @@ uv run pytest -m "not integration and not gc_calibration"
 - 13:05 起 ali-server 的 sshd 在密钥交换后不再应答（TCP 22 通、ping 正常），与 20 个并发 agent 同时
   运行相符，疑为内存/IO 压力；后台每分钟重试，进去后先看 `free`/`vmstat` 再决定是否降并发。
 
+### 09-04 下午（限流后的 lh 跑批、PR #696、LoLBench 接入）
+
+- **P0 跑满预算整轮无回复**（`6b638913`）：drizzle/koota 两题 P0 用满 5400 s 后工作流按"中断"结束、rc=1，
+  工作区里 90 分钟的修改被丢掉。现在预算只结束 P0：中断后等它停稳，把部分基线当作 P0（带 warning），澄清与修复照常。
+- **选择器漏评即整体失败**（`07a27a21`）：mashumaro 题选择器两轮评审了 29 个候选中的 24 个，剩下 5 个没评就把整次
+  澄清判为 `selector_failed`、晋升 P0。现在漏评的候选记为 reject 并记 warning；未知/重复 id 仍然失败。
+- **sweep 的仓库归属读错键**（`a771bb68`）：会话信封记录的是 `meta.primary_cwd`，sweep 读 `meta.cwd`，
+  所以所有被扫描沉淀的会话都标成 "general"，按仓库召回自然找不到。报告生成器同样修正。
+- **调度器计数把 grep 自己算进去**：`ps | grep -o "…--offset [0-9]*"` 会匹配 grep 进程自己的参数（`[0-9]*` 可空），
+  3 个在跑被数成 4，排队的分片永远起不来；改为 `grep deepswe_runner.py | grep -o -- "--offset [0-9][0-9]*"`。
+  同类教训：`pkill -f` 的模式若出现在调用它的 ssh 命令行里，会把自己的会话杀掉——模式要用 `^bash /abs/path` 锚定。
+- **Windows CI**（PR #696）：`/usr/bin/git` 写死（改 `shutil.which`）；用文本写入后比较字节数（改 `write_bytes`）；
+  PACT worktree 路径在 pytest 临时目录下超过 Windows 限制（`'$GIT_DIR' too big`，POSIX-only）；rg 探针测试用
+  shell 脚本当二进制（POSIX-only）。macOS 的 `test_stopped_script_returns_promptly` 是上游自带的环境性用例，
+  在上游 main 本地同样失败，与本分支无关。
+- 远端 Neo4j 曾在 IO 风暴中静默退出（日志停在 Started），`neo4j status` 在无 JDK PATH 的非交互 ssh 里会误报
+  "We cannot execute"；核对时先 `export PATH=$HOME/lhs/jdk21/bin:$PATH`。
+
 ## 7. 交付状态（09-03 收尾）
 
 - 36 个 task 全部完成并 commit 在本地 `integration/long-horizon-suite`（`origin/main..HEAD` 共 96 个
