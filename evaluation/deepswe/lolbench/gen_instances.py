@@ -54,11 +54,24 @@ def load_task(task_dir: Path) -> dict:
         return tomllib.load(fh)
 
 
+def _manifest_order(tasks_dir: Path) -> list[str]:
+    """Task ids in ``tasks/manifest.json`` order -- the order the DeepSWE runner and the
+    published benchmark use; the first twenty of it are "the first 20 tasks"."""
+    for candidate in (tasks_dir / "manifest.json", tasks_dir.parent / "manifest.json"):
+        if candidate.is_file():
+            manifest = json.loads(candidate.read_text(encoding="utf-8"))
+            entries = manifest.get("tasks", []) if isinstance(manifest, dict) else manifest
+            ids = [str(e.get("task_id") or e.get("instance_id") or e.get("id") or "") for e in entries]
+            return [i for i in ids if i]
+    return []
+
+
 def select_tasks(tasks_dir: Path, *, instances: list[str], offset: int, limit: int) -> list[Path]:
-    """Task directories in the same order the DeepSWE runner uses: sorted by id."""
-    candidates = sorted(d for d in tasks_dir.iterdir() if d.is_dir() and (d / "task.toml").is_file())
+    """Task directories in the DeepSWE runner's order: the manifest's, else sorted by id."""
+    by_name = {d.name: d for d in tasks_dir.iterdir() if d.is_dir() and (d / "task.toml").is_file()}
+    ordered = [by_name[i] for i in _manifest_order(tasks_dir) if i in by_name]
+    candidates = ordered or sorted(by_name.values())
     if instances:
-        by_name = {d.name: d for d in candidates}
         missing = [i for i in instances if i not in by_name]
         if missing:
             raise SystemExit(f"unknown instances: {', '.join(missing)}")

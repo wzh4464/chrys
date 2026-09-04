@@ -52,7 +52,7 @@ python3 /path/to/chrys/evaluation/deepswe/lolbench/gen_instances.py \
 python3 scripts/lolbench_eval.py --repo-root benchmarks/deepswe --plan   # sanity: resolved plan, no Docker
 ```
 
-The first 20 tasks in sorted-id order are the same 20 the DeepSWE runner
+The first 20 tasks in `tasks/manifest.json` order are the same 20 the DeepSWE runner
 (`evaluation/semantic_search/deepswe_runner.py`) uses, so localization scores and
 LoLBench grades line up per task. `--instances a,b` selects explicitly.
 
