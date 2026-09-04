@@ -42,6 +42,7 @@ def primary_checkout(worktree: Path) -> Path | None:
         common = subprocess.run(  # noqa: S603 - fixed git argv
             [git, "rev-parse", "--path-format=absolute", "--git-common-dir"],
             cwd=worktree,
+            stdin=subprocess.DEVNULL,
             capture_output=True,
             text=True,
             check=True,
@@ -50,6 +51,7 @@ def primary_checkout(worktree: Path) -> Path | None:
         own = subprocess.run(  # noqa: S603 - fixed git argv
             [git, "rev-parse", "--path-format=absolute", "--git-dir"],
             cwd=worktree,
+            stdin=subprocess.DEVNULL,
             capture_output=True,
             text=True,
             check=True,
@@ -72,6 +74,7 @@ def ignored_directories(primary: Path) -> list[str]:
         listing = subprocess.run(  # noqa: S603 - fixed git argv
             [git, "ls-files", "--others", "--ignored", "--exclude-standard", "--directory", "-z"],
             cwd=primary,
+            stdin=subprocess.DEVNULL,
             capture_output=True,
             text=True,
             check=True,
@@ -125,9 +128,8 @@ def main(argv: list[str] | None = None) -> int:
         linked = []
     if linked:
         noun = "directory" if len(linked) == 1 else "directories"
-        sys.stderr.write(f"[verify-shim] linked {len(linked)} ignored {noun} from the primary checkout
-")
-    completed = subprocess.run(args[0], shell=True, cwd=cwd, check=False)  # noqa: S602 - the verify command is a shell string by contract
+        sys.stderr.write(f"[verify-shim] linked {len(linked)} ignored {noun} from the primary checkout\n")
+    completed = subprocess.run(args[0], shell=True, cwd=cwd, stdin=subprocess.DEVNULL, check=False)  # noqa: S602 - the verify command is a shell string by contract
     return completed.returncode
 
 
