@@ -241,6 +241,12 @@ uv run pytest -m "not integration and not gc_calibration"
 - LoLBench 首题 superjson 暴露三处捕获问题（`90b3b8e3`）：pact-agent 子进程没继承 `CHRYS_SESSION_ROOT_DIR`
   （role 会话随容器丢失）；`.pact/.pact-io` 混进捕获的 diff；chrys 在工作区里的提交对 `git diff --cached` 不可见
   （run.sh 捕获前软重置到起始 HEAD）。容器内工作区统一是 /app，用 `CHRYS_MEMORY_REPO_LABEL=$INSTANCE_ID` 标记归属。
+- **容器内 campaign 首轮全挂在 Manager**（`f91eb151`）：`block_reason: Manager provider turn was unusable: spawn_failed`——
+  role 宿主的模型 profile 用 `{{OPENROUTER_API_KEY}}` 模板，而 pact-agent 子进程的白名单环境没有它。自身子进程现在继承
+  `CHRYS_*` 与 `*_API_KEY/_AUTH_TOKEN/_API_BASE/_BASE_URL`。
+- **campaign 跑 40 分钟后死于协议错误**（`1cf20290`）：Manager 先写一段散文再把决策放进 ```json 围栏，Planner 修复轮
+  同样；之前只对"整条回复就是一个围栏"去壳。JSON 协议角色的回复现在抽取其中的 JSON 对象（围栏内/裸对象），没有对象
+  的原样交给运行时自己的修复提示。
 
 ## 7. 交付状态（09-03 收尾）
 
