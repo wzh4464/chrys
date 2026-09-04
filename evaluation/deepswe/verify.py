@@ -124,9 +124,10 @@ _EXCLUDE_OPTIONS = (
 _REPORT_TOKENS = [
     re.compile(r"""\s--reporters?=(?:junit|"?\$CTRF_REPORTER"?|\S*ctrf\S*)"""),
     re.compile(r"""\s--reporters?\s+(?:junit|"?\$CTRF_REPORTER"?)"""),
-    re.compile(r"""\s--outputFile(?:=|\s+)[^\s"']+"""),
-    re.compile(r"""\s--junit-?xml(?:=|\s+)[^\s"']+"""),
-    re.compile(r"""\s--log-junit(?:=|\s+)[^\s"']+"""),
+    re.compile(r"""\s--outputFile(?:=|\s+)[^\s"')]+"""),
+    re.compile(r"""\s--junit-?xml(?:=|\s+)[^\s"')]+"""),
+    re.compile(r"""\s--junit-path(?:=|\s+)[^\s"')]+"""),
+    re.compile(r"""\s--log-junit(?:=|\s+)[^\s"')]+"""),
     re.compile(r"""\s--profile\s+junit\b"""),
     re.compile(r"""\s-json\b"""),
     re.compile(r"""\s--json\b"""),
@@ -139,8 +140,8 @@ _REDIRECTS = [
 
 
 def _set_e_block(script: str) -> str:
-    match = re.search(r"^set \+e\s*$(.*?)^set -e\s*$", script, re.DOTALL | re.MULTILINE)
-    return match.group(1) if match else script
+    blocks = re.findall(r"^set \+e\s*$(.*?)^set -e\s*$", script, re.DOTALL | re.MULTILINE)
+    return "\n".join(blocks) if blocks else script
 
 
 def _join_continuations(block: str) -> list[str]:
@@ -290,7 +291,37 @@ def sanitize_runner(script: str, hidden: list[str]) -> str:
     replacements.sort(key=lambda pair: len(pair[0]), reverse=True)
     for old, new in replacements:
         script = script.replace(old, new)
+    # The runner lived at the repository root and finds it through its own location;
+    # installed under /opt it must use the working directory instead.
+    script = _DIRNAME_OF_SELF.sub(".", script)
     return script if script.endswith("\n") else script + "\n"
+
+
+_DIRNAME_OF_SELF = re.compile(r"""\$\(\s*dirname\s+"?(?:\$0|\$\{BASH_SOURCE\[0\]\}|\$BASH_SOURCE)"?\s*\)""")
+_NEW_MODE_HINT = re.compile(r"new", re.IGNORECASE)
+
+
+def runner_base_needs_hidden_file(sanitized: str) -> bool:
+    """True when a line outside the runner's new-mode branch still relies on a hidden file.
+
+    An exclusion of a placeholder path is harmless; running or importing one is not
+    (mashumaro's runner is ``python3 test.py base`` and test.py is itself hidden).
+    """
+    lines = sanitized.splitlines()
+    for index, line in enumerate(lines):
+        if "__hidden__" not in line:
+            continue
+        # The new-mode branch names the hidden test by design; its marker (`new)`,
+        # `= "new"`, `NEW_TEST=`) sits on the line or a few lines above it.
+        if any(_NEW_MODE_HINT.search(previous) for previous in lines[max(0, index - 3) : index + 1]):
+            continue
+        tokens = [token for token in line.split() if "__hidden__" in token]
+        if all(
+            token.startswith(_EXCLUDE_OPTIONS) or token.lstrip("\"'").startswith(("**/", "'**/")) for token in tokens
+        ):
+            continue
+        return True
+    return False
 
 
 def verify_plan_for_task(task_dir: Path, language: str | None) -> tuple[str, str]:
@@ -307,7 +338,9 @@ def verify_plan_for_task(task_dir: Path, language: str | None) -> tuple[str, str
         hidden = hidden_test_paths(patch_text)
         runner = hidden_runner_script(patch_text)
         if runner:
-            return VERIFY_COMMAND, sanitize_runner(runner, hidden)
+            sanitized = sanitize_runner(runner, hidden)
+            if not runner_base_needs_hidden_file(sanitized):
+                return VERIFY_COMMAND, sanitized
     command = verify_command_for_task(task_dir, language)
     if not command:
         return "", ""

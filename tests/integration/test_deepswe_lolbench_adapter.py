@@ -13,6 +13,7 @@ from evaluation.deepswe.lolbench.gen_instances import main as gen_main
 from evaluation.deepswe.verify import (
     VERIFY_COMMAND,
     hidden_runner_script,
+    runner_base_needs_hidden_file,
     sanitize_runner,
     verify_command_for,
     verify_from_test_sh,
@@ -146,6 +147,17 @@ def test_the_hidden_runner_is_shipped_in_base_mode_without_the_hidden_test_name(
     assert "base) npx vitest run -t '^(?!.*perf)' src/index.test.ts ;;" in sanitized
     assert "new) npx vitest run src/__hidden__.test.ts ;;" in sanitized
     assert hidden_runner_script("diff --git a/t b/t\n") is None
+    assert not runner_base_needs_hidden_file(sanitized)
+
+
+def test_a_runner_that_needs_a_hidden_file_is_rejected_and_the_script_dir_becomes_the_cwd() -> None:
+    runner = 'set -e\ncd "$(dirname "$0")"\ncase "$1" in\n  base) python3 test.py base ;;\n  new) python3 test.py new ;;\nesac\n'
+    sanitized = sanitize_runner(runner, ["test.py", "test.sh"])
+    assert 'cd "."' in sanitized
+    assert "base) python3 __hidden__.py base ;;" in sanitized
+    assert runner_base_needs_hidden_file(sanitized)
+    excluded = sanitize_runner("pytest tests/ --ignore=tests/test_x.py\n", ["tests/test_x.py"])
+    assert not runner_base_needs_hidden_file(excluded)
 
 
 _VERIFIER = """set +e
