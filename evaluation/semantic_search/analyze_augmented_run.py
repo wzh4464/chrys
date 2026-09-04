@@ -33,7 +33,9 @@ def main(argv: list[str]) -> int:
         for route in routes.get("routes", []):
             path = Path(route["path"])
             status = "present" if path.exists() else "missing"
-            print(f"- {route['priority']}: {route['topic']} -> {path} [{status}] summary={route.get('summary_line_count', 0)}")
+            print(
+                f"- {route['priority']}: {route['topic']} -> {path} [{status}] summary={route.get('summary_line_count', 0)}"
+            )
         return 0
     except ScriptError as err:
         print(f"Error: {err}", file=sys.stderr)

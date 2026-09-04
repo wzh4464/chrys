@@ -38,7 +38,11 @@ import sys
 import tomllib
 from pathlib import Path
 
-from evaluation.deepswe.verify import verify_command_for
+try:
+    from evaluation.deepswe.verify import verify_command_for
+except ModuleNotFoundError:  # run by path from a LoLBench checkout, not from the chrys root
+    sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+    from evaluation.deepswe.verify import verify_command_for
 
 
 def image_tag(instance_id: str, dockerfile: str) -> str:
