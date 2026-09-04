@@ -33,6 +33,9 @@ SERVICE = "service"
 ORCHESTRATION = "orchestration"
 APP = "app"
 PACT = "pact"
+# The package entry module (`python -m chrys`) is application code: it only
+# delegates to the CLI.
+MAIN = "__main__"
 ROOT_INIT = "__root__"
 
 TIER_ORDER = {
@@ -42,6 +45,7 @@ TIER_ORDER = {
     ORCHESTRATION: 3,
     APP: 4,
     PACT: 4,
+    MAIN: 4,
 }
 
 ROOT_METADATA_EXPORTS = {"__version__"}

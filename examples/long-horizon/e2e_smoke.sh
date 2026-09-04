@@ -137,11 +137,24 @@ if ! (cd "$CHRYS_REPO" && uv run chrys memory doctor --json >/dev/null 2>&1); th
   exit 0
 fi
 
-note "checking idle writeback reaches the graph"
-BEFORE="$(cd "$CHRYS_REPO" && uv run chrys memory sweep --dry-run --idle-seconds 0 | grep -c "$SESSION" || true)"
-[ "$BEFORE" != "0" ] || fail "the swept session has no pending turns; writeback would deposit nothing"
-(cd "$CHRYS_REPO" && uv run chrys memory sweep --idle-seconds 0) || fail "the sweep failed"
-AFTER="$(cd "$CHRYS_REPO" && uv run chrys memory sweep --dry-run --idle-seconds 0 | grep -c "$SESSION" || true)"
-[ "$AFTER" = "0" ] || fail "the watermark did not advance: the turn was not deposited"
+note "checking writeback reached the graph"
+# A normally ending `chrys run` flushes once more at session end, so by now the
+# turn is usually deposited already; a pending sweep would mean it was not.
+# Either way the proof is the same: after a sweep, nothing is pending and the
+# session's watermark covers its one turn.
+# The sweep skips a session file modified inside the idle window; with the
+# window at zero that still excludes a file written this very second.
+sleep 2
+(cd "$CHRYS_REPO" && uv run chrys memory sweep --idle-seconds 0 >/dev/null) || fail "the sweep failed"
+PENDING="$(cd "$CHRYS_REPO" && uv run chrys memory sweep --dry-run --idle-seconds 0 | grep -c "$SESSION" || true)"
+[ "$PENDING" = "0" ] || fail "the session still has pending turns after a sweep: writeback is not reaching the graph"
+WATERMARK="$(cd "$CHRYS_REPO" && uv run python -c '
+import json, sys
+from chrys.service.memory.writeback import WATERMARK_KEY
+env = json.load(open(sys.argv[1]))
+state = env.get("state", {})
+print(state.get(WATERMARK_KEY, env.get("meta", {}).get(WATERMARK_KEY, 0)))
+' "$SESSION_DIR/session.json")"
+[ "${WATERMARK:-0}" -ge 1 ] || fail "the watermark did not advance (got $WATERMARK): the turn was not deposited"
 
 note "PASS: the long-horizon track ran end to end and its turn reached the graph"

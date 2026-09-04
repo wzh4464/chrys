@@ -96,6 +96,7 @@ class TurnRunnerHost(Protocol):
     _on_turn_started: Callable[[], None]
     _requirement_clarification_workflow: Any | None
     _requirement_enrichment_workflow: Any | None
+    _memory_watcher: Any | None
 
     async def persist_recovery_now(self) -> bool: ...
 
@@ -784,6 +785,15 @@ class TurnRunner:
         if not retry_dispatched and not outcome.failed:
             _expire_current_run_scope(host, outcome.completed_scope)
         self._clear_current_input()
+        # Every finalized turn marks the session dirty for memory writeback,
+        # whichever path finalized it. The engine's `_post_run` also touches,
+        # but the clarification and long-horizon workflows finalize from
+        # inside `run_fresh` and never reach it -- so a completed long-horizon
+        # turn ended with its watermark still at zero and nothing deposited at
+        # session end.
+        watcher = getattr(host, "_memory_watcher", None)
+        if watcher is not None:
+            watcher.touch()
 
     def _clear_current_input(self) -> None:
         """Clear current-turn recovery input after run finalization."""
