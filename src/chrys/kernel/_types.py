@@ -2516,17 +2516,77 @@ class ContinuationToken(TypedDict):
 # endregion
 
 
+_JSON_FENCE = re.compile(r"```(?:json)?[ \t]*\r?\n(.*?)\r?\n[ \t]*```", re.DOTALL)
+
+
+def _embedded_json_object(text: str) -> str | None:
+    """The first JSON object a structured reply carries when the reply is not one itself.
+
+    A model asked for a structured object sometimes explains first and answers
+    second -- "All six candidates have …" and then the decision -- or wraps the
+    object in a fence. Validation failed at column 1 on those, and a whole
+    clarification was thrown away over a preamble. Fenced blocks first, then
+    the outermost balanced brace span; the caller validates whatever is found.
+    """
+    for match in _JSON_FENCE.finditer(text):
+        candidate = match.group(1).strip()
+        if candidate.startswith("{"):
+            return candidate
+    start = text.find("{")
+    while start != -1:
+        depth = 0
+        in_string = False
+        escaped = False
+        for index in range(start, len(text)):
+            char = text[index]
+            if in_string:
+                if escaped:
+                    escaped = False
+                elif char == "\\":
+                    escaped = True
+                elif char == '"':
+                    in_string = False
+                continue
+            if char == '"':
+                in_string = True
+            elif char == "{":
+                depth += 1
+            elif char == "}":
+                depth -= 1
+                if depth == 0:
+                    candidate = text[start : index + 1]
+                    try:
+                        json.loads(candidate)
+                    except ValueError:
+                        break
+                    return candidate
+        start = text.find("{", start + 1)
+    return None
+
+
 def _parse_structured_response_value(text: str, response_format: Any | None) -> Any | None:
     if response_format is None:
         return None
     if not text:
         return None
     if isinstance(response_format, type) and issubclass(response_format, BaseModel):
-        return response_format.model_validate_json(text)
+        try:
+            return response_format.model_validate_json(text)
+        except ValueError as exc:
+            embedded = _embedded_json_object(text)
+            if embedded is None:
+                raise
+            try:
+                return response_format.model_validate_json(embedded)
+            except ValueError:
+                raise exc from None
     if isinstance(response_format, Mapping):
         try:
             return json.loads(text)
         except json.JSONDecodeError as exc:
+            embedded = _embedded_json_object(text)
+            if embedded is not None:
+                return json.loads(embedded)
             raise ValueError(f"Response text is not valid JSON: {exc}") from exc
     logger.warning(
         "Unable to parse structured response value, use either a Pydantic model or a dict defining the schema, "
