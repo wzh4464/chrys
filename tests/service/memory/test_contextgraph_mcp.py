@@ -222,8 +222,8 @@ def test_experience_search_filters_chrys_trajectories(monkeypatch: pytest.Monkey
     assert vector == lexical
     assert "ContextGraph trajectory fragment frag-1" in vector[0].text
     assert "instance_id STARTS WITH 'chrys:'" in seen[0][0]
-    assert seen[0][1] == {"embedding": [0.1, 0.2], "limit": 5, "search_limit": 100}
-    assert seen[1][1] == {"limit": 5, "query": "parser tests", "search_limit": 100}
+    assert seen[0][1] == {"embedding": [0.1, 0.2], "limit": 5, "search_limit": 100, "repo": None}
+    assert seen[1][1] == {"limit": 5, "query": "parser tests", "search_limit": 100, "repo": None}
 
 
 def test_example_profile_loads_with_dynamic_memory_tools() -> None:
@@ -306,3 +306,66 @@ def test_every_mcp_tool_is_async_and_leaves_the_loop_free(monkeypatch: pytest.Mo
 
     assert set(registered) == {"team_memory_health", "team_memory_query", "team_memory_record"}
     assert all(inspect.iscoroutinefunction(fn) for fn in registered.values())
+
+
+# ── priors for a task brief ─────────────────────────────────────────
+
+
+def test_query_prior_keeps_rules_apart_from_this_repositorys_experience(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: list[dict[str, object]] = []
+
+    def fake_run(cypher: str, parameters: dict[str, object]):
+        seen.append(parameters)
+        if "canonical_rule_embedding" in cypher:
+            return [{"id": "rule-a", "text": "Run the tests that exercise the new syntax."}]
+        if "fragment_embedding" in cypher:
+            return [
+                {
+                    "id": "frag-1",
+                    "description": "Successful Fix: added the protocol",
+                    "actions": ["write_file src/types.py"],
+                    "outcome": "success",
+                    "repo": "parser-kit",
+                    "success": True,
+                }
+            ]
+        return []
+
+    monkeypatch.setattr(memory, "_embed", lambda _query: [0.1, 0.2])
+    monkeypatch.setattr(memory, "_run_read", fake_run)
+
+    result = memory.query_prior("add a typed parser", repo="parser-kit")
+
+    assert result.startswith(memory._UNTRUSTED)
+    assert result.index("Canonical rules:") < result.index("Experience deposited from this repository (parser-kit):")
+    assert "Run the tests that exercise the new syntax." in result
+    assert "repo=parser-kit" in result
+    # Every experience channel was asked for this repository only.
+    assert [p["repo"] for p in seen if "repo" in p] == ["parser-kit", "parser-kit"]
+
+
+def test_query_prior_without_a_repository_recalls_rules_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[str] = []
+
+    def fake_run(cypher: str, parameters: dict[str, object]):
+        calls.append("fragment" if "fragment" in cypher else "rule")
+        if "canonical_rule_embedding" in cypher:
+            return [{"id": "rule-a", "text": "Map every call site first."}]
+        return []
+
+    monkeypatch.setattr(memory, "_embed", lambda _query: [0.1, 0.2])
+    monkeypatch.setattr(memory, "_run_read", fake_run)
+
+    result = memory.query_prior("add a typed parser", repo=None)
+
+    assert "Map every call site first." in result
+    assert "Experience deposited" not in result
+    assert "fragment" not in calls
+
+
+def test_query_prior_with_nothing_to_recall_says_so(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(memory, "_embed", lambda _query: None)
+    monkeypatch.setattr(memory, "_run_read", lambda *_args: [])
+
+    assert memory.query_prior("add a typed parser", repo="parser-kit") == memory.NO_PRIOR
+    assert memory.query_prior("   ", repo="parser-kit") == memory.NO_PRIOR

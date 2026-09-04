@@ -58,6 +58,7 @@ CALL db.index.vector.queryNodes('fragment_embedding', $search_limit, $embedding)
 YIELD node, score
 MATCH (trajectory:Trajectory)-[:HAS_FRAGMENT]->(node)
 WHERE trajectory.instance_id STARTS WITH 'chrys:'
+  AND ($repo IS NULL OR trajectory.repo = $repo)
 RETURN node.id AS id,
        node.description AS description,
        node.action_sequence AS actions,
@@ -73,6 +74,7 @@ CALL db.index.fulltext.queryNodes('fragment_description', $query, {limit: $searc
 YIELD node, score
 MATCH (trajectory:Trajectory)-[:HAS_FRAGMENT]->(node)
 WHERE trajectory.instance_id STARTS WITH 'chrys:'
+  AND ($repo IS NULL OR trajectory.repo = $repo)
 RETURN node.id AS id,
        node.description AS description,
        node.action_sequence AS actions,
@@ -239,28 +241,28 @@ def _experience_hits(rows: list[dict[str, Any]]) -> list[_Hit]:
     return [hit for hit in rendered if hit is not None]
 
 
-def _search_experience_vector(query: str, limit: int) -> list[_Hit]:
+def _search_experience_vector(query: str, limit: int, repo: str | None = None) -> list[_Hit]:
     try:
         embedding = _embed(query)
         if embedding is None:
             return []
         rows = _run_read(
             _EXPERIENCE_VECTOR_QUERY,
-            {"embedding": embedding, "limit": limit, "search_limit": min(1000, limit * 20)},
+            {"embedding": embedding, "limit": limit, "search_limit": min(1000, limit * 20), "repo": repo},
         )
     except Exception:
         return []
     return _experience_hits(rows)
 
 
-def _search_experience_fulltext(query: str, limit: int) -> list[_Hit]:
+def _search_experience_fulltext(query: str, limit: int, repo: str | None = None) -> list[_Hit]:
     lexical = _lucene_query(query)
     if not lexical:
         return []
     try:
         rows = _run_read(
             _EXPERIENCE_FULLTEXT_QUERY,
-            {"limit": limit, "query": lexical, "search_limit": min(1000, limit * 20)},
+            {"limit": limit, "query": lexical, "search_limit": min(1000, limit * 20), "repo": repo},
         )
     except Exception:
         return []
@@ -369,6 +371,51 @@ def _do_query(query: str, top_k: int | str = DEFAULT_TOP_K) -> str:
     if not selected:
         return "No prior ContextGraph memory found."
     return prefix + "\n".join(selected)
+
+
+NO_PRIOR = "No prior ContextGraph memory found."
+
+
+def query_prior(query: str, *, repo: str | None, rules_top_k: int = 3, fragments_top_k: int = 2) -> str:
+    """Recall a prior for a task brief: canonical rules, then this repository's own experience.
+
+    Unlike the MCP tool, which fuses every channel into one ranking, a brief
+    wants the two kinds kept apart and the experience kept local: a rule is
+    general by construction, but a trajectory fragment from another repository
+    is a list of someone else's tool calls, and it out-ranked the rules that
+    applied. Fragments are therefore filtered to *repo*; with no repository
+    label, only rules are recalled.
+    """
+    clean_query = _sanitize(query, limit=MAX_QUERY_CHARS)
+    if not clean_query:
+        return NO_PRIOR
+    rules_k = _clamp_top_k(rules_top_k)
+    rule_hits = _rrf(
+        [_search_canonical_vector(clean_query, rules_k * 5), _search_canonical_fulltext(clean_query, rules_k * 5)],
+        rules_k,
+    )
+    fragment_hits: list[_Hit] = []
+    if repo and fragments_top_k > 0:
+        fragments_k = _clamp_top_k(fragments_top_k)
+        fragment_hits = _rrf(
+            [
+                _search_experience_vector(clean_query, fragments_k * 5, repo),
+                _search_experience_fulltext(clean_query, fragments_k * 5, repo),
+            ],
+            fragments_k,
+        )
+    sections: list[str] = []
+    if rule_hits:
+        sections.append("Canonical rules:\n" + "\n".join(f"- {hit.text}" for hit in rule_hits))
+    if fragment_hits:
+        sections.append(
+            f"Experience deposited from this repository ({repo}):\n"
+            + "\n".join(f"- {hit.text}" for hit in fragment_hits)
+        )
+    if not sections:
+        return NO_PRIOR
+    body = _UNTRUSTED + "\n" + "\n\n".join(sections)
+    return body[:MAX_NOTE_CHARS]
 
 
 def _close_resources() -> None:

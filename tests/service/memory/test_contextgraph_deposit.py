@@ -225,3 +225,51 @@ def test_a_missing_clarified_requirement_keeps_the_prompt(tmp_path: Path) -> Non
 
     assert extracted is not None
     assert extracted.problem_statement == "Fix the failing parser tests"
+
+
+# ── repository labels ────────────────────────────────────────────────
+
+
+def _git(*args: str, cwd: Path) -> None:
+    import subprocess
+
+    subprocess.run(
+        ["git", *args],
+        cwd=cwd,
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        check=True,
+        timeout=30,
+    )
+
+
+def test_repo_label_names_a_checkout_by_its_directory(tmp_path: Path) -> None:
+    repo = tmp_path / "parser-kit"
+    repo.mkdir()
+    _git("init", "-q", cwd=repo)
+    (repo / "src").mkdir()
+
+    assert deposit.repo_label(str(repo)) == "parser-kit"
+    assert deposit.repo_label(str(repo / "src")) == "parser-kit"
+
+
+def test_repo_label_names_a_worktree_by_the_main_repository(tmp_path: Path) -> None:
+    repo = tmp_path / "parser-kit"
+    repo.mkdir()
+    _git("init", "-q", cwd=repo)
+    (repo / "README").write_text("x\n", encoding="utf-8")
+    _git("-c", "user.email=t@example.invalid", "-c", "user.name=t", "add", "README", cwd=repo)
+    _git("-c", "user.email=t@example.invalid", "-c", "user.name=t", "commit", "-qm", "init", cwd=repo)
+    worktree = tmp_path / "campaign" / "worker"
+    _git("worktree", "add", "-q", str(worktree), cwd=repo)
+
+    assert deposit.repo_label(str(worktree)) == "parser-kit"
+
+
+def test_repo_label_outside_git_is_the_directory_and_nothing_is_general(tmp_path: Path) -> None:
+    plain = tmp_path / "scratch"
+    plain.mkdir()
+
+    assert deposit.repo_label(str(plain)) == "scratch"
+    assert deposit.repo_label(None) == "general"
+    assert deposit.repo_label("") == "general"

@@ -37,6 +37,7 @@ class _Host:
     _active_profile: ModelProfile | None = None
     _side_call_clients: SideCallClientCache = field(default_factory=SideCallClientCache)
     settings: Settings = field(default_factory=Settings)
+    _workspace: object | None = None
 
     @property
     def _settings(self) -> Settings:
@@ -74,7 +75,7 @@ def _revision(rendered: str) -> Any:
 
 async def test_a_recalled_prior_reaches_the_plan_hints(extensions: LongHorizonExtensions) -> None:
     with patch(
-        "chrys.service.memory.contextgraph_mcp._do_query",
+        "chrys.service.memory.contextgraph_mcp.query_prior",
         return_value="Strategy: migrate callers before deleting the old path.",
     ):
         hints = await _hints(extensions)
@@ -84,7 +85,7 @@ async def test_a_recalled_prior_reaches_the_plan_hints(extensions: LongHorizonEx
 
 
 async def test_the_prior_sits_beside_the_located_code(extensions: LongHorizonExtensions) -> None:
-    with patch("chrys.service.memory.contextgraph_mcp._do_query", return_value="Strategy: X"):
+    with patch("chrys.service.memory.contextgraph_mcp.query_prior", return_value="Strategy: X"):
         await extensions.on_clarification_start(_revision(extensions._requirement), None)  # type: ignore[arg-type]
     extensions.localization = LocalizationOutcome(locations=[{"file": "src/auth.py", "role": "primary"}])
 
@@ -95,13 +96,13 @@ async def test_the_prior_sits_beside_the_located_code(extensions: LongHorizonExt
 
 async def test_the_recall_happens_before_the_hints_are_rendered(extensions: LongHorizonExtensions) -> None:
     """Rendering must be pure: a blocking Bolt query there would stall the session."""
-    with patch("chrys.service.memory.contextgraph_mcp._do_query", side_effect=AssertionError("queried too late")):
+    with patch("chrys.service.memory.contextgraph_mcp.query_prior", side_effect=AssertionError("queried too late")):
         assert extensions.pact_input_hints() == ""
 
 
 async def test_an_empty_recall_adds_nothing(extensions: LongHorizonExtensions) -> None:
     with patch(
-        "chrys.service.memory.contextgraph_mcp._do_query",
+        "chrys.service.memory.contextgraph_mcp.query_prior",
         return_value="No prior ContextGraph memory found.",
     ):
         hints = await _hints(extensions)
@@ -119,7 +120,7 @@ async def test_an_unreachable_graph_is_silent(extensions: LongHorizonExtensions)
     await extensions._host._bus.subscribe(Warning, _collect)
 
     with patch(
-        "chrys.service.memory.contextgraph_mcp._do_query",
+        "chrys.service.memory.contextgraph_mcp.query_prior",
         side_effect=RuntimeError("neo4j unreachable"),
     ):
         hints = await _hints(extensions)
@@ -140,7 +141,7 @@ async def test_a_hanging_graph_does_not_hold_up_the_turn(extensions: LongHorizon
     try:
         with (
             patch("chrys.orchestration.engine.run.long_horizon.MEMORY_PRIOR_TIMEOUT_SECONDS", 0.05),
-            patch("chrys.service.memory.contextgraph_mcp._do_query", side_effect=_hang),
+            patch("chrys.service.memory.contextgraph_mcp.query_prior", side_effect=_hang),
         ):
             hints = await _hints(extensions)
     finally:
@@ -158,7 +159,7 @@ async def test_memory_being_off_skips_the_recall_entirely(tmp_path: Path, monkey
     instance._requirement = "Add OAuth login"
     calls: list[object] = []
 
-    with patch("chrys.service.memory.contextgraph_mcp._do_query", side_effect=lambda *a: calls.append(a)):
+    with patch("chrys.service.memory.contextgraph_mcp.query_prior", side_effect=lambda *a, **k: calls.append((a, k))):
         await _hints(instance)
 
     assert calls == []
@@ -170,7 +171,7 @@ async def test_no_graph_configured_skips_the_recall(tmp_path: Path, monkeypatch:
     instance._requirement = "Add OAuth login"
     calls: list[object] = []
 
-    with patch("chrys.service.memory.contextgraph_mcp._do_query", side_effect=lambda *a: calls.append(a)):
+    with patch("chrys.service.memory.contextgraph_mcp.query_prior", side_effect=lambda *a, **k: calls.append((a, k))):
         await _hints(instance)
 
     assert calls == []
@@ -178,7 +179,7 @@ async def test_no_graph_configured_skips_the_recall(tmp_path: Path, monkeypatch:
 
 async def test_the_prior_is_bounded(extensions: LongHorizonExtensions) -> None:
     """A plan prompt has a budget it shares with the clarification evidence."""
-    with patch("chrys.service.memory.contextgraph_mcp._do_query", return_value="x" * 50_000):
+    with patch("chrys.service.memory.contextgraph_mcp.query_prior", return_value="x" * 50_000):
         hints = await _hints(extensions)
 
     assert len(hints) <= MEMORY_PRIOR_MAX_CHARS + 200
@@ -188,7 +189,28 @@ async def test_an_empty_requirement_never_queries(extensions: LongHorizonExtensi
     extensions._requirement = "   "
     calls: list[Any] = []
 
-    with patch("chrys.service.memory.contextgraph_mcp._do_query", side_effect=lambda *a: calls.append(a)):
+    with patch("chrys.service.memory.contextgraph_mcp.query_prior", side_effect=lambda *a, **k: calls.append((a, k))):
         await _hints(extensions)
 
     assert calls == []
+
+
+async def test_the_recall_is_scoped_to_the_workspaces_repository(
+    tmp_path: Path, extensions: LongHorizonExtensions
+) -> None:
+    repo = tmp_path / "parser-kit"
+    repo.mkdir()
+    # Outside git the label is the workspace directory itself.
+    extensions._host._workspace = SimpleNamespace(primary_cwd=str(repo))
+    calls: list[tuple[tuple, dict]] = []
+
+    def fake_query(*args, **kwargs):
+        calls.append((args, kwargs))
+        return "Canonical rules:\n- migrate callers"
+
+    with patch("chrys.service.memory.contextgraph_mcp.query_prior", side_effect=fake_query):
+        await extensions.on_clarification_start(_revision("add typed parsing"), None)  # type: ignore[arg-type]
+
+    assert [kwargs["repo"] for _args, kwargs in calls] == ["parser-kit"]
+    assert extensions._memory_prior_status.startswith("recalled ")
+    assert "'parser-kit'" in extensions._memory_prior_status

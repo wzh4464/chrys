@@ -13,6 +13,8 @@ import hashlib
 import json
 import os
 import re
+import shutil
+import subprocess
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -322,6 +324,42 @@ def _session_file(session_id: str) -> Path:
     return sessions_dir / session_id / "session.json"
 
 
+def repo_label(cwd: str | None) -> str:
+    """Name the repository a session worked in, the same way for every session of it.
+
+    A PACT worktree, a clarification snapshot and the workspace itself are one
+    repository to the graph; naming each by its own directory scattered one
+    campaign's experience over "worker", "view" and the task, and recall by
+    repository found none of it. Inside a git checkout the label is the main
+    repository's directory (worktrees share it); elsewhere, the directory.
+    """
+    if not cwd:
+        return "general"
+    path = Path(cwd)
+    git = shutil.which("git")
+    if git is None:
+        return path.name or "general"
+    try:
+        completed = subprocess.run(  # noqa: S603
+            [git, "-C", cwd, "rev-parse", "--git-common-dir"],
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+    except OSError, subprocess.SubprocessError:
+        completed = None
+    if completed is not None and completed.returncode == 0:
+        common = completed.stdout.strip()
+        if common:
+            common_dir = Path(common) if Path(common).is_absolute() else path / common
+            name = common_dir.resolve().parent.name
+            if name:
+                return name
+    return path.name or "general"
+
+
 def deposit_hook_payload(payload: Mapping[str, Any]) -> RepositoryDepositResult | None:
     """Extract and deposit the completed turn named by an ``after_turn`` payload."""
     session_id = payload.get("session_id")
@@ -334,7 +372,7 @@ def deposit_hook_payload(payload: Mapping[str, Any]) -> RepositoryDepositResult 
     if extracted is None:
         return None
     cwd = payload.get("cwd")
-    repo = Path(cwd).name if isinstance(cwd, str) and cwd else "general"
+    repo = repo_label(cwd if isinstance(cwd, str) else None)
     status = payload.get("status")
     source_id = f"chrys-after-turn:{session_id}:{turn}:{extracted.turn_digest}"
     return deposit_experience(

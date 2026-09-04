@@ -22,6 +22,7 @@ from typing import Any
 
 from chrys.foundation.config.settings import resolve_sessions_dir
 from chrys.orchestration.startup import bootstrap_runtime
+from chrys.service.memory.contextgraph_deposit import repo_label
 from chrys.service.memory.writeback import WATERMARK_KEY, deposit_pending_turns, pending_turns
 from chrys.service.state.store import SESSION_FILE_NAME
 
@@ -202,7 +203,9 @@ def _repo_label(session_file: Path) -> str:
         return "general"
     meta = envelope.get("meta") if isinstance(envelope, dict) else None
     cwd = meta.get("cwd") if isinstance(meta, dict) else None
-    return Path(cwd).name if isinstance(cwd, str) and cwd else "general"
+    # Same label the live hook uses, so a swept session and a deposited one
+    # land under one repository name.
+    return repo_label(cwd if isinstance(cwd, str) else None)
 
 
 def _stored_watermark(session_file: Path) -> int:

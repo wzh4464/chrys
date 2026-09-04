@@ -14,6 +14,7 @@ import asyncio
 import json
 import logging
 import re
+import time
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -61,7 +62,9 @@ MEMORY_PRIOR_MAX_CHARS = 2000
 # A graph that has not answered in fifteen seconds is not going to make this
 # plan better. The recall runs beside clarification, so this budget is spent in
 # parallel with work that would have happened anyway.
-MEMORY_PRIOR_TIMEOUT_SECONDS = 15.0
+# Overlapped by clarification, which takes minutes; fifteen seconds was cut
+# close enough for a loaded machine's two embedding calls to miss it.
+MEMORY_PRIOR_TIMEOUT_SECONDS = 45.0
 
 
 class LongHorizonPhase:
@@ -109,6 +112,7 @@ class LongHorizonExtensions:
         self.request: PactRunRequest | None = None
         self._requirement = ""
         self._memory_prior = ""
+        self._memory_prior_status = "not attempted"
         self._task: asyncio.Task[None] | None = None
 
     # -- RequirementWorkflowExtensions ---------------------------------
@@ -179,27 +183,43 @@ class LongHorizonExtensions:
         without a prior.
         """
         if not self._requirement.strip():
+            self._memory_prior_status = "skipped: empty requirement"
             return ""
+        started = time.monotonic()
         try:
             async with asyncio.timeout(MEMORY_PRIOR_TIMEOUT_SECONDS):
-                return await asyncio.to_thread(self._query_prior)
+                recalled, status = await asyncio.to_thread(self._query_prior)
         except asyncio.CancelledError:
             raise
-        except Exception:
+        except TimeoutError:
+            status, recalled = f"timeout after {MEMORY_PRIOR_TIMEOUT_SECONDS:g}s", ""
+        except Exception as error:
             logger.debug("memory prior unavailable", exc_info=True)
-            return ""
+            status, recalled = f"error: {type(error).__name__}: {str(error)[:200]}", ""
+        self._memory_prior_status = f"{status} ({time.monotonic() - started:.1f}s)"
+        logger.info("long-horizon memory prior: %s", self._memory_prior_status)
+        return recalled
 
-    def _query_prior(self) -> str:
-        """Ask the graph, bounded. Runs in a worker thread."""
-        from chrys.service.memory.contextgraph_mcp import _do_query
+    def _repo_label(self) -> str:
+        """The label deposits carry for this workspace, so recall can match them."""
+        from chrys.service.memory.contextgraph_deposit import repo_label
+
+        workspace = getattr(self._host, "_workspace", None)
+        return repo_label(getattr(workspace, "primary_cwd", None) if workspace is not None else None)
+
+    def _query_prior(self) -> tuple[str, str]:
+        """Ask the graph, bounded. Runs in a worker thread. Returns (text, status)."""
+        from chrys.service.memory.contextgraph_mcp import NO_PRIOR, query_prior
         from chrys.service.memory.overlay import memory_mcp_server_config
 
         if memory_mcp_server_config(self._host._settings) is None:
-            return ""
-        recalled = _do_query(self._requirement, MEMORY_PRIOR_TOP_K)
-        if not isinstance(recalled, str) or "No prior ContextGraph memory found." in recalled:
-            return ""
-        return recalled.strip()[:MEMORY_PRIOR_MAX_CHARS]
+            return "", "disabled: no memory server configured"
+        repo = self._repo_label()
+        recalled = query_prior(self._requirement, repo=repo, rules_top_k=MEMORY_PRIOR_TOP_K)
+        if not isinstance(recalled, str) or NO_PRIOR in recalled:
+            return "", f"none for repo {repo!r}"
+        text = recalled.strip()[:MEMORY_PRIOR_MAX_CHARS]
+        return text, f"recalled {len(text)} chars for repo {repo!r}"
 
     def write_brief(self, *, baseline: str) -> Path | None:
         """Write the brief the campaign's roles read, and return its path.
@@ -218,10 +238,15 @@ class LongHorizonExtensions:
             baseline=baseline,
             warnings=warnings,
         )
+        prior = render_memory_prior(self._memory_prior_status, self._memory_prior)
         try:
             directory.mkdir(parents=True, exist_ok=True)
             path = directory / "brief.md"
-            path.write_text(brief, encoding="utf-8")
+            path.write_text(brief.rstrip("\n") + "\n\n" + prior, encoding="utf-8")
+            # The recall's own record: what it returned, or why it returned
+            # nothing. Before this, an empty prior was indistinguishable from
+            # a recall that never ran.
+            (directory / "memory-prior.md").write_text(prior, encoding="utf-8")
         except OSError:
             logger.warning("could not write the long-horizon task brief", exc_info=True)
             return None
@@ -507,6 +532,16 @@ _PAIRING_POLICY = PairingPolicy(
     empty_id=EmptyIdPolicy.POSITIONAL,
     malformed_id="stringify",
 )
+
+
+def render_memory_prior(status: str, text: str) -> str:
+    """Render the prior-experience section of the brief, with its recall status."""
+    lines = ["## Prior experience from the team graph (untrusted; verify before relying on it)", f"Recall: {status}"]
+    if text.strip():
+        lines.extend(("", text.strip()))
+    else:
+        lines.append("(none)")
+    return "\n".join(lines) + "\n"
 
 
 def _tool_results(messages: list[Any], tool_name: str) -> Iterator[str]:
