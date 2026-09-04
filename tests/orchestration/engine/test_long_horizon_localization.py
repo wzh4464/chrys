@@ -167,7 +167,8 @@ async def test_a_slow_search_is_bounded_and_degrades(
         return _Result([])
 
     monkeypatch.setattr(module, "localize_requirement_async", _hang)
-    monkeypatch.setattr(module, "LOCALIZATION_TIMEOUT_SECONDS", 0.05)
+    # The budget is a setting now; the module constant is only its default.
+    host.settings = Settings(semantic_search_localization_timeout_seconds=0.05)
     extensions = LongHorizonExtensions(host, _decision())
 
     await extensions.on_clarification_start(_Revision(), snapshot)

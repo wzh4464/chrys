@@ -2953,7 +2953,7 @@ def test_live_catalog_artifacts_contain_effective_translations_and_are_loadable(
             "settings.routing.mode.label",
             "settings.routing.tiebreaker_model_profile.label",
             "settings.semantic_search.model_profile.label",
-        "settings.semantic_search.localization_timeout_seconds.label",
+            "settings.semantic_search.localization_timeout_seconds.label",
             "settings.session.title.auto.label",
             "settings.storage.session_root_dir.label",
             "settings.tools.ask_user.inline.label",
