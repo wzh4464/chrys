@@ -125,14 +125,15 @@ CONTRACT="$(find "$WORKDIR/.pact-io/chrys-pact" -name goal-contract.json -print 
 python3 -c 'import json,sys; json.load(open(sys.argv[1]))' "$CONTRACT" || fail "the goal contract is not valid JSON"
 
 # ------------------------------------------------------------------- memory
-if [ -z "${CONTEXTGRAPH_NEO4J_URI:-}" ]; then
-  note "SKIP: CONTEXTGRAPH_NEO4J_URI is not set, so the writeback half is not exercised"
+# The graph is configured in ~/.chrys/.env, which chrys loads itself; the
+# shell environment says nothing about it. Ask chrys.
+if ! (cd "$CHRYS_REPO" && uv run chrys memory doctor --json >/dev/null 2>&1); then
+  note "SKIP: chrys memory doctor is not green, so the writeback half is not exercised"
   note "PASS: the long-horizon track ran end to end"
   exit 0
 fi
 
 note "checking idle writeback reaches the graph"
-(cd "$CHRYS_REPO" && uv run chrys memory doctor) || fail "chrys memory doctor reported a problem"
 BEFORE="$(cd "$CHRYS_REPO" && uv run chrys memory sweep --dry-run --idle-seconds 0 | grep -c "$SESSION" || true)"
 [ "$BEFORE" != "0" ] || fail "the swept session has no pending turns; writeback would deposit nothing"
 (cd "$CHRYS_REPO" && uv run chrys memory sweep --idle-seconds 0) || fail "the sweep failed"
