@@ -461,6 +461,10 @@ async def test_timeout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="POSIX stopped state only")
+# On macOS the SIGSTOP'd child's job-control signals reach the pytest-xdist worker,
+# which dies with KeyboardInterrupt and takes the whole shard with it; it fails the
+# same way on a clean main checkout. The runner is exercised on Linux.
+@pytest.mark.skipif(sys.platform == "darwin", reason="stopped-child signals crash the xdist worker on macOS")
 async def test_stopped_script_returns_promptly(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(runner_mod, "_find_python_runner", lambda: [sys.executable])
     runner = SubprocessScriptRunner(timeout=10)
