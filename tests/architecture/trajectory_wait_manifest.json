@@ -13318,7 +13318,7 @@
       "primitive": "awaitable",
       "qualname": "LongHorizonExtensions._degrade",
       "source_column": 8,
-      "source_line": 457,
+      "source_line": 477,
       "wrapper_target": null
     },
     {
@@ -13338,7 +13338,7 @@
       "primitive": "awaitable",
       "qualname": "LongHorizonExtensions._degrade_delegation",
       "source_column": 8,
-      "source_line": 349,
+      "source_line": 369,
       "wrapper_target": null
     },
     {
@@ -13358,7 +13358,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions._degrade_delegation",
       "source_column": 8,
-      "source_line": 357,
+      "source_line": 377,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._phase"
     },
     {
@@ -13378,7 +13378,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions._localize",
       "source_column": 12,
-      "source_line": 399,
+      "source_line": 419,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._degrade"
     },
     {
@@ -13398,7 +13398,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions._localize",
       "source_column": 12,
-      "source_line": 403,
+      "source_line": 423,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._degrade"
     },
     {
@@ -13418,7 +13418,7 @@
       "primitive": "awaitable",
       "qualname": "LongHorizonExtensions._localize",
       "source_column": 21,
-      "source_line": 409,
+      "source_line": 429,
       "wrapper_target": null
     },
     {
@@ -13438,7 +13438,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions._localize",
       "source_column": 12,
-      "source_line": 420,
+      "source_line": 440,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._degrade"
     },
     {
@@ -13458,7 +13458,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions._localize",
       "source_column": 8,
-      "source_line": 425,
+      "source_line": 445,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._phase"
     },
     {
@@ -13478,7 +13478,7 @@
       "primitive": "awaitable",
       "qualname": "LongHorizonExtensions._phase",
       "source_column": 8,
-      "source_line": 466,
+      "source_line": 486,
       "wrapper_target": null
     },
     {
@@ -13538,7 +13538,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions.after_repair",
       "source_column": 12,
-      "source_line": 253,
+      "source_line": 264,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._phase"
     },
     {
@@ -13558,7 +13558,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions.after_repair",
       "source_column": 12,
-      "source_line": 263,
+      "source_line": 274,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._degrade_delegation"
     },
     {
@@ -13578,7 +13578,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions.after_repair",
       "source_column": 8,
-      "source_line": 276,
+      "source_line": 295,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._phase"
     },
     {
@@ -13598,7 +13598,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions.after_repair",
       "source_column": 12,
-      "source_line": 278,
+      "source_line": 297,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._degrade_delegation"
     },
     {
@@ -13611,14 +13611,14 @@
           "when": "all_paths"
         }
       ],
-      "expression": "await self._turn_runner._run_fresh_standard(self._requirement, created_at=None, contents=None, run_scope=None, injection_window=None, admission_preparation=None, finalize=False)",
+      "expression": "await self._turn_runner._run_fresh_standard(self._requirement, created_at=None, contents=None, run_scope=None, injection_window=None, admission_preparation=None, finalize=False, before_execution=_queue_delegation_reminder)",
       "identity": "chrys.orchestration.engine.run.long_horizon:LongHorizonExtensions.after_repair:5",
       "module": "chrys.orchestration.engine.run.long_horizon",
       "ordinal": 5,
       "primitive": "awaitable",
       "qualname": "LongHorizonExtensions.after_repair",
       "source_column": 12,
-      "source_line": 281,
+      "source_line": 300,
       "wrapper_target": null
     },
     {
@@ -13638,7 +13638,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions.after_repair",
       "source_column": 12,
-      "source_line": 291,
+      "source_line": 311,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._phase"
     },
     {
@@ -13658,7 +13658,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions.after_repair",
       "source_column": 12,
-      "source_line": 296,
+      "source_line": 316,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._degrade_delegation"
     },
     {
@@ -13678,7 +13678,7 @@
       "primitive": "awaitable",
       "qualname": "LongHorizonExtensions.after_repair",
       "source_column": 12,
-      "source_line": 303,
+      "source_line": 323,
       "wrapper_target": null
     },
     {
@@ -13698,7 +13698,7 @@
       "primitive": "wrapper",
       "qualname": "LongHorizonExtensions.after_repair",
       "source_column": 8,
-      "source_line": 310,
+      "source_line": 330,
       "wrapper_target": "chrys.orchestration.engine.run.long_horizon.LongHorizonExtensions._phase"
     },
     {
@@ -13818,7 +13818,7 @@
       "primitive": "awaitable",
       "qualname": "LongHorizonExtensions.on_revision",
       "source_column": 8,
-      "source_line": 383,
+      "source_line": 403,
       "wrapper_target": null
     },
     {

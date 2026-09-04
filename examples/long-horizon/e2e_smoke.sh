@@ -72,6 +72,10 @@ YAML
 # not need them to grant a throwaway directory configuration authority. Export
 # the same command so this runs either way.
 export CHRYS_PACT_VERIFY_COMMAND="$VERIFY"
+# The track's code search defaults to a 120 s budget, sized for a fast model
+# over a pre-built graph. A reasoning model needs more, and a search that is
+# cut short shows up in the brief as "(no candidate locations)".
+export CHRYS_SEMANTIC_SEARCH_LOCALIZATION_TIMEOUT="${CHRYS_SEMANTIC_SEARCH_LOCALIZATION_TIMEOUT:-900}"
 
 note "provisioning the workspace interpreter with uv"
 (cd "$WORKDIR" && uv sync --quiet) || fail "could not provision the smoke workspace with uv"

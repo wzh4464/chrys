@@ -228,17 +228,28 @@ class LongHorizonExtensions:
         return path
 
     def _clarified_requirement(self) -> str | None:
-        """Read the clarification's own canonical output, when it produced one."""
+        """Read the clarification's own canonical output, when it produced one.
+
+        The deliverable is written the moment clarification completes; the
+        ``05-outcome`` copy only after the turn is finalized. The brief is
+        written before that, in ``after_repair``, so reading only the outcome
+        copy told the campaign's roles "(clarification produced none)" while
+        the requirement sat two directories away. Deliverable first, then the
+        outcome copy for a brief rewritten later.
+        """
         session_dir = self._host._session_dir
         if session_dir is None:
             return None
-        path = (
-            session_dir / "requirement_clarification" / f"turn_{self._turn}" / "05-outcome" / "clarified-requirement.md"
-        )
-        try:
-            return path.read_text(encoding="utf-8")
-        except OSError:
-            return None
+        turn_root = session_dir / "requirement_clarification" / f"turn_{self._turn}"
+        for relative in (
+            Path("03-clarification") / "deliverable" / "clarified-requirement.md",
+            Path("05-outcome") / "clarified-requirement.md",
+        ):
+            try:
+                return (turn_root / relative).read_text(encoding="utf-8")
+            except OSError:
+                continue
+        return None
 
     def _turn_dir(self) -> Path | None:
         session_dir = self._host._session_dir
@@ -271,8 +282,16 @@ class LongHorizonExtensions:
             pact_tool=self._pact_tool(),
         )
         reminder_middleware = self._host._reminder_middleware
-        if reminder_middleware is not None:
-            reminder_middleware.queue_hook_reminders([reminder])
+
+        async def _queue_delegation_reminder() -> None:
+            # Queued for the NEXT turn state, from inside the pass's own
+            # preparation. Queuing before the call attached the reminder to
+            # the repair pass's still-current state, and the delegation pass
+            # never saw it: the first live run made three reads and a shell
+            # call and answered as if no campaign had been asked for.
+            if reminder_middleware is not None:
+                reminder_middleware.queue_hook_reminders([reminder], for_next_turn=True)
+
         await self._phase(LongHorizonPhase.DELEGATING, f"request {request.request_id}")
         if self._turn_runner is None:
             await self._degrade_delegation("no turn runner is available for the delegation pass", outcome)
@@ -286,6 +305,7 @@ class LongHorizonExtensions:
                 injection_window=None,
                 admission_preparation=None,
                 finalize=False,
+                before_execution=_queue_delegation_reminder,
             )
         except asyncio.CancelledError:
             await self._phase(LongHorizonPhase.INTERRUPTED, "delegation interrupted", terminal=True)

@@ -159,3 +159,25 @@ async def test_the_brief_is_filed_under_the_turn_the_clarification_used(tmp_path
     brief = path.read_text(encoding="utf-8")
     assert "keep behaviour" in brief
     assert "(clarification produced none)" not in brief
+
+
+async def test_the_brief_reads_the_deliverable_before_the_outcome_exists(tmp_path: Path) -> None:
+    """`05-outcome/` is written after finalize; the brief is written before it.
+
+    The first live run's brief said "(clarification produced none)" while the
+    clarified requirement sat in `03-clarification/deliverable/` the whole time.
+    """
+    host = _Host(_session_dir=tmp_path / "session")
+    host._turn_number = 0
+    extensions = LongHorizonExtensions(host, _decision())
+    extensions._requirement = "Add typed parsing"
+    deliverable = tmp_path / "session/requirement_clarification/turn_1/03-clarification/deliverable"
+    deliverable.mkdir(parents=True)
+    (deliverable / "clarified-requirement.md").write_text("# Clarified\n- keep the parser API\n", encoding="utf-8")
+
+    path = extensions.write_brief(baseline="p1")
+
+    assert path is not None
+    brief = path.read_text(encoding="utf-8")
+    assert "keep the parser API" in brief
+    assert "(clarification produced none)" not in brief

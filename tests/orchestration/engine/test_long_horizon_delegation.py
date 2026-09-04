@@ -34,9 +34,11 @@ class _Executor:
 @dataclass
 class _Reminder:
     queued: list[list[str]] = field(default_factory=list)
+    for_next_turn: list[bool] = field(default_factory=list)
 
-    def queue_hook_reminders(self, reminders: list[str]) -> None:
+    def queue_hook_reminders(self, reminders: list[str], *, for_next_turn: bool = False) -> None:
         self.queued.append(reminders)
+        self.for_next_turn.append(for_next_turn)
 
 
 @dataclass
@@ -49,10 +51,14 @@ class _Runner:
     passes: list[str] = field(default_factory=list)
     fail: bool = False
 
-    async def _run_fresh_standard(self, text: str, **_kwargs: Any) -> None:
+    async def _run_fresh_standard(self, text: str, **kwargs: Any) -> None:
         if self.fail:
             msg = "executor blew up"
             raise RuntimeError(msg)
+        # Mirror the real runner: the hook runs inside the pass's own preparation.
+        before_execution = kwargs.get("before_execution")
+        if before_execution is not None:
+            await before_execution()
         self.passes.append(text)
 
 
@@ -117,6 +123,26 @@ async def test_a_third_pass_runs_with_the_run_request_reminder(
     assert "chrys-pact/run-request/v1" in reminders[0]
     assert "chrys_pact" in reminders[0]
     assert "verbatim" in reminders[0]
+    # Queued for the NEXT turn state, from inside the pass's preparation.
+    # Queued before the call, it attached to the repair pass's still-current
+    # state and the delegation pass never saw it.
+    assert host._reminder_middleware.for_next_turn == [True]
+
+
+async def test_the_reminder_is_queued_by_the_pass_not_before_it(
+    staged: tuple[LongHorizonExtensions, _Host, _Runner, Path],
+) -> None:
+    """A runner that never reaches preparation must not have a stale reminder waiting."""
+    extensions, host, runner, pact_input = staged
+
+    async def _never_prepares(text: str, **_kwargs: Any) -> None:
+        runner.passes.append(text)
+
+    runner._run_fresh_standard = _never_prepares  # type: ignore[method-assign]
+
+    await extensions.after_repair(RepairOutcome("succeeded", "P1 text", "p1", pact_input_dir=pact_input))
+
+    assert host._reminder_middleware.queued == []
 
 
 async def test_the_inputs_are_copied_into_the_workspace(
