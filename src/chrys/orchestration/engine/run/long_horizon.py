@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -350,13 +351,9 @@ class LongHorizonExtensions:
             return None
         tool_name = self._pact_tool()
         for text in reversed(list(_tool_results(messages, tool_name))):
-            payload = _loads(text)
-            if payload is not None and isinstance(payload.get("status"), str):
-                return {
-                    "status": payload["status"],
-                    "campaign_id": str(payload.get("campaign_id") or ""),
-                    "artifact": str(payload.get("artifact") or ""),
-                }
+            report = parse_campaign_report(text)
+            if report is not None:
+                return report
         return None
 
     def _can_delegate(self, outcome: RepairOutcome) -> bool:
@@ -530,6 +527,48 @@ def _tool_results(messages: list[Any], tool_name: str) -> Iterator[str]:
                     continue
                 result = accessor.contents(messages[result_occurrence.message_index])[result_occurrence.content_index]
                 yield str(getattr(result, "result", "") or "")
+
+
+_REPORT_HEADER = "PACT Campaign result"
+_REPORT_LINE = re.compile(r"^\s*(status|campaign_id|artifacts?|next_action|revision)\s*:\s*(.*?)\s*$")
+
+
+def parse_campaign_report(text: str) -> dict[str, Any] | None:
+    """Read a campaign's reported outcome from its tool result.
+
+    The campaign server renders ``CampaignResult.summary_text()``: a header
+    line followed by ``key: value`` lines. A JSON object with a ``status`` is
+    accepted too, for a server that reports that way. Anything else is not a
+    report, and a turn whose campaign tool returned no report is degraded
+    rather than marked complete -- which is what happened to the first
+    campaign that actually completed, because only JSON was looked for.
+    """
+    payload = _loads(text)
+    if payload is not None and isinstance(payload.get("status"), str):
+        return {
+            "status": payload["status"],
+            "campaign_id": str(payload.get("campaign_id") or ""),
+            "artifact": str(payload.get("artifact") or payload.get("artifacts") or ""),
+        }
+    lines = text.strip().splitlines()
+    start = next((index for index, line in enumerate(lines) if line.strip() == _REPORT_HEADER), None)
+    if start is None:
+        return None
+    fields: dict[str, str] = {}
+    for line in lines[start + 1 :]:
+        match = _REPORT_LINE.match(line)
+        if match is None:
+            if fields:
+                break
+            continue
+        fields[match.group(1)] = match.group(2)
+    if not fields.get("status"):
+        return None
+    return {
+        "status": fields["status"],
+        "campaign_id": fields.get("campaign_id", ""),
+        "artifact": fields.get("artifacts") or fields.get("artifact") or "",
+    }
 
 
 def _loads(text: str) -> dict[str, Any] | None:
