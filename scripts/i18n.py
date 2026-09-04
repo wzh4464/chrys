@@ -1116,6 +1116,11 @@ def _write_po(path: Path, catalog: Catalog) -> None:
         ) as stream:
             temporary_path = Path(stream.name)
             write_po(stream, catalog, width=0, sort_output=True, include_lineno=True)
+        if catalog.obsolete:
+            # Babel emits an extra blank line after a trailing obsolete entry.
+            # Keep maintained catalogs at the repository's canonical single-LF EOF.
+            generated = temporary_path.read_bytes()
+            temporary_path.write_bytes(generated.rstrip(b"\r\n") + b"\n")
         _replace_generated_file(temporary_path, path)
         temporary_path = None
     except OSError as error:

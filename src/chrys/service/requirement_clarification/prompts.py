@@ -240,14 +240,19 @@ def build_selector_prompt(
     background: str,
     base_evidence: str,
     proposals: list[ClarificationProposal],
+    *,
+    candidate_ids: set[str] | None = None,
 ) -> str:
-    """Build the single selector prompt from three private proposals."""
+    """Build a closed-id selector prompt from three private proposals."""
     candidates = []
     for proposal_index, proposal in enumerate(proposals, start=1):
         for guidance_index, point in enumerate(proposal.guidance_points, start=1):
+            candidate_id = f"p{proposal_index}-g{guidance_index}"
+            if candidate_ids is not None and candidate_id not in candidate_ids:
+                continue
             candidates.append(
                 {
-                    "candidate_id": f"p{proposal_index}-g{guidance_index}",
+                    "candidate_id": candidate_id,
                     "category": point.category,
                     "statement": point.statement,
                     "confidence": point.confidence,

@@ -1,4 +1,5 @@
-#!/usr/bin/env python3
+# Copyright (c) 2026 Chrys. All rights reserved.
+
 """Repository graph adapter used by the Chrys-native SemLoc workflow.
 
 The adapter deliberately keeps CodeGraph as the primary graph backend.  It
@@ -12,12 +13,11 @@ import ast
 import fnmatch
 import os
 import re
-import subprocess
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
-from _common import path_tokens, stable_unique
+from _common import path_tokens, run_process_bounded, stable_unique
 
 FILE_RE = re.compile(
     r"(?P<path>[A-Za-z0-9_./-]+\.(?:py|java|scala|sc|rs|c|h|cc|cpp|cxx|hh|hpp|hxx|g4|proto))",
@@ -495,18 +495,20 @@ class LocalizationGraph:
         for relation in ("node", "callers", "callees", "impact"):
             argv = [*command, relation, symbol]
             try:
-                proc = subprocess.run(  # noqa: S603
+                returncode, stdout, stderr, timed_out = run_process_bounded(
                     argv,
-                    cwd=str(self.repo),
-                    text=True,
-                    capture_output=True,
+                    cwd=self.repo,
                     timeout=timeout,
-                    check=False,
-                    stdin=subprocess.DEVNULL,
+                    max_chars=max_chars,
                 )
-                output = str(proc.stdout or proc.stderr or "")[:max_chars]
-                result = {"argv": argv, "returncode": proc.returncode, "ok": proc.returncode == 0, "output": output}
-            except (OSError, subprocess.TimeoutExpired) as err:
+                output = stdout or stderr
+                result = {
+                    "argv": argv,
+                    "returncode": 124 if timed_out else returncode,
+                    "ok": not timed_out and returncode == 0,
+                    "output": output,
+                }
+            except OSError as err:
                 output = ""
                 result = {"argv": argv, "returncode": 124, "ok": False, "output": "", "error": str(err)}
             self.dynamic_codegraph_evidence.append({"source": source_key, "relation": relation, **result})

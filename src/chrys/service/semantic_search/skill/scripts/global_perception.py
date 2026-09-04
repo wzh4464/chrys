@@ -1,4 +1,5 @@
-#!/usr/bin/env python3
+# Copyright (c) 2026 Chrys. All rights reserved.
+
 """Build global repository perception for semantic-search requirement augmentation."""
 
 from __future__ import annotations
@@ -283,7 +284,7 @@ def topology(files: list[dict[str, Any]]) -> dict[str, Any]:
 def source_of_truth_hints(files: list[dict[str, Any]]) -> list[dict[str, Any]]:
     hints = []
     for record in files:
-        terms = {str(term).lower() for term in record.get("terms", [])}
+        terms = set(str(term).lower() for term in record.get("terms", []))
         path_terms = set(tokenize(record.get("path", "")))
         if not (
             terms & SOURCE_OF_TRUTH_TERMS
@@ -309,7 +310,7 @@ def external_graph_summary(external_graph: dict[str, Any] | None) -> dict[str, A
             "present": False,
             "note": "No external CodeGraph/GitNexus JSON was provided; using builtin global perception.",
         }
-    keys = sorted(str(key) for key in external_graph)[:40]
+    keys = sorted(str(key) for key in external_graph.keys())[:40]
     counts = {}
     samples = {}
     for key, value in external_graph.items():

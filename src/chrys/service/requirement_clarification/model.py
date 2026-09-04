@@ -15,6 +15,14 @@ from pydantic import BaseModel
 
 from chrys.foundation.models.session_env import SessionEnvironment
 from chrys.kernel import CONVERSATION_HANDLE_KEYS, Agent
+from chrys.kernel.exchanges import (
+    EmptyIdPolicy,
+    LiveAccessor,
+    NoneIdPolicy,
+    PairingPolicy,
+    iter_exchanges,
+    pair_results,
+)
 from chrys.service.llm.clients import create_client
 from chrys.service.llm.route_sessions import derive_llm_route_session_id
 from chrys.service.profiles.models.options import effective_chat_options
@@ -30,6 +38,7 @@ from chrys.service.requirement_clarification.prompts import (
     selector_instructions,
 )
 from chrys.service.requirement_clarification.snapshot import WorkspaceSnapshot
+from chrys.service.requirement_clarification.tools import SnapshotReadTools
 from chrys.service.requirement_clarification.types import (
     ClarificationProposal,
     ClarificationSelection,
@@ -42,7 +51,6 @@ from chrys.service.requirement_clarification.types import (
     ProposalModelResult,
     VerifiedEvidenceReference,
 )
-from chrys.service.tools.registry import ToolRegistry
 
 ResponseT = TypeVar("ResponseT", bound=BaseModel)
 
@@ -114,6 +122,14 @@ _PLACEHOLDER_PATTERNS = (
 )
 _INVESTIGATION_MAX_ITERATIONS = 10
 _INVESTIGATION_MAX_FUNCTION_CALLS = 10
+_INVESTIGATION_PAIRING_POLICY = PairingPolicy(
+    call_types=frozenset({"function_call"}),
+    include_informational_calls=False,
+    result_types=frozenset({"function_result"}),
+    none_id=NoneIdPolicy.IGNORE,
+    empty_id=EmptyIdPolicy.IGNORE,
+    malformed_id="treat_as_none",
+)
 
 
 def _contains_placeholder(value: str) -> bool:
@@ -158,48 +174,41 @@ def _tool_result_text(content: Any) -> str:
 
 
 def _investigation_tool_calls(responses: list[Any]) -> list[InvestigationToolCall]:
-    calls: dict[str, tuple[str, str, str, tuple[int, int] | None]] = {}
-    results: dict[str, tuple[bool, int, str]] = {}
+    observations: list[InvestigationToolCall] = []
+    accessor = LiveAccessor()
     for response in responses:
-        for message in getattr(response, "messages", ()):
-            for content in getattr(message, "contents", ()):
-                call_id = getattr(content, "call_id", None)
-                if not isinstance(call_id, str) or not call_id:
-                    continue
-                if getattr(content, "type", None) == "function_call":
-                    name = getattr(content, "name", "")
+        messages = list(getattr(response, "messages", ()))
+        for exchange in iter_exchanges(messages, accessor):
+            pairing = pair_results(messages, exchange, accessor, _INVESTIGATION_PAIRING_POLICY)
+            for assignments in pairing.truthy_assignments.values():
+                for call_occurrence, result_occurrence in assignments:
+                    call = messages[call_occurrence.message_index].contents[call_occurrence.content_index]
+                    name = call.name
                     if name not in {"grep", "glob", "read_file", "view_image"}:
                         continue
-                    arguments = _call_arguments(content)
-                    calls[call_id] = (
-                        name,
-                        _argument_text(arguments, "path"),
-                        _argument_text(arguments, "pattern") if name in {"grep", "glob"} else "",
-                        _line_range(arguments),
+                    arguments = _call_arguments(call)
+                    text = ""
+                    exception: str | None = None
+                    if result_occurrence is not None:
+                        result = messages[result_occurrence.message_index].contents[result_occurrence.content_index]
+                        text = _tool_result_text(result)
+                        exception = result.exception
+                    observations.append(
+                        InvestigationToolCall(
+                            call_id=call.call_id,
+                            name=cast("Literal['grep', 'glob', 'read_file', 'view_image']", name),
+                            query=_argument_text(arguments, "pattern") if name in {"grep", "glob"} else "",
+                            path=_argument_text(arguments, "path"),
+                            line_range=_line_range(arguments),
+                            successful=(
+                                not exception and bool(text.strip()) and not text.lstrip().startswith("Error:")
+                            ),
+                            result_chars=len(text),
+                            result_sha256=(
+                                hashlib.sha256(text.encode("utf-8", errors="surrogatepass")).hexdigest() if text else ""
+                            ),
+                        )
                     )
-                elif getattr(content, "type", None) == "function_result":
-                    text = _tool_result_text(content)
-                    exception = getattr(content, "exception", None)
-                    results[call_id] = (
-                        not exception and bool(text.strip()) and not text.lstrip().startswith("Error:"),
-                        len(text),
-                        hashlib.sha256(text.encode("utf-8", errors="surrogatepass")).hexdigest() if text else "",
-                    )
-    observations: list[InvestigationToolCall] = []
-    for call_id, (name, path, query, line_range) in calls.items():
-        successful, result_chars, result_sha256 = results.get(call_id, (False, 0, ""))
-        observations.append(
-            InvestigationToolCall(
-                call_id=call_id,
-                name=cast("Literal['grep', 'glob', 'read_file', 'view_image']", name),
-                query=query,
-                path=path,
-                line_range=line_range,
-                successful=successful,
-                result_chars=result_chars,
-                result_sha256=result_sha256,
-            )
-        )
     return observations
 
 
@@ -364,7 +373,7 @@ def _proposal_coverage_errors(
     if uncited:
         # Name them: the rejected proposal is not persisted, so without the
         # offending anchors the artifact records that a gate fired but not
-        # what tripped it — and a bare file name looks identical to an
+        # what tripped it -- and a bare file name looks identical to an
         # invented one in the record.
         errors.append(
             "current-repository evidence cites a file not inspected with read_file: "
@@ -789,12 +798,10 @@ class ChrysClarificationModel:
             session_id=route_session_id or "",
             workspace=self._snapshot.clarification_workspace(),
         )
-        registry = ToolRegistry(vision_enabled=False)
-        tools = registry.load_builtins(
-            ["filesystem.read", "search"],
-            runtime=runtime,
-            session_id=route_session_id,
-            session_dir=self._session_dir,
+        tools = SnapshotReadTools(
+            runtime,
+            roots=tuple(Path(root.view_root) for root in self._snapshot.roots),
+            reference_files=tuple(Path(reference.view_path) for reference in self._snapshot.references),
         )
         roots = "\n".join(
             f"- {root.view_root} ({'primary' if root.is_primary else 'additional'})" for root in self._snapshot.roots
@@ -814,5 +821,5 @@ class ChrysClarificationModel:
                 + ("\nFrozen explicit reference files:\n" + references if references else "")
                 + "\nUse only read_file, view_image, grep, and glob. Never address a path outside these roots."
             ),
-            tools=tools,
+            tools=tools.tools(),
         )

@@ -1,4 +1,5 @@
-#!/usr/bin/env python3
+# Copyright (c) 2026 Chrys. All rights reserved.
+
 """Generate an Augmented Requirement and routed augmentation sub-documents."""
 
 from __future__ import annotations
@@ -98,8 +99,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default=os.environ.get("SEMANTIC_SEARCH_MODEL_PROFILE") or os.environ.get("CHRYS_MODEL_PROFILE", ""),
         help="Chrys model profile id/path/name for LLM augmentation. Defaults to CHRYS_MODEL_PROFILE.",
     )
-    parser.add_argument("--llm-timeout", type=float, default=float(os.environ.get("SEMANTIC_SEARCH_LLM_TIMEOUT", "240")))
-    parser.add_argument("--max-evidence-chars", type=int, default=int(os.environ.get("SEMANTIC_SEARCH_MAX_EVIDENCE_CHARS", "55000")))
+    parser.add_argument(
+        "--llm-timeout", type=float, default=float(os.environ.get("SEMANTIC_SEARCH_LLM_TIMEOUT", "240"))
+    )
+    parser.add_argument(
+        "--max-evidence-chars", type=int, default=int(os.environ.get("SEMANTIC_SEARCH_MAX_EVIDENCE_CHARS", "55000"))
+    )
     return parser.parse_args(argv)
 
 
@@ -107,14 +112,23 @@ def load_inputs(args: argparse.Namespace) -> tuple[Path, Path | None, Path, Path
     out = resolve_path(args.out)
     augmentation_dir = resolve_path(args.augmentation_dir)
     artifact_dir = resolve_path(args.artifact_dir or out.parent)
-    requirement = ensure_allowed_path(args.requirement, allowed_roots=[artifact_dir], allowed_files=[resolve_path(args.requirement)], purpose="requirement")
+    requirement = ensure_allowed_path(
+        args.requirement,
+        allowed_roots=[artifact_dir],
+        allowed_files=[resolve_path(args.requirement)],
+        purpose="requirement",
+    )
     reject_benchmark_answer_path(requirement, purpose="requirement")
     out = ensure_allowed_path(out, allowed_roots=[artifact_dir, out.parent], purpose="output")
-    augmentation_dir = ensure_allowed_path(augmentation_dir, allowed_roots=[artifact_dir, augmentation_dir.parent], purpose="augmentation-dir")
+    augmentation_dir = ensure_allowed_path(
+        augmentation_dir, allowed_roots=[artifact_dir, augmentation_dir.parent], purpose="augmentation-dir"
+    )
     requirement_text = read_text(requirement)
     facts_path = None
     if args.facts:
-        facts_path = ensure_allowed_path(args.facts, allowed_roots=[artifact_dir, out.parent, augmentation_dir], purpose="facts")
+        facts_path = ensure_allowed_path(
+            args.facts, allowed_roots=[artifact_dir, out.parent, augmentation_dir], purpose="facts"
+        )
         facts = load_json(facts_path)
         if facts.get("format") != FORMAT_FACTS:
             raise ScriptError(f"unsupported facts format: {facts.get('format')}")
@@ -212,7 +226,11 @@ def build_requirement_only_facts(requirement: Path, requirement_text: str) -> di
 def extract_requirement_signals(text: str) -> list[dict[str, Any]]:
     code_terms = re.findall(r"`([^`]{2,80})`", text)
     fenced_blocks = re.findall(r"```(?:\w+)?\n(.*?)```", text, flags=re.DOTALL)
-    file_like = re.findall(r"[\w./-]+\.(?:py|java|scala|rs|c|h|cpp|hpp|toml|xml|gradle|rst|md|gram|asdl|g4|peg|y|l)", text, flags=re.IGNORECASE)
+    file_like = re.findall(
+        r"[\w./-]+\.(?:py|java|scala|rs|c|h|cpp|hpp|toml|xml|gradle|rst|md|gram|asdl|g4|peg|y|l)",
+        text,
+        flags=re.IGNORECASE,
+    )
     title_terms = []
     for line in text.splitlines():
         stripped = line.strip()
@@ -281,7 +299,11 @@ def generate(args: argparse.Namespace) -> dict[str, Any]:
             payload = parse_llm_payload(raw_response)
             docs, summaries, missing = normalize_llm_documents(payload, fallback_docs, fallback_summaries)
             generation_mode = "llm" if not missing else "llm-partial"
-            generation_note = "LLM generated all augmentation documents." if not missing else f"LLM response missed {len(missing)} topic(s); script fallback filled them."
+            generation_note = (
+                "LLM generated all augmentation documents."
+                if not missing
+                else f"LLM response missed {len(missing)} topic(s); script fallback filled them."
+            )
             if error_path.exists():
                 error_path.unlink()
         except ScriptError as err:
@@ -346,7 +368,9 @@ def generate(args: argparse.Namespace) -> dict[str, Any]:
         },
     )
     out.write_text(render_main(requirement_text, routes, generation_mode=generation_mode), encoding="utf-8")
-    append_trace("augment-requirement", {"out": str(out), "route_count": len(routes), "generation_mode": generation_mode})
+    append_trace(
+        "augment-requirement", {"out": str(out), "route_count": len(routes), "generation_mode": generation_mode}
+    )
     return {"out": str(out), "routes": routes, "generation_mode": generation_mode}
 
 
@@ -447,16 +471,23 @@ def generate_localization_task(
         },
     }
     write_json(artifact_dir / "augmentation_routes.json", route_payload)
-    write_manifest(artifact_dir / "manifest.json", requirement, facts_path, out, augmentation_dir, routes, generation=generation)
+    write_manifest(
+        artifact_dir / "manifest.json", requirement, facts_path, out, augmentation_dir, routes, generation=generation
+    )
     out.write_text(
         render_localization_task_main(requirement_text, localization_markdown, body, generation_mode),
         encoding="utf-8",
     )
-    append_trace("augment-localization-task", {"out": str(out), "generation_mode": generation_mode, "location_count": len(localization.get("locations", []))})
+    append_trace(
+        "augment-localization-task",
+        {"out": str(out), "generation_mode": generation_mode, "location_count": len(localization.get("locations", []))},
+    )
     return {"out": str(out), "routes": routes, "generation_mode": generation_mode}
 
 
-def render_localization_evidence(requirement_text: str, localization: dict[str, Any], facts: dict[str, Any], *, max_chars: int) -> str:
+def render_localization_evidence(
+    requirement_text: str, localization: dict[str, Any], facts: dict[str, Any], *, max_chars: int
+) -> str:
     lines = [
         "# Localization-Guided Task Evidence",
         "",
@@ -514,7 +545,9 @@ def render_localization_fallback(localization: dict[str, Any]) -> str:
         label = item.get("file", "")
         if item.get("symbol"):
             label += f":{item['symbol']}"
-        lines.append(f"{rank}. `{label}` ({item.get('role', '')}, confidence={item.get('confidence', '')}) - {item.get('reason', '')}")
+        lines.append(
+            f"{rank}. `{label}` ({item.get('role', '')}, confidence={item.get('confidence', '')}) - {item.get('reason', '')}"
+        )
     lines.extend(
         [
             "",
@@ -563,36 +596,41 @@ def render_localization_markdown(localization: dict[str, Any]) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
-def render_localization_task_main(requirement_text: str, localization_path: Path, body: str, generation_mode: str) -> str:
-    return "\n".join(
-        [
-            "# Augmented Requirement",
-            "",
-            "## Authority",
-            "",
-            "The Original Requirement below is authoritative and is preserved verbatim.",
-            f"Generation mode: {generation_mode}.",
-            "",
-            "## Original Requirement",
-            "",
-            requirement_text.rstrip(),
-            "",
-            "## Code Localization",
-            "",
-            f"Read the ranked localization report before editing: `{localization_path.resolve()}`",
-            "Every location is an inspection candidate and must be verified with source before editing.",
-            "",
-            body.rstrip(),
-            "",
-            "## Execution Contract",
-            "",
-            "- Use the Original Requirement as the source of truth.",
-            "- Read and verify primary, propagation, and validation locations before editing.",
-            "- Do not edit every candidate automatically or broaden the task beyond the requirement.",
-            "- Use Chrys native tools for source reads, edits, tests, and patch generation.",
-            "- Keep `.semantic-search/` artifacts out of the final patch.",
-        ]
-    ).rstrip() + "\n"
+def render_localization_task_main(
+    requirement_text: str, localization_path: Path, body: str, generation_mode: str
+) -> str:
+    return (
+        "\n".join(
+            [
+                "# Augmented Requirement",
+                "",
+                "## Authority",
+                "",
+                "The Original Requirement below is authoritative and is preserved verbatim.",
+                f"Generation mode: {generation_mode}.",
+                "",
+                "## Original Requirement",
+                "",
+                requirement_text.rstrip(),
+                "",
+                "## Code Localization",
+                "",
+                f"Read the ranked localization report before editing: `{localization_path.resolve()}`",
+                "Every location is an inspection candidate and must be verified with source before editing.",
+                "",
+                body.rstrip(),
+                "",
+                "## Execution Contract",
+                "",
+                "- Use the Original Requirement as the source of truth.",
+                "- Read and verify primary, propagation, and validation locations before editing.",
+                "- Do not edit every candidate automatically or broaden the task beyond the requirement.",
+                "- Use Chrys native tools for source reads, edits, tests, and patch generation.",
+                "- Keep `.semantic-search/` artifacts out of the final patch.",
+            ]
+        ).rstrip()
+        + "\n"
+    )
 
 
 def render_main(requirement_text: str, routes: list[dict[str, Any]], *, generation_mode: str) -> str:
@@ -684,7 +722,9 @@ def format_route(route: dict[str, Any]) -> list[str]:
         f"  Structure: {quality_note}; must-implement bullets={quality.get('must_implement_bullets', 0)}",
         "  Summary:",
     ]
-    summary = route.get("summary") or ["No high-confidence summary was generated; open the document if this topic matters."]
+    summary = route.get("summary") or [
+        "No high-confidence summary was generated; open the document if this topic matters."
+    ]
     lines.extend(f"    - {markdown_escape_line(item)}" for item in summary[:8])
     return lines
 
@@ -700,7 +740,9 @@ def write_manifest(
 ) -> None:
     inputs = [{"path": str(requirement), "sha1": sha1_path(requirement), "source": "original_requirement"}]
     if facts_path is not None:
-        inputs.append({"path": str(facts_path), "sha1": sha1_path(facts_path), "source": "general_and_semantic_search_code_facts"})
+        inputs.append(
+            {"path": str(facts_path), "sha1": sha1_path(facts_path), "source": "general_and_semantic_search_code_facts"}
+        )
     else:
         inputs.append(
             {
@@ -768,7 +810,9 @@ def render_evidence_bundle(requirement_text: str, facts: dict[str, Any], *, max_
     if repository_perception:
         lines.extend(render_repository_evidence(repository_perception))
     else:
-        lines.append("- No merged repository perception artifact was available; rely on global/task-specific semantic evidence and source inspection.")
+        lines.append(
+            "- No merged repository perception artifact was available; rely on global/task-specific semantic evidence and source inspection."
+        )
     lines.extend(
         [
             "",
@@ -780,7 +824,9 @@ def render_evidence_bundle(requirement_text: str, facts: dict[str, Any], *, max_
     if global_perception:
         lines.extend(render_global_evidence(global_perception))
     else:
-        lines.append("- No global perception artifact was available; rely on task-specific semantic evidence and source inspection.")
+        lines.append(
+            "- No global perception artifact was available; rely on task-specific semantic evidence and source inspection."
+        )
     lines.extend(
         [
             "",
@@ -880,7 +926,9 @@ def render_capability_evidence(capabilities: dict[str, Any]) -> list[str]:
             lines.append(f"  Confidence: {item.get('confidence', '')}")
             lines.append(f"  Action: {item.get('action', '')}")
     else:
-        lines.append("- No named missing surface was detected; still check whether the Original Requirement implies new files or registration.")
+        lines.append(
+            "- No named missing surface was detected; still check whether the Original Requirement implies new files or registration."
+        )
     chains = capabilities.get("consistency_chains", [])
     lines.extend(["", "#### Required Consistency Chains"])
     if chains:
@@ -908,16 +956,22 @@ def render_global_evidence(global_perception: dict[str, Any]) -> list[str]:
     stats = overview.get("stats", {})
     lines.append(f"- Indexed files: {stats.get('file_count', 0)}")
     lines.append(f"- Indexed symbols: {stats.get('symbol_count', 0)}")
-    lines.append(f"- Source/test/generated/build counts: {overview.get('source_count', 0)}/{overview.get('test_count', 0)}/{overview.get('generated_count', 0)}/{overview.get('build_count', 0)}")
+    lines.append(
+        f"- Source/test/generated/build counts: {overview.get('source_count', 0)}/{overview.get('test_count', 0)}/{overview.get('generated_count', 0)}/{overview.get('build_count', 0)}"
+    )
     lines.extend(["", "### Module Clusters"])
     for cluster in global_perception.get("module_clusters", [])[:16]:
-        lines.append(f"- `{cluster.get('name', '')}`: {cluster.get('file_count', 0)} files, kinds={cluster.get('kind_counts', {})}")
+        lines.append(
+            f"- `{cluster.get('name', '')}`: {cluster.get('file_count', 0)} files, kinds={cluster.get('kind_counts', {})}"
+        )
         reps = ", ".join(f"`{item}`" for item in cluster.get("representative_files", [])[:5])
         if reps:
             lines.append(f"  Representative files: {reps}")
     lines.extend(["", "### Global Entrypoints"])
     for entry in global_perception.get("entrypoints", [])[:24]:
-        lines.append(f"- `{entry.get('path', '')}` ({entry.get('kind', '')}, score={entry.get('score', 0)}): {entry.get('reason', '')}")
+        lines.append(
+            f"- `{entry.get('path', '')}` ({entry.get('kind', '')}, score={entry.get('score', 0)}): {entry.get('reason', '')}"
+        )
     lines.extend(["", "### Dependency Hints"])
     for edge in global_perception.get("dependency_hints", [])[:32]:
         lines.append(f"- `{edge.get('from', '')}` -> `{edge.get('to', '')}` ({edge.get('kind', '')})")
@@ -928,7 +982,11 @@ def render_global_evidence(global_perception: dict[str, Any]) -> list[str]:
     lines.append("Build files:")
     lines.extend(bullet_lines([f"`{item}`" for item in topology.get("build_files", [])[:24]]))
     lines.append("Test roots:")
-    lines.extend(bullet_lines([f"`{item.get('root')}` ({item.get('files')} files)" for item in topology.get("test_roots", [])[:24]]))
+    lines.extend(
+        bullet_lines(
+            [f"`{item.get('root')}` ({item.get('files')} files)" for item in topology.get("test_roots", [])[:24]]
+        )
+    )
     lines.extend(["", "### Source-of-truth Hints"])
     lines.extend(
         bullet_lines(
@@ -963,7 +1021,9 @@ def render_repository_evidence(repository_perception: dict[str, Any]) -> list[st
     )
     lines.extend(["", "### Repository Module Map"])
     for name, values in list(repository_perception.get("module_map", {}).items())[:18]:
-        lines.append(f"- `{name}`: {values.get('file_count', 0)} files, kinds={values.get('kinds', {})}, languages={values.get('languages', {})}")
+        lines.append(
+            f"- `{name}`: {values.get('file_count', 0)} files, kinds={values.get('kinds', {})}, languages={values.get('languages', {})}"
+        )
         reps = ", ".join(f"`{item}`" for item in values.get("representative_files", [])[:5])
         if reps:
             lines.append(f"  Representative files: {reps}")
@@ -1000,7 +1060,11 @@ def render_repository_evidence(repository_perception: dict[str, Any]) -> list[st
     )
     validation = repository_perception.get("validation_surface", {})
     lines.extend(["", "Validation roots:"])
-    lines.extend(bullet_lines([f"`{item.get('root')}` ({item.get('files')} files)" for item in validation.get("test_roots", [])[:20]]))
+    lines.extend(
+        bullet_lines(
+            [f"`{item.get('root')}` ({item.get('files')} files)" for item in validation.get("test_roots", [])[:20]]
+        )
+    )
     lines.extend(["", "### Repository Risks"])
     for risk in repository_perception.get("risks", [])[:12]:
         lines.append(f"- Claim: {risk.get('claim', '')}")
@@ -1091,7 +1155,9 @@ def call_llm_for_augmentation(args: argparse.Namespace, prompt: str, *, system_p
     profile = load_model_profile(args.model_profile)
     provider = str(profile.get("provider", "openai")).lower()
     if provider not in {"openai", "deepseek-openai"}:
-        raise ScriptError(f"semantic-search LLM augmentation only supports OpenAI-compatible profiles, got provider={provider!r}")
+        raise ScriptError(
+            f"semantic-search LLM augmentation only supports OpenAI-compatible profiles, got provider={provider!r}"
+        )
     model_id = str(profile.get("model_id", "")).strip()
     if not model_id:
         raise ScriptError("model profile does not define model_id")
@@ -1211,7 +1277,10 @@ def load_profile_headers(profile: dict[str, Any]) -> dict[str, str]:
             return {}
     if not isinstance(data, dict):
         return {}
-    return {str(key): resolve_env_templates_simple(str(value), location=f"model profile header {key}") for key, value in data.items()}
+    return {
+        str(key): resolve_env_templates_simple(str(value), location=f"model profile header {key}")
+        for key, value in data.items()
+    }
 
 
 def post_openai_chat(base_url: str, payload: dict[str, Any], headers: dict[str, str], timeout: float) -> str:
@@ -1403,7 +1472,9 @@ def summary_from(items: list[str], limit: int = 6) -> list[str]:
 def evidence_block(item: dict[str, Any]) -> list[str]:
     evidence = item.get("evidence")
     if isinstance(evidence, dict):
-        return [f"  Evidence: `{evidence.get('path', '')}` ({evidence.get('kind', '')}, score={evidence.get('score', 0)})"]
+        return [
+            f"  Evidence: `{evidence.get('path', '')}` ({evidence.get('kind', '')}, score={evidence.get('score', 0)})"
+        ]
     if isinstance(evidence, list):
         values = []
         for entry in evidence[:4]:
@@ -1420,7 +1491,9 @@ def capability_high_priority(facts: dict[str, Any], *, limit: int = 4) -> list[s
     for hint in capabilities.get("new_or_missing_surfaces", [])[:limit]:
         items.append(f"Original Requirement may require a new or absent surface `{hint.get('name', '')}`.")
     for chain in capabilities.get("consistency_chains", [])[:limit]:
-        items.append(f"Source-verified completeness chain `{chain.get('name', '')}` may be required: {chain.get('action', '')}")
+        items.append(
+            f"Source-verified completeness chain `{chain.get('name', '')}` may be required: {chain.get('action', '')}"
+        )
     return summary_from(items, limit=limit)
 
 
@@ -1476,7 +1549,11 @@ def expected_behavior_doc(facts: dict[str, Any]) -> tuple[str, list[str]]:
             "",
         ]
     )
-    lines.extend(bullet_lines([f"Requirement signal: `{item}`" for item in examples], empty="- No specific examples were extracted."))
+    lines.extend(
+        bullet_lines(
+            [f"Requirement signal: `{item}`" for item in examples], empty="- No specific examples were extracted."
+        )
+    )
     capability_lines = capability_should_inspect_lines(facts)
     if capability_lines:
         lines.extend(["", *capability_lines])
@@ -1500,7 +1577,11 @@ def expected_behavior_doc(facts: dict[str, Any]) -> tuple[str, list[str]]:
             "",
         ]
     )
-    lines.extend(bullet_lines([f"`{signal['term']}` from original requirement ({signal['category']})" for signal in signals[:20]]))
+    lines.extend(
+        bullet_lines(
+            [f"`{signal['term']}` from original requirement ({signal['category']})" for signal in signals[:20]]
+        )
+    )
     return "\n".join(lines), summary
 
 
@@ -1566,10 +1647,15 @@ def task_decomposition_doc(facts: dict[str, Any]) -> tuple[str, list[str]]:
             "Inspect candidate code surfaces only after clarifying expected behavior and scope.",
             "Choose the smallest complete coherent edit set that satisfies the task and preserves existing behavior.",
             *capability_high_priority(facts),
-            *[f"Candidate investigation surface `{surface['name']}`: {surface.get('why', '')}" for surface in surfaces[:3]],
+            *[
+                f"Candidate investigation surface `{surface['name']}`: {surface.get('why', '')}"
+                for surface in surfaces[:3]
+            ],
         ]
     )
-    lines = topic_header("Task Decomposition", summary or ["Clarify behavior, inspect candidates, then choose a scoped implementation."])
+    lines = topic_header(
+        "Task Decomposition", summary or ["Clarify behavior, inspect candidates, then choose a scoped implementation."]
+    )
     lines.extend(
         [
             "## Must Implement",
@@ -1595,7 +1681,9 @@ def task_decomposition_doc(facts: dict[str, Any]) -> tuple[str, list[str]]:
         lines.append(f"- Claim: `{surface['name']}` is a candidate investigation surface.")
         lines.append(f"  Source: {surface.get('source', 'inferred')}")
         lines.append(f"  Confidence: {surface.get('confidence', 'medium')}")
-        lines.append("  Action: Inspect this surface only if it helps satisfy a concrete acceptance criterion from the Original Requirement.")
+        lines.append(
+            "  Action: Inspect this surface only if it helps satisfy a concrete acceptance criterion from the Original Requirement."
+        )
         lines.append(f"  Risk: {surface.get('risk', '')}")
         lines.extend(evidence_block(surface))
     lines.extend(
@@ -1708,7 +1796,9 @@ def implementation_surfaces_doc(facts: dict[str, Any]) -> tuple[str, list[str]]:
         ]
         + capability_high_priority(facts)
     )
-    lines = topic_header("Likely Implementation Surfaces", summary or ["No high-confidence implementation surface was inferred."])
+    lines = topic_header(
+        "Likely Implementation Surfaces", summary or ["No high-confidence implementation surface was inferred."]
+    )
     lines.extend(
         [
             "## Must Implement",
@@ -1734,7 +1824,9 @@ def implementation_surfaces_doc(facts: dict[str, Any]) -> tuple[str, list[str]]:
         lines.append(f"- Claim: `{surface['name']}` may contain relevant implementation context.")
         lines.append(f"  Source: {surface.get('source', 'inferred')}")
         lines.append(f"  Confidence: {surface.get('confidence', 'medium')}")
-        lines.append(f"  Action: Inspect these files as candidates, then edit only if source behavior proves relevance: {', '.join(f'`{item}`' for item in surface.get('inspect', [])[:8]) or '(none)'}")
+        lines.append(
+            f"  Action: Inspect these files as candidates, then edit only if source behavior proves relevance: {', '.join(f'`{item}`' for item in surface.get('inspect', [])[:8]) or '(none)'}"
+        )
         lines.append(f"  Risk: {surface.get('risk', '')}")
         lines.extend(evidence_block(surface))
     lines.extend(
@@ -1814,7 +1906,9 @@ def existing_patterns_doc(facts: dict[str, Any]) -> tuple[str, list[str]]:
 
 def code_details_doc(facts: dict[str, Any]) -> tuple[str, list[str]]:
     details = facts.get("code_details", [])
-    summary = summary_from([f"{item.get('priority', 'useful')} inspection candidate: `{item.get('path', '')}`" for item in details[:8]])
+    summary = summary_from(
+        [f"{item.get('priority', 'useful')} inspection candidate: `{item.get('path', '')}`" for item in details[:8]]
+    )
     lines = topic_header("Code Details To Inspect", summary or ["No concrete code details were extracted."])
     groups = {"must inspect": [], "useful": [], "optional": []}
     for item in details:
@@ -1847,7 +1941,9 @@ def code_details_doc(facts: dict[str, Any]) -> tuple[str, list[str]]:
             lines.append(f"- Claim: `{item.get('path', '')}` may help explain or implement the task.")
             lines.append("  Source: code_evidence")
             lines.append(f"  Confidence: {item.get('confidence', 'medium')}")
-            lines.append(f"  Action: Read this as evidence, then decide whether it is necessary for the minimal task patch. {item.get('why', '')}")
+            lines.append(
+                f"  Action: Read this as evidence, then decide whether it is necessary for the minimal task patch. {item.get('why', '')}"
+            )
             if symbols:
                 lines.append(f"  Evidence: symbols {symbols}")
             else:
@@ -1881,7 +1977,10 @@ def code_details_doc(facts: dict[str, Any]) -> tuple[str, list[str]]:
 
 def validation_plan_doc(facts: dict[str, Any]) -> tuple[str, list[str]]:
     hints = facts.get("validation_hints", [])
-    summary = summary_from([f"{item.get('kind', 'check')}: `{item.get('path', '')}`" for item in hints[:8]] + capability_high_priority(facts))
+    summary = summary_from(
+        [f"{item.get('kind', 'check')}: `{item.get('path', '')}`" for item in hints[:8]]
+        + capability_high_priority(facts)
+    )
     if not summary:
         summary = ["Run the narrowest meaningful build/test/smoke checks available in the target repo."]
     lines = topic_header("Validation Plan", summary)
@@ -2030,7 +2129,9 @@ def open_questions_doc(facts: dict[str, Any]) -> tuple[str, list[str]]:
     items = facts.get("uncertainties", [])
     summary = summary_from([item.get("question", "") for item in items[:8]])
     if not summary:
-        summary = ["No major low-confidence questions were generated; still verify key surfaces with source inspection."]
+        summary = [
+            "No major low-confidence questions were generated; still verify key surfaces with source inspection."
+        ]
     lines = topic_header("Assumptions and Open Questions", summary)
     lines.extend(
         [
@@ -2050,7 +2151,9 @@ def open_questions_doc(facts: dict[str, Any]) -> tuple[str, list[str]]:
         lines.append(f"- Claim: {item.get('question', '')}")
         lines.append(f"  Source: {item.get('source', 'uncertain')}")
         lines.append(f"  Confidence: {item.get('confidence', 'low')}")
-        lines.append("  Action: Resolve this with normal repository inspection before relying on the related augmentation item.")
+        lines.append(
+            "  Action: Resolve this with normal repository inspection before relying on the related augmentation item."
+        )
         lines.extend(evidence_block(item))
     lines.extend(
         [

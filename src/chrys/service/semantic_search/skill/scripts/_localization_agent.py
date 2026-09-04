@@ -1,22 +1,24 @@
-#!/usr/bin/env python3
-"""Deterministic half of SemLoc localization: parsing and normalization.
+# Copyright (c) 2026 Chrys. All rights reserved.
 
-The DFS/BFS search loop and its model client used to live here. They now run
-inside the Chrys process (``service/semantic_search/localization_model.py``)
-so localization obeys the same model policy, model lock, and usage accounting
-as every other Chrys model call, and this module holds no API key.
-"""
+"""LLM-driven DFS/BFS localization loop adapted from SemLoc for Chrys."""
 
 from __future__ import annotations
 
 import json
+import os
 import re
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from _common import now_iso
+from _common import ScriptError, now_iso, stable_unique, write_text
 from _localization_graph import LocalizationGraph, normalize_relative_path
+from _localization_tools import LocalizationTools
+from augment_requirement import load_model_profile, load_profile_headers, resolve_env_templates_simple
 
 SYSTEM_PROMPT = """You are a specialized repository code-localization agent.
 
@@ -61,6 +63,8 @@ sites, then validation locations. Include only repository paths observed through
 the tools.
 """
 
+_MAX_HTTP_RESPONSE_BYTES = 8 * 1024 * 1024
+
 
 @dataclass
 class AgentRunResult:
@@ -75,13 +79,292 @@ class AgentRunResult:
 class TraceWriter:
     def __init__(self, path: Path):
         self.path = path
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.path.write_text("", encoding="utf-8")
+        write_text(self.path, "")
 
     def write(self, event: str, **data: Any) -> None:
         payload = {"created_at": now_iso(), "event": event, **data}
-        with self.path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(payload, ensure_ascii=False, sort_keys=True) + "\n")
+        flags = os.O_WRONLY | os.O_APPEND
+        if hasattr(os, "O_NOFOLLOW"):
+            flags |= os.O_NOFOLLOW
+        descriptor = os.open(self.path, flags)
+        with os.fdopen(descriptor, "a", encoding="utf-8", errors="backslashreplace") as handle:
+            handle.write(json.dumps(payload, ensure_ascii=True, sort_keys=True) + "\n")
+
+
+class OpenAIChatClient:
+    """Minimal OpenAI-compatible tool-calling client with deterministic mocks."""
+
+    def __init__(self, model_profile: str, timeout: float, temperature: float):
+        self.timeout = timeout
+        self.temperature = temperature
+        self.mock_responses = self._load_mock_responses()
+        if self.mock_responses:
+            self.model = "mock-localization"
+            self.url = ""
+            self.headers: dict[str, str] = {}
+            return
+        profile = load_model_profile(model_profile)
+        provider = str(profile.get("provider", "openai")).lower()
+        if provider not in {"openai", "deepseek-openai"}:
+            raise ScriptError(f"semantic-search localization requires an OpenAI-compatible profile, got {provider!r}")
+        self.model = str(profile.get("model_id", "")).strip()
+        if not self.model:
+            raise ScriptError("localization model profile does not define model_id")
+        base_url = str(profile.get("base_url", "")).strip()
+        if not base_url:
+            base_url = "https://api.openai.com/v1" if provider == "openai" else "https://api.deepseek.com"
+        self.url = base_url.rstrip("/")
+        if not self.url.endswith("/chat/completions"):
+            self.url += "/chat/completions"
+        if urllib.parse.urlparse(self.url).scheme not in {"http", "https"}:
+            raise ScriptError(f"localization model profile uses an unsupported URL scheme: {self.url}")
+        api_key = resolve_env_templates_simple(str(profile.get("api_key", "")), location="model profile api_key")
+        self.headers = {"Content-Type": "application/json", "Accept": "application/json"}
+        if api_key:
+            self.headers["Authorization"] = f"Bearer {api_key}"
+        self.headers.update(load_profile_headers(profile))
+
+    @staticmethod
+    def _load_mock_responses() -> list[dict[str, Any]]:
+        raw = os.environ.get("SEMANTIC_SEARCH_LOCALIZATION_MOCK_RESPONSES", "").strip()
+        if not raw:
+            single = os.environ.get("SEMANTIC_SEARCH_LOCALIZATION_MOCK_RESPONSE", "").strip()
+            if single:
+                return [{"role": "assistant", "content": single}]
+            return []
+        try:
+            payload = json.loads(raw)
+        except ValueError as err:
+            raise ScriptError(f"invalid localization mock responses JSON: {err}") from err
+        if isinstance(payload, dict):
+            payload = payload.get("responses", [payload])
+        if not isinstance(payload, list) or not all(isinstance(item, dict) for item in payload):
+            raise ScriptError("localization mock responses must be a JSON array of assistant messages")
+        return list(payload)
+
+    def complete(
+        self,
+        messages: list[dict[str, Any]],
+        *,
+        tools: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        if self.mock_responses:
+            return self._normalize_message(self.mock_responses.pop(0))
+        if self.model == "mock-localization":
+            raise ScriptError("localization mock response sequence was exhausted")
+        payload: dict[str, Any] = {
+            "model": self.model,
+            "messages": messages,
+            "temperature": self.temperature,
+        }
+        if tools:
+            payload.update({"tools": tools, "tool_choice": "auto"})
+        max_tokens = os.environ.get("SEMANTIC_SEARCH_LOCALIZATION_MAX_TOKENS", "").strip()
+        if max_tokens:
+            payload["max_tokens"] = int(max_tokens)
+        body = json.dumps(payload, ensure_ascii=True).encode("utf-8")
+        request = urllib.request.Request(self.url, data=body, headers=self.headers, method="POST")
+        try:
+            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                response_bytes = response.read(_MAX_HTTP_RESPONSE_BYTES + 1)
+                if len(response_bytes) > _MAX_HTTP_RESPONSE_BYTES:
+                    raise ScriptError("localization LLM response exceeds 8 MiB")
+                raw = response_bytes.decode("utf-8", errors="replace")
+        except urllib.error.HTTPError as err:
+            detail = err.read(1201).decode("utf-8", errors="replace")[:1200]
+            raise ScriptError(f"localization LLM HTTP {err.code}: {detail}") from err
+        except urllib.error.URLError as err:
+            raise ScriptError(f"localization LLM request failed: {err.reason}") from err
+        except TimeoutError as err:
+            raise ScriptError(f"localization LLM timed out after {self.timeout:g}s") from err
+        try:
+            data = json.loads(raw)
+            choices = data.get("choices", [])
+            message = choices[0].get("message", {})
+        except (ValueError, IndexError, AttributeError) as err:
+            raise ScriptError(f"invalid localization LLM response: {raw[:1200]}") from err
+        return self._normalize_message(message)
+
+    @staticmethod
+    def _normalize_message(raw: dict[str, Any]) -> dict[str, Any]:
+        if isinstance(raw.get("message"), dict):
+            raw = raw["message"]
+        message: dict[str, Any] = {"role": "assistant", "content": raw.get("content")}
+        tool_calls = []
+        for position, item in enumerate(raw.get("tool_calls") or []):
+            function = item.get("function", {}) if isinstance(item, dict) else {}
+            arguments = function.get("arguments", "{}")
+            if isinstance(arguments, dict):
+                arguments = json.dumps(arguments, ensure_ascii=False)
+            tool_calls.append(
+                {
+                    "id": str(item.get("id") or f"mock-call-{position + 1}"),
+                    "type": "function",
+                    "function": {"name": str(function.get("name", "")), "arguments": str(arguments)},
+                }
+            )
+        if tool_calls:
+            message["tool_calls"] = tool_calls
+        return message
+
+
+class LocalizationAgent:
+    def __init__(
+        self,
+        graph: LocalizationGraph,
+        tools: LocalizationTools,
+        client: OpenAIChatClient,
+        trace: TraceWriter,
+        *,
+        max_iterations: int = 20,
+        min_tool_calls: int = 2,
+    ):
+        self.graph = graph
+        self.tools = tools
+        self.client = client
+        self.trace = trace
+        self.max_iterations = max(max_iterations, 1)
+        self.min_tool_calls = max(min_tool_calls, 1)
+
+    def run(self, requirement: str) -> AgentRunResult:
+        messages: list[dict[str, Any]] = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {
+                "role": "user",
+                "content": (
+                    f"Repository: {self.graph.repo.name}\n\nOriginal requirement:\n{requirement}\n\n"
+                    "Analyze the issue, identify entry points, and begin repository search."
+                ),
+            },
+        ]
+        observed: list[dict[str, Any]] = []
+        final_raw: list[dict[str, Any]] = []
+        tool_call_count = 0
+        no_tool_retries = 0
+        finished = False
+        iterations = 0
+        self.trace.write("agent-start", model=self.client.model, graph=self.graph.graph_summary())
+
+        for iteration in range(1, self.max_iterations + 1):
+            iterations = iteration
+            message = self._complete_with_retry(messages, tools=self.tools.definitions)
+            messages.append(message)
+            self.trace.write(
+                "assistant",
+                iteration=iteration,
+                content=str(message.get("content") or "")[:6000],
+                tool_call_count=len(message.get("tool_calls") or []),
+            )
+            tool_calls = message.get("tool_calls") or []
+            if not tool_calls:
+                parsed = parse_locations(message.get("content"))
+                if parsed and tool_call_count >= 1:
+                    final_raw = parsed
+                    break
+                if tool_call_count < self.min_tool_calls and no_tool_retries < 3:
+                    no_tool_retries += 1
+                    messages.append(
+                        {
+                            "role": "user",
+                            "content": (
+                                "Use the repository tools before concluding. Follow at least one entry point "
+                                "with DFS and check a propagation or validation path with BFS."
+                            ),
+                        }
+                    )
+                    self.trace.write("no-tool-nudge", iteration=iteration, retry=no_tool_retries)
+                    continue
+                break
+
+            no_tool_retries = 0
+            for tool_call in tool_calls:
+                function = tool_call.get("function", {})
+                name = str(function.get("name", ""))
+                raw_arguments = str(function.get("arguments", "{}"))
+                try:
+                    arguments = json.loads(raw_arguments)
+                    if not isinstance(arguments, dict):
+                        raise ValueError("arguments root is not an object")
+                except ValueError as err:
+                    arguments = {}
+                    result_text = f"Invalid tool arguments for {name}: {err}"
+                    result_locations: list[dict[str, Any]] = []
+                    result_finished = False
+                else:
+                    result = self.tools.execute(name, arguments)
+                    result_text = result.content
+                    result_locations = result.locations
+                    result_finished = result.finished
+                    if name == "finish_search" and tool_call_count < self.min_tool_calls:
+                        result_text = (
+                            "finish_search was requested too early. Use repository tools to complete DFS/BFS "
+                            "coverage before finishing."
+                        )
+                        result_finished = False
+                tool_call_count += 1
+                observed.extend(result_locations)
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": str(tool_call.get("id", "")),
+                        "content": result_text,
+                    }
+                )
+                self.trace.write("tool-call", iteration=iteration, name=name, arguments=arguments)
+                self.trace.write(
+                    "tool-result",
+                    iteration=iteration,
+                    name=name,
+                    content=result_text[:8000],
+                    candidate_count=len(result_locations),
+                )
+                if result_finished:
+                    finished = True
+            if finished:
+                break
+
+        if not final_raw:
+            messages.append({"role": "user", "content": FINAL_PROMPT})
+            final_message = self._complete_with_retry(messages, tools=None)
+            final_raw = parse_locations(final_message.get("content"))
+            self.trace.write("final-response", content=str(final_message.get("content") or "")[:12000])
+
+        normalized = normalize_locations(final_raw, self.graph, source="llm-search")
+        observed_files = {
+            str(item.get("file_path") or item.get("file") or "") for item in observed if isinstance(item, dict)
+        }
+        normalized = [item for item in normalized if item["file_path"] in observed_files]
+        if not normalized:
+            normalized = normalize_locations(stable_unique(observed), self.graph, source="tool-observation")
+        self.trace.write(
+            "agent-complete",
+            location_count=len(normalized),
+            tool_call_count=tool_call_count,
+            iteration_count=iterations,
+            finished=finished,
+        )
+        return AgentRunResult(
+            locations=normalized,
+            observed_candidates=stable_unique(observed),
+            tool_call_count=tool_call_count,
+            iteration_count=iterations,
+            model=self.client.model,
+            finished=finished,
+        )
+
+    def _complete_with_retry(
+        self, messages: list[dict[str, Any]], *, tools: list[dict[str, Any]] | None
+    ) -> dict[str, Any]:
+        last_error: ScriptError | None = None
+        for attempt in range(1, 4):
+            try:
+                return self.client.complete(messages, tools=tools)
+            except ScriptError as err:
+                last_error = err
+                self.trace.write("llm-error", attempt=attempt, error=str(err))
+                if attempt < 3 and self.client.model != "mock-localization":
+                    time.sleep(attempt)
+        raise last_error or ScriptError("localization LLM failed")
 
 
 def parse_locations(value: Any) -> list[dict[str, Any]]:

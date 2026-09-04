@@ -171,7 +171,10 @@ ignore = [
 "src/chrys/app/tui/terminal/shell_read.py" = ["T20"]
 # The semantic-search skill scripts are stand-alone CLIs run as subprocesses:
 # their stdout IS their contract, so print() is the interface, not a leak.
-"src/chrys/service/semantic_search/skill/scripts/*" = ["T20", "PERF"]
+# Vendored standalone CLI scripts with their own conventions: print-based
+# output, urllib against a configured base URL, sha1 as a content hash,
+# subprocess with code-owned arguments. Rules that presume library code.
+"src/chrys/service/semantic_search/skill/scripts/*" = ["T20", "PERF", "S310", "S324", "S603", "B904", "C401", "FURB", "PIE", "ISC", "SIM"]
 # Buddy sprites/types — ASCII art intentionally uses special characters
 "src/chrys/app/features/buddy/sprites.py" = ["RUF001", "RUF003"]
 "src/chrys/app/features/buddy/types.py" = ["RUF003"]

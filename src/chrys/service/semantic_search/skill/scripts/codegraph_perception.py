@@ -1,4 +1,5 @@
-#!/usr/bin/env python3
+# Copyright (c) 2026 Chrys. All rights reserved.
+
 """Collect optional CodeGraph-backed repository perception for semantic-search."""
 
 from __future__ import annotations
@@ -6,9 +7,9 @@ from __future__ import annotations
 import argparse
 import hashlib
 import os
+import re
 import shlex
 import shutil
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -26,12 +27,17 @@ from _common import (
     path_tokens,
     read_text,
     reject_benchmark_answer_path,
+    resolve_output_path,
     resolve_path,
+    run_process_bounded,
     sha1_path,
     stable_unique,
     tokenize,
     write_json,
+    write_text,
 )
+
+from chrys.foundation.platform import get_platform
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -52,9 +58,15 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         choices=("auto", "never", "force"),
         default=os.environ.get("SEMANTIC_SEARCH_CODEGRAPH_INSTALL", "never"),
         help=(
-            "Install CodeGraph when no CLI is available. Any value but 'never' downloads and runs a "
-            "third-party installer, so it also requires a pinned --codegraph-install-sha256."
+            "Install CodeGraph into the current Python environment when no CLI is available. Off by default: "
+            "installing means executing a downloaded third-party installer, so it also requires a pinned "
+            "--codegraph-install-sha256."
         ),
+    )
+    parser.add_argument(
+        "--codegraph-install-sha256",
+        default=os.environ.get("SEMANTIC_SEARCH_CODEGRAPH_INSTALL_SHA256", ""),
+        help="Required SHA-256 of the installer script when installation is enabled; a mismatch refuses to run it.",
     )
     parser.add_argument(
         "--codegraph-install-url",
@@ -68,11 +80,6 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
             "https://raw.githubusercontent.com/colbymchenry/codegraph/main/install.sh",
         ),
         help="Official CodeGraph installer script URL.",
-    )
-    parser.add_argument(
-        "--codegraph-install-sha256",
-        default=os.environ.get("SEMANTIC_SEARCH_CODEGRAPH_INSTALL_SHA256", ""),
-        help="SHA-256 of the installer script. Required to install: an unpinned script is refused.",
     )
     parser.add_argument(
         "--codegraph-version",
@@ -96,7 +103,7 @@ def load_inputs(args: argparse.Namespace) -> tuple[Path, Path, Path, Path, Path,
     repo = resolve_path(args.repo)
     if not repo.is_dir():
         raise ScriptError(f"repo path does not exist: {repo}")
-    out = resolve_path(args.out)
+    out = resolve_output_path(args.out)
     artifact_dir = resolve_path(args.artifact_dir or out.parent)
     requirement = ensure_allowed_path(
         args.requirement,
@@ -107,7 +114,7 @@ def load_inputs(args: argparse.Namespace) -> tuple[Path, Path, Path, Path, Path,
     reject_benchmark_answer_path(requirement, purpose="requirement")
     index_path = ensure_allowed_path(args.index, allowed_roots=[repo, artifact_dir], purpose="index")
     out = ensure_allowed_path(out, allowed_roots=[repo, artifact_dir, out.parent], purpose="output")
-    markdown = resolve_path(args.markdown or out.with_suffix(".md"))
+    markdown = resolve_output_path(args.markdown or out.with_suffix(".md"))
     markdown = ensure_allowed_path(
         markdown, allowed_roots=[repo, artifact_dir, markdown.parent], purpose="markdown-output"
     )
@@ -136,14 +143,8 @@ def command_available(tokens: list[str]) -> bool:
 
 
 def current_python_tool_dirs() -> tuple[Path, Path]:
-    executable = Path(os.path.abspath(sys.executable))
-    if executable.parent.name == "bin":
-        bin_dir = executable.parent
-        install_dir = executable.parent.parent / "codegraph"
-    else:
-        bin_dir = executable.parent
-        install_dir = executable.parent / "codegraph"
-    return install_dir, bin_dir
+    tool_root = get_platform().data_dir / "semantic-search-tools" / "codegraph"
+    return tool_root / "install", tool_root / "bin"
 
 
 def chrys_root() -> Path:
@@ -154,7 +155,7 @@ def codegraph_download_dir() -> Path:
     override = os.environ.get("SEMANTIC_SEARCH_CODEGRAPH_DOWNLOAD_DIR", "").strip()
     if override:
         return resolve_path(override)
-    return chrys_root() / ".semantic-search-tools" / "codegraph" / "downloads"
+    return get_platform().data_dir / "semantic-search-tools" / "codegraph" / "downloads"
 
 
 def resolve_codegraph_command(args: argparse.Namespace, artifact_dir: Path) -> tuple[list[str], dict[str, Any]]:
@@ -206,7 +207,6 @@ def resolve_codegraph_command(args: argparse.Namespace, artifact_dir: Path) -> t
             install_script_url=args.codegraph_install_script_url,
             install_script_sha256=args.codegraph_install_sha256,
             version=args.codegraph_version,
-            timeout=args.timeout,
         )
         resolution["attempts"].append(install_result)
         if env_candidate.is_file() and os.access(env_candidate, os.X_OK):
@@ -230,17 +230,7 @@ def install_codegraph_bundle(
     install_script_url: str,
     install_script_sha256: str,
     version: str,
-    timeout: float,
 ) -> dict[str, Any]:
-    """Download, verify, and run the official CodeGraph installer.
-
-    The script is fetched to a file and checked against a caller-supplied
-    SHA-256 before anything executes it. Piping a remote URL straight into a
-    shell would make whoever controls that branch -- or whoever can set
-    ``SEMANTIC_SEARCH_CODEGRAPH_INSTALL_SCRIPT_URL`` -- an arbitrary-code-
-    execution vector, which is exactly what this repository's pinning rule
-    exists to prevent, so an unpinned install is refused outright.
-    """
     result: dict[str, Any] = {
         "method": "official-install-script",
         "repo_url": repo_url,
@@ -252,12 +242,6 @@ def install_codegraph_bundle(
         "ok": False,
     }
     try:
-        expected_digest = install_script_sha256.strip().lower()
-        if not expected_digest:
-            raise ScriptError(
-                "refusing to run the CodeGraph installer without --codegraph-install-sha256: "
-                "pin the script's digest, or install CodeGraph yourself and pass --codegraph-cmd"
-            )
         curl = shutil.which("curl") or "/usr/bin/curl"
         shell = shutil.which("sh") or "/usr/bin/sh"
         if not Path(curl).exists() and "/" in curl:
@@ -269,24 +253,6 @@ def install_codegraph_bundle(
         tmp_dir.mkdir(parents=True, exist_ok=True)
         bin_dir.mkdir(parents=True, exist_ok=True)
         install_dir.mkdir(parents=True, exist_ok=True)
-        script_path = download_dir / "codegraph-install.sh"
-        fetch = subprocess.run(  # noqa: S603 — argv is a list built from validated inputs
-            [curl, "-fsSL", "-o", str(script_path), install_script_url],
-            text=True,
-            capture_output=True,
-            check=False,
-            stdin=subprocess.DEVNULL,
-            timeout=timeout,
-        )
-        if fetch.returncode != 0:
-            raise ScriptError(
-                f"could not download the CodeGraph installer (rc={fetch.returncode}): "
-                f"{(fetch.stderr or '').strip()[:500]}"
-            )
-        actual_digest = hashlib.sha256(script_path.read_bytes()).hexdigest()
-        result["install_script_sha256"] = actual_digest
-        if actual_digest != expected_digest:
-            raise ScriptError(f"CodeGraph installer digest mismatch: expected {expected_digest}, got {actual_digest}")
         env = os.environ.copy()
         env.update(
             {
@@ -297,37 +263,58 @@ def install_codegraph_bundle(
         )
         if version:
             env["CODEGRAPH_VERSION"] = normalize_version(version)
+        # Never `curl | sh`: download to a file, check it against the pin the
+        # caller supplied, and only then execute it. An unpinned install is
+        # refused rather than trusted, because the alternative is running
+        # whatever the network handed us with this user's privileges.
+        if not re.fullmatch(r"[0-9a-fA-F]{64}", install_script_sha256 or ""):
+            raise ScriptError(
+                "refusing to run the CodeGraph installer without --codegraph-install-sha256: "
+                "a downloaded third-party script must be pinned before it is executed"
+            )
+        script_path = tmp_dir / "codegraph-install.sh"
+        fetch = [curl, "-fsSL", "--max-time", "120", "-o", str(script_path), install_script_url]
+        returncode, stdout, stderr, timed_out = run_process_bounded(
+            fetch, cwd=download_dir, timeout=180.0, max_chars=4000, env=env
+        )
+        if timed_out or returncode != 0 or not script_path.is_file():
+            raise ScriptError(
+                f"CodeGraph installer download failed ({'timeout' if timed_out else returncode}): {stderr}"
+            )
+        actual = hashlib.sha256(script_path.read_bytes()).hexdigest()
+        if actual.lower() != install_script_sha256.lower():
+            raise ScriptError(
+                f"CodeGraph installer sha256 mismatch: expected {install_script_sha256.lower()}, got {actual}"
+            )
         cmd = [shell, str(script_path)]
-        proc = subprocess.run(  # noqa: S603 — argv is a list built from validated inputs
+        returncode, stdout, stderr, timed_out = run_process_bounded(
             cmd,
-            text=True,
-            capture_output=True,
-            check=False,
+            cwd=download_dir,
+            timeout=float(os.environ.get("SEMANTIC_SEARCH_CODEGRAPH_INSTALL_TIMEOUT", "300")),
+            max_chars=4000,
             env=env,
-            stdin=subprocess.DEVNULL,
-            timeout=timeout,
         )
         result.update(
             {
                 "argv": cmd,
-                "returncode": proc.returncode,
-                "stdout": (proc.stdout or "")[:4000],
-                "stderr": (proc.stderr or "")[:4000],
+                "returncode": 124 if timed_out else returncode,
+                "stdout": stdout,
+                "stderr": stderr,
                 "tmp_dir": str(tmp_dir),
             }
         )
         launcher = bin_dir / "codegraph"
-        if proc.returncode != 0:
+        if timed_out or returncode != 0:
             raise ScriptError(
-                f"official CodeGraph installer failed with rc={proc.returncode}: "
-                f"{(proc.stderr or proc.stdout or '').strip()[:500]}"
+                f"official CodeGraph installer failed with rc={124 if timed_out else returncode}: "
+                f"{(stderr or stdout).strip()[:500]}"
             )
         if not launcher.is_file() and not launcher.is_symlink():
             raise ScriptError(f"official CodeGraph installer did not create {launcher}")
         launcher.chmod(launcher.stat().st_mode | 0o111)
         result.update({"ok": True, "launcher": str(launcher)})
         return result
-    except (OSError, subprocess.SubprocessError, ScriptError) as err:
+    except Exception as err:
         result.update({"ok": False, "error": str(err)})
         return result
 
@@ -342,34 +329,23 @@ def normalize_version(value: str) -> str:
 def run_command(base: list[str], extra: list[str], *, cwd: Path, timeout: float, max_chars: int) -> dict[str, Any]:
     argv = [*base, *extra]
     try:
-        proc = subprocess.run(  # noqa: S603 — argv is a list built from validated inputs
+        returncode, stdout, stderr, timed_out = run_process_bounded(
             argv,
-            cwd=str(cwd),
-            text=True,
-            capture_output=True,
+            cwd=cwd,
             timeout=timeout,
-            check=False,
-            stdin=subprocess.DEVNULL,
+            max_chars=max_chars,
         )
-        stdout = (proc.stdout or "")[:max_chars]
-        stderr = (proc.stderr or "")[:max_chars]
+        if timed_out:
+            stderr = f"CodeGraph command timed out after {timeout}s"
         return {
             "argv": argv,
-            "returncode": proc.returncode,
-            "ok": proc.returncode == 0,
+            "returncode": 124 if timed_out else returncode,
+            "ok": not timed_out and returncode == 0,
             "stdout": stdout,
             "stderr": stderr,
         }
     except FileNotFoundError as err:
         return {"argv": argv, "returncode": 127, "ok": False, "stdout": "", "stderr": str(err)}
-    except subprocess.TimeoutExpired as err:
-        return {
-            "argv": argv,
-            "returncode": 124,
-            "ok": False,
-            "stdout": (err.stdout or "")[:max_chars] if isinstance(err.stdout, str) else "",
-            "stderr": f"CodeGraph command timed out after {timeout}s",
-        }
 
 
 def extract_requirement_terms(text: str) -> list[str]:
@@ -573,7 +549,7 @@ def relationship_success_count(item: dict[str, Any]) -> int:
 def write_outputs(out: Path, markdown: Path, payload: dict[str, Any]) -> None:
     write_json(out, payload)
     markdown.parent.mkdir(parents=True, exist_ok=True)
-    markdown.write_text(render_markdown(payload), encoding="utf-8")
+    write_text(markdown, render_markdown(payload))
 
 
 def render_markdown(payload: dict[str, Any]) -> str:

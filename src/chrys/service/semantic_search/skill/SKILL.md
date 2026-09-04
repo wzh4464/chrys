@@ -36,12 +36,22 @@ The public workflow has three phases: build repository perception, localize code
    - The report ranks primary, propagation, and validation locations and records why each location matched.
    - Verify every location with Chrys source tools before editing.
 
-3. **Use the localization report**
-   - Read `.semantic-search/code-localization.md`.
-   - Treat every location as an inspection candidate, not an edit mandate: verify it with
-     normal Chrys source tools before changing anything.
-   - If the report looks wrong or thin, prefer the original requirement plus direct
-     repository evidence over the ranked list.
+3. **Generate the Augmented Requirement**
+   - Use `scripts/augment_requirement.py`.
+   - Pass `--localization /abs/workspace/.semantic-search/code-localization.json`.
+   - The localization mode generates one compact `.semantic-search/augmented-requirement.md`; it keeps the original requirement and adds ranked locations, scope, and validation guidance.
+   - In `auto` mode, the active Chrys model may rewrite the task brief from the original requirement and localization evidence. Fallback mode remains deterministic.
+   - It emits `.semantic-search/augmented-requirement.md`.
+   - It also writes `augmentation/code-localization.md` and `augmentation_routes.json` for traceability.
+
+4. **Implement from the Augmented Requirement**
+   - Read `augmented-requirement.md` and the linked localization report.
+   - Treat the embedded Original Requirement as canonical when generated guidance conflicts with it.
+   - Verify primary and propagation locations with normal Chrys source tools before editing.
+   - Use Chrys native tools for edits, tests, and patch generation.
+   - Keep `.semantic-search/` artifacts out of the final patch.
+   - Verify claims with normal Chrys source inspection and tests.
+   - If augmentation appears to expand the task or imply a broad rewrite, fall back to the Original Requirement plus direct repository evidence.
 
 ## Script Examples
 
@@ -64,6 +74,21 @@ run_skill_script(
 ```
 
 Generate the Augmented Requirement:
+
+```text
+run_skill_script(
+  skill_name="semantic-search",
+  script_name="scripts/augment_requirement.py",
+  arguments=[
+    "--requirement", "/abs/run/PROMPT.md",
+    "--facts", "/abs/workspace/.semantic-search/code-facts.json",
+    "--localization", "/abs/workspace/.semantic-search/code-localization.json",
+    "--out", "/abs/workspace/.semantic-search/augmented-requirement.md",
+    "--augmentation-dir", "/abs/workspace/.semantic-search/augmentation",
+    "--artifact-dir", "/abs/workspace/.semantic-search"
+  ]
+)
+```
 
 ## Artifact Layout
 
@@ -110,10 +135,3 @@ Generate the Augmented Requirement:
 - `Do Not Do` and `Validation` sections are first-class scope controls; use them to avoid broad patches, avoid incomplete tiny patches, and preserve pass-to-pass behavior.
 - If augmentation conflicts with the original requirement, treat that as an augmentation defect and re-check the original requirement plus repository evidence before acting.
 - Candidate implementation surfaces and code details are inspection hints. They are not permission to edit every listed file.
-
-## Not part of this skill
-
-`augment_requirement.py` and `analyze_augmented_run.py` are offline experiment
-tooling and live under `evaluation/semantic_search/`. They open their own model
-connection, which shipped skill scripts must never do: every model call Chrys makes
-goes through its own client so the model lock and usage accounting apply.

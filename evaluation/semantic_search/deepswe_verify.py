@@ -22,18 +22,28 @@ from typing import Any
 
 
 def _run(command: list[str], *, timeout: float) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(command, capture_output=True, text=True, check=False, timeout=timeout)  # noqa: S603
+    return subprocess.run(  # noqa: S603
+        command,
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=timeout,
+    )
 
 
-def _manifest_tasks(dataset: Path, limit: int, offset: int) -> list[dict[str, Any]]:
+def _manifest_tasks(dataset: Path, limit: int, offset: int, *, order: str) -> list[dict[str, Any]]:
     tasks_root = dataset / "tasks" if (dataset / "tasks" / "manifest.json").is_file() else dataset
     manifest_path = tasks_root / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     tasks = manifest.get("tasks", [])
     if not isinstance(tasks, list):
         raise ValueError(f"DeepSWE manifest has no tasks list: {manifest_path}")
+    ordered = [item for item in tasks if isinstance(item, dict)]
+    if order == "alphabetical":
+        ordered.sort(key=lambda item: str(item.get("task_id", "")))
     start = max(offset, 0)
-    selected = [item for item in tasks if isinstance(item, dict)][start : start + max(limit, 0)]
+    selected = ordered[start : start + max(limit, 0)]
     return [{**item, "task_dir": str(tasks_root / str(item.get("task_id", "")))} for item in selected]
 
 
@@ -100,13 +110,7 @@ def _verify_task(
     reward_path = attempt / "verifier" / "reward.json"
     reward: dict[str, Any] = {}
     if reward_path.is_file():
-        try:
-            loaded = json.loads(reward_path.read_text(encoding="utf-8"))
-        except OSError, ValueError:
-            # A verifier killed mid-write leaves a truncated reward file. That
-            # is a verifier failure for this task, not a reason to abandon the
-            # rest of the run -- the empty reward below reports it as one.
-            loaded = None
+        loaded = json.loads(reward_path.read_text(encoding="utf-8"))
         reward = loaded if isinstance(loaded, dict) else {}
     resolved = reward.get("reward") == 1 or reward.get("reward") == 1.0
     status = "resolved" if resolved else "unresolved"
@@ -139,6 +143,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--run-dir", required=True, help="Directory produced by deepswe_runner.py")
     parser.add_argument("--limit", type=int, default=20)
     parser.add_argument("--offset", type=int, default=0)
+    parser.add_argument("--order", choices=("manifest", "alphabetical"), default="manifest")
     parser.add_argument("--docker", default="docker")
     parser.add_argument("--build-timeout", type=float, default=3_600.0)
     parser.add_argument("--verify-timeout", type=float, default=1_800.0)
@@ -151,7 +156,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     dataset = Path(args.dataset).expanduser().resolve()
     run_dir = Path(args.run_dir).expanduser().resolve()
-    tasks = _manifest_tasks(dataset, args.limit, args.offset)
+    tasks = _manifest_tasks(dataset, args.limit, args.offset, order=args.order)
     records: list[dict[str, Any]] = []
     for task in tasks:
         task_id = str(task.get("task_id", ""))

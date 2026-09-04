@@ -11,7 +11,7 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
-from chrys.foundation.platform.files import atomic_write_owner_only_text
+from chrys.foundation.platform.files import atomic_write_owner_only_text, surrogate_safe_text
 from chrys.foundation.trajectory.keys import ensure_owner_only_directory
 from chrys.service.requirement_clarification.types import ClarificationResult
 
@@ -40,8 +40,17 @@ class IncompleteWorkflowArtifacts:
 class ClarificationArtifactStore:
     """Persist private proposals separately from model-visible session history."""
 
-    def __init__(self, session_dir: Path, turn_number: int) -> None:
-        self.root = session_dir / REQUIREMENT_CLARIFICATION_ARTIFACT_DIR / f"turn_{turn_number}"
+    def __init__(
+        self,
+        session_dir: Path,
+        turn_number: int,
+        *,
+        artifact_dir_name: str = REQUIREMENT_CLARIFICATION_ARTIFACT_DIR,
+        artifact_subdir: str = "",
+    ) -> None:
+        self.root = session_dir / artifact_dir_name / f"turn_{turn_number}"
+        if artifact_subdir:
+            self.root /= artifact_subdir
         ensure_owner_only_directory(self.root)
 
     def _save_json(self, relative_path: Path, payload: dict[str, object]) -> None:
@@ -49,13 +58,13 @@ class ClarificationArtifactStore:
         ensure_owner_only_directory(path.parent)
         atomic_write_owner_only_text(
             path,
-            json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            json.dumps(payload, ensure_ascii=True, indent=2, sort_keys=True) + "\n",
         )
 
     def _save_text(self, relative_path: Path, payload: str) -> None:
         path = self.root / relative_path
         ensure_owner_only_directory(path.parent)
-        atomic_write_owner_only_text(path, payload)
+        atomic_write_owner_only_text(path, surrogate_safe_text(payload))
 
     def save_snapshot_metadata(self, payload: dict[str, object]) -> None:
         """Persist stable metadata for transient S0/P0 recovery snapshots."""
@@ -113,7 +122,7 @@ class ClarificationArtifactStore:
         }
         atomic_write_owner_only_text(
             self.root / "clarification.private.json",
-            json.dumps(private, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            json.dumps(private, ensure_ascii=True, indent=2, sort_keys=True) + "\n",
         )
         proposals_dir = Path(CLARIFICATION_PHASE_DIR) / "candidates"
         # File each candidate under the proposer that produced it. Numbering by
@@ -208,7 +217,7 @@ class ClarificationArtifactStore:
     def save_initial_transcript(self, payload: dict[str, object]) -> None:
         atomic_write_owner_only_text(
             self.root / "initial_implementation.private.json",
-            json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            json.dumps(payload, ensure_ascii=True, indent=2, sort_keys=True) + "\n",
         )
         self._save_json(
             Path(INITIAL_TRIAL_PHASE_DIR) / "transcript.private.json",
@@ -252,6 +261,11 @@ class ClarificationArtifactStore:
             },
         )
 
+    @property
+    def pact_input_dir(self) -> Path:
+        """Where the accepted Goal Contract and Initial Plan land."""
+        return self.root / PACT_INPUT_PHASE_DIR
+
     def save_pact_generation(self, result: ClarificationResult) -> None:
         """Persist optional PACT inputs without changing the repair artifact contract."""
         metadata: dict[str, object] = {
@@ -284,7 +298,7 @@ class ClarificationArtifactStore:
         goal_payload = (
             json.dumps(
                 result.pact_input.goal_contract.model_dump(mode="json", by_alias=True),
-                ensure_ascii=False,
+                ensure_ascii=True,
                 indent=2,
             )
             + "\n"
@@ -292,7 +306,7 @@ class ClarificationArtifactStore:
         plan_payload = (
             json.dumps(
                 result.pact_input.initial_plan.model_dump(mode="json", by_alias=True),
-                ensure_ascii=False,
+                ensure_ascii=True,
                 indent=2,
             )
             + "\n"
@@ -312,14 +326,14 @@ class ClarificationArtifactStore:
         """Persist H0 privately for phase recovery without model exposure."""
         atomic_write_owner_only_text(
             self.root / "h0.private.json",
-            json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            json.dumps(payload, ensure_ascii=True, indent=2, sort_keys=True) + "\n",
         )
 
     def save_workflow_record(self, payload: dict[str, object]) -> None:
         """Atomically replace the durable phase/revision recovery record."""
         atomic_write_owner_only_text(
             self.root / "workflow.json",
-            json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            json.dumps(payload, ensure_ascii=True, indent=2, sort_keys=True) + "\n",
         )
 
     def save_summary(
@@ -371,7 +385,7 @@ class ClarificationArtifactStore:
         )
         atomic_write_owner_only_text(
             self.root / "summary.json",
-            json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            json.dumps(summary, ensure_ascii=True, indent=2, sort_keys=True) + "\n",
         )
         self._save_json(
             Path(OUTCOME_PHASE_DIR) / "summary.json",
@@ -446,9 +460,14 @@ def _text_sha256(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8", errors="backslashreplace")).hexdigest()
 
 
-def prune_workflow_artifacts_after_turn(session_dir: Path, target_turn: int) -> None:
+def prune_workflow_artifacts_after_turn(
+    session_dir: Path,
+    target_turn: int,
+    *,
+    artifact_dir_name: str = REQUIREMENT_CLARIFICATION_ARTIFACT_DIR,
+) -> None:
     """Remove workflow artifacts belonging to turns discarded by rollback."""
-    root = session_dir / REQUIREMENT_CLARIFICATION_ARTIFACT_DIR
+    root = session_dir / artifact_dir_name
     if not root.is_dir() or root.is_symlink():
         return
     for path in root.iterdir():
@@ -511,5 +530,5 @@ def mark_workflow_recovered(artifacts: IncompleteWorkflowArtifacts, *, detail: s
     )
     atomic_write_owner_only_text(
         artifacts.root / "workflow.json",
-        json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        json.dumps(payload, ensure_ascii=True, indent=2, sort_keys=True) + "\n",
     )

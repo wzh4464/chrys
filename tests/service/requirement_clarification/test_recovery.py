@@ -18,6 +18,7 @@ from chrys.kernel import Message
 from chrys.service.requirement_clarification.artifacts import (
     ClarificationArtifactStore,
     latest_incomplete_workflow,
+    load_private_json,
 )
 from chrys.service.requirement_clarification.snapshot import WorkspaceSnapshotter
 from chrys.service.session.history import SessionHistoryManager
@@ -28,6 +29,24 @@ class _Executor:
     def __init__(self) -> None:
         self.history_state = {"messages": [], "compressed_msgs": [], "turn_counter": 0}
         self.service_session_id = "stale-provider-handle"
+
+
+def test_private_recovery_json_rejects_oversized_and_symlink_artifacts(tmp_path: Path) -> None:
+    oversized = tmp_path / "oversized.json"
+    with oversized.open("wb") as handle:
+        handle.truncate(128 * 1024 * 1024 + 1)
+    with pytest.raises(OSError, match="unsafe or oversized"):
+        load_private_json(oversized)
+
+    target = tmp_path / "target.json"
+    target.write_text("{}\n", encoding="utf-8")
+    link = tmp_path / "link.json"
+    try:
+        link.symlink_to(target)
+    except OSError:
+        pytest.skip("symlinks are unavailable")
+    with pytest.raises(OSError, match="unsafe or oversized"):
+        load_private_json(link)
 
 
 @pytest.mark.asyncio

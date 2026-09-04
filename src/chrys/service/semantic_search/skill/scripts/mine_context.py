@@ -1,4 +1,5 @@
-#!/usr/bin/env python3
+# Copyright (c) 2026 Chrys. All rights reserved.
+
 """Mine repository facts for semantic-search Augmented Requirement generation."""
 
 from __future__ import annotations

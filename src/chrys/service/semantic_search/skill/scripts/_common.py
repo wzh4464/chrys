@@ -1,4 +1,5 @@
-#!/usr/bin/env python3
+# Copyright (c) 2026 Chrys. All rights reserved.
+
 """Shared helpers for semantic-search requirement augmentation scripts."""
 
 from __future__ import annotations
@@ -7,7 +8,12 @@ import hashlib
 import json
 import os
 import re
+import signal
+import subprocess
+import sys
+import tempfile
 from collections.abc import Iterable
+from contextlib import suppress
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -161,6 +167,14 @@ def resolve_path(value: str | Path) -> Path:
     return Path(os.path.expandvars(os.path.expanduser(str(value)))).resolve()
 
 
+def resolve_output_path(value: str | Path) -> Path:
+    """Resolve an output parent while preserving the final path entry."""
+    path = Path(os.path.expandvars(os.path.expanduser(str(value))))
+    if not path.is_absolute():
+        path = Path.cwd() / path
+    return path.parent.resolve() / path.name
+
+
 def is_relative_to(path: Path, root: Path) -> bool:
     try:
         path.relative_to(root)
@@ -206,8 +220,69 @@ def read_text(path: Path, max_chars: int | None = None) -> str:
 
 
 def write_json(path: Path, payload: dict[str, Any]) -> None:
+    write_text(path, json.dumps(payload, indent=2, ensure_ascii=True, sort_keys=True) + "\n")
+
+
+def write_text(path: Path, text: str) -> None:
+    """Atomically replace one private artifact without following a target symlink."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
+    with suppress(OSError):
+        path.parent.chmod(0o700)
+    descriptor, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    temporary = Path(temporary_name)
+    try:
+        with suppress(OSError):
+            os.fchmod(descriptor, 0o600)
+        with os.fdopen(descriptor, "w", encoding="utf-8", errors="backslashreplace", newline="") as handle:
+            descriptor = -1
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    except BaseException:
+        if descriptor >= 0:
+            os.close(descriptor)
+        temporary.unlink(missing_ok=True)
+        raise
+
+
+def run_process_bounded(
+    argv: list[str],
+    *,
+    cwd: Path,
+    timeout: float,
+    max_chars: int,
+    env: dict[str, str] | None = None,
+) -> tuple[int, str, str, bool]:
+    """Run a command with bounded captured output and kill its POSIX process tree on timeout."""
+    start_new_session = sys.platform != "win32"
+    with tempfile.TemporaryFile() as stdout_file, tempfile.TemporaryFile() as stderr_file:
+        process = subprocess.Popen(
+            argv,
+            cwd=str(cwd),
+            stdin=subprocess.DEVNULL,
+            stdout=stdout_file,
+            stderr=stderr_file,
+            start_new_session=start_new_session,
+            env=env,
+        )
+        timed_out = False
+        try:
+            process.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            timed_out = True
+            if start_new_session:
+                with suppress(ProcessLookupError):
+                    os.killpg(process.pid, signal.SIGKILL)
+            else:
+                with suppress(ProcessLookupError):
+                    process.kill()
+            process.wait()
+        stdout_file.seek(0)
+        stderr_file.seek(0)
+        stdout = stdout_file.read(max_chars * 4).decode("utf-8", errors="replace")[:max_chars]
+        stderr = stderr_file.read(max_chars * 4).decode("utf-8", errors="replace")[:max_chars]
+    return process.returncode, stdout, stderr, timed_out
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -218,7 +293,7 @@ def load_json(path: Path) -> dict[str, Any]:
 
 
 def sha1_path(path: Path) -> str:
-    digest = hashlib.sha1()  # noqa: S324 — cache key, not a security primitive
+    digest = hashlib.sha1()
     try:
         with path.open("rb") as handle:
             for chunk in iter(lambda: handle.read(1024 * 1024), b""):
@@ -281,7 +356,7 @@ def classify_file(path: Path, relative: str) -> dict[str, Any]:
     if is_test:
         kind = "test"
     elif name in CONFIG_NAMES or suffix in CONFIG_SUFFIXES:
-        kind = "build" if name in {"Makefile", "CMakeLists.txt", "pom.xml"} or suffix == ".gradle" else "config"
+        kind = "build" if name in {"Makefile", "CMakeLists.txt", "pom.xml"} or suffix in {".gradle"} else "config"
     elif suffix in DOC_SUFFIXES or "doc" in lower_parts or "docs" in lower_parts:
         kind = "docs"
     elif parts and (set(parts) & BUILD_DIR_NAMES or lower_parts & {item.lower() for item in BUILD_DIR_NAMES}):
@@ -305,7 +380,11 @@ def is_test_path(relative: str) -> bool:
         bool(parts & TEST_PARTS)
         or "/test" in lowered
         or name.startswith("test_")
-        or name.endswith(("_test.py", "_test.rs", "test.java", "tests.java", "test.scala"))
+        or name.endswith("_test.py")
+        or name.endswith("_test.rs")
+        or name.endswith("test.java")
+        or name.endswith("tests.java")
+        or name.endswith("test.scala")
     )
 
 

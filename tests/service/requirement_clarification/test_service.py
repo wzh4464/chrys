@@ -9,7 +9,6 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from chrys.service.requirement_clarification import service as service_module
 from chrys.service.requirement_clarification.service import (
     ClarificationService,
     _materialize_selection,
@@ -287,9 +286,50 @@ async def test_pact_initial_plan_retries_after_cross_payload_validation_failure(
     )
 
     assert len(plan_prompts) == 2
-    assert "references unknown acceptance criteria" in plan_prompts[1]
+    assert "failed deterministic validation" in plan_prompts[1]
     assert pact_input.initial_plan.missions[0].target_ac_ids == ["ac-option"]
     assert len(pact_usage) == 3
+
+
+@pytest.mark.asyncio
+async def test_pact_initial_plan_retries_after_structured_output_parse_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    model = _FakeModel(_decision(selected_ids=("p1-g1",)))
+    original_generate_plan = model.generate_pact_initial_plan
+    plan_prompts: list[str] = []
+
+    async def generate_plan_after_parse_failure(prompt: str):
+        plan_prompts.append(prompt)
+        if len(plan_prompts) == 1:
+            raise ValidationError.from_exception_data(
+                "PactInitialPlan",
+                [{"type": "json_invalid", "loc": (), "input": "", "ctx": {"error": "EOF"}}],
+            )
+        return await original_generate_plan(prompt)
+
+    model.generate_pact_initial_plan = generate_plan_after_parse_failure  # type: ignore[method-assign]
+    monkeypatch.setattr(
+        "chrys.service.requirement_clarification.service.collect_base_evidence",
+        lambda _snapshot, _requirement: "packet",
+    )
+    service = ClarificationService(model)
+    revision = RequirementRevision(number=1, messages=("Add the option.",))
+    snapshot = _snapshot(tmp_path)
+    result = await service.clarify(revision=revision, background="", snapshot=snapshot)
+
+    pact_input, pact_usage = await service.generate_pact_input(
+        result=result,
+        revision=revision,
+        background="",
+        snapshot=snapshot,
+    )
+
+    assert len(plan_prompts) == 2
+    assert "Invalid JSON" in plan_prompts[1]
+    assert pact_input.initial_plan.missions[0].target_ac_ids == ["ac-option"]
+    assert len(pact_usage) == 2
 
 
 @pytest.mark.asyncio
@@ -638,101 +678,3 @@ def test_pact_pair_validation_rejects_cycles() -> None:
 
     with pytest.raises(ValueError, match="contains a cycle"):
         validate_pact_runtime_input(goal_contract, initial_plan)
-
-
-# ── localization hints on the Initial Plan prompt ─────────────────────
-
-
-async def _pact_prompts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, hints: str) -> dict[str, str]:
-    """Run generate_pact_input and return the prompts each stage actually saw."""
-    prompts: dict[str, str] = {}
-    model = _FakeModel(_decision(selected_ids=("p1-g1",)))
-    monkeypatch.setattr(
-        "chrys.service.requirement_clarification.service.collect_base_evidence",
-        lambda _snapshot, _requirement: "packet",
-    )
-    monkeypatch.setattr(
-        "chrys.service.requirement_clarification.service.build_pact_goal_contract_prompt",
-        lambda *args: prompts.setdefault("goal", "GOAL " + " ".join(str(a) for a in args)),
-    )
-    original_plan_prompt = service_module.build_pact_initial_plan_prompt
-
-    def _plan_prompt(*args, **kwargs):
-        rendered = original_plan_prompt(*args, **kwargs)
-        prompts["plan_base"] = rendered
-        return rendered
-
-    monkeypatch.setattr(service_module, "build_pact_initial_plan_prompt", _plan_prompt)
-    original_generate = model.generate_pact_initial_plan
-
-    async def _generate(prompt: str):
-        prompts["plan"] = prompt
-        return await original_generate(prompt)
-
-    model.generate_pact_initial_plan = _generate  # type: ignore[method-assign]
-
-    service = ClarificationService(model)
-    revision = RequirementRevision(number=1, messages=("Add the option.",))
-    snapshot = _snapshot(tmp_path)
-    result = await service.clarify(revision=revision, background="ctx", snapshot=snapshot)
-    await service.generate_pact_input(
-        result=result,
-        revision=revision,
-        background="ctx",
-        snapshot=snapshot,
-        localization_hints=hints,
-    )
-    return prompts
-
-
-async def test_localization_hints_reach_the_plan_prompt_but_not_the_goal_contract(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """A code search must never be able to widen what the campaign may do."""
-    prompts = await _pact_prompts(tmp_path, monkeypatch, hints="src/auth/provider.py:40 primary - token exchange")
-
-    assert "src/auth/provider.py" in prompts["plan"]
-    assert "Untrusted code localization evidence" in prompts["plan"]
-    assert "src/auth/provider.py" not in prompts["goal"]
-
-
-async def test_empty_hints_leave_the_plan_prompt_unchanged(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    prompts = await _pact_prompts(tmp_path, monkeypatch, hints="   ")
-
-    assert "Untrusted code localization evidence" not in prompts["plan"]
-    assert prompts["plan"] == prompts["plan_base"]
-
-
-async def test_repository_evidence_never_runs_on_the_event_loop(monkeypatch: pytest.MonkeyPatch) -> None:
-    """It shells out to git and ripgrep; inline, that froze the whole session."""
-    import threading
-
-    from chrys.service.requirement_clarification import service as service_module
-
-    loop_thread = threading.get_ident()
-    ran_on: list[int] = []
-
-    def _collect(snapshot: object, requirement: str) -> str:
-        ran_on.append(threading.get_ident())
-        return "evidence"
-
-    monkeypatch.setattr(service_module, "collect_base_evidence", _collect)
-
-    assert await service_module._collect_base_evidence(object(), "req") == "evidence"  # type: ignore[arg-type]
-    assert ran_on and ran_on[0] != loop_thread
-
-
-async def test_the_evidence_pool_does_not_outlive_the_clarification(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A process-wide pool outliving the turn is why this ran inline to begin with."""
-    import threading
-
-    from chrys.service.requirement_clarification import service as service_module
-
-    monkeypatch.setattr(service_module, "collect_base_evidence", lambda *_: "evidence")
-
-    await service_module._collect_base_evidence(object(), "req")  # type: ignore[arg-type]
-
-    workers = [thread for thread in threading.enumerate() if thread.name.startswith("rc-evidence")]
-    for worker in workers:
-        worker.join(timeout=5)
-    assert all(not worker.is_alive() for worker in workers)

@@ -329,6 +329,16 @@ class RequirementClarificationPhaseChanged(Event):
 
 
 @dataclass
+class RequirementEnrichmentPhaseChanged(Event):
+    """Lifecycle boundary for parallel clarification and localization."""
+
+    workflow_id: str = ""
+    phase: str = ""
+    revision: int = 1
+    terminal: bool = False
+
+
+@dataclass
 class PresentationAttemptAccepted(Event):
     """Commit provisional presentation segments from one accepted response attempt."""
 

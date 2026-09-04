@@ -7,7 +7,11 @@ from pathlib import Path
 import pytest
 
 from chrys.service.profiles.agents.loader import AgentProfileLoadError, load_profile_from_yaml
-from chrys.service.profiles.agents.schema import AgentProfile, RequirementClarificationConfig
+from chrys.service.profiles.agents.schema import (
+    AgentProfile,
+    RequirementClarificationConfig,
+    RequirementEnrichmentConfig,
+)
 from chrys.service.profiles.agents.serializer import profile_to_dict, save_profile
 
 
@@ -64,4 +68,27 @@ def test_acp_profile_cannot_enable_requirement_clarification(tmp_path: Path) -> 
     )
 
     with pytest.raises(AgentProfileLoadError, match="cannot enable requirement_clarification"):
+        load_profile_from_yaml(path)
+
+
+def test_requirement_enrichment_enabled_round_trip(tmp_path: Path) -> None:
+    profile = AgentProfile(
+        name="enriching",
+        requirement_enrichment=RequirementEnrichmentConfig(enabled=True),
+    )
+
+    restored = load_profile_from_yaml(save_profile(profile, target_dir=tmp_path))
+
+    assert profile_to_dict(profile)["requirement_enrichment"] == {"enabled": True}
+    assert restored.requirement_enrichment.enabled is True
+
+
+def test_acp_profile_cannot_enable_requirement_enrichment(tmp_path: Path) -> None:
+    path = tmp_path / "external.yaml"
+    path.write_text(
+        "name: external\nacp:\n  command: agent\nrequirement_enrichment:\n  enabled: true\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(AgentProfileLoadError, match="cannot enable requirement_enrichment"):
         load_profile_from_yaml(path)

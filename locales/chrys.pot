@@ -544,43 +544,43 @@ msgstr ""
 
 #. English: Agent profile not found: {name}
 #. chrys-meta={"fingerprint":"ec893f5d09a72a0bc5334e2a6bbd62d2fa0fcd1a41f9aa7b97e2bbafc304ab63","multiline":false,"placeholders":["name"]}
-#: src/chrys/orchestration/session_host.py:81
+#: src/chrys/orchestration/session_host.py:82
 msgid "session_host.agent_profile_not_found"
 msgstr ""
 
 #. English: Agent profile not found: {name}. Available profiles: {available}
 #. chrys-meta={"fingerprint":"e764c18ab99cf9f25dd0f63bd5760b0117b82136b71b952c9ea9ca8a56e12368","multiline":false,"placeholders":["available","name"]}
-#: src/chrys/orchestration/session_host.py:85
+#: src/chrys/orchestration/session_host.py:86
 msgid "session_host.agent_profile_not_found_with_available"
 msgstr ""
 
 #. English: Agent requested user input in headless mode: {detail}
 #. chrys-meta={"fingerprint":"dc6ab80f7040708ecb8cdea4985cc926f3695b4b65fa3ef01ce0ceaf962ecd60","multiline":true,"placeholders":["detail"]}
-#: src/chrys/orchestration/session_host.py:105
+#: src/chrys/orchestration/session_host.py:106
 msgid "session_host.headless_interaction_required"
 msgstr ""
 
 #. English: Agent run ended without a final response.
 #. chrys-meta={"fingerprint":"5ebeb2248b225f57851eb6d7be0459e013046a04926bcd78d3e078e9639aea91","multiline":false,"placeholders":[]}
-#: src/chrys/orchestration/session_host.py:101
+#: src/chrys/orchestration/session_host.py:102
 msgid "session_host.no_final_response"
 msgstr ""
 
 #. English: Session id '{session_id}' is ambiguous.
 #. chrys-meta={"fingerprint":"7a4b38c8e36f7b43409958f620a82031a04f677667fcbd35dbc80e38f1a414cd","multiline":false,"placeholders":["session_id"]}
-#: src/chrys/orchestration/session_host.py:97
+#: src/chrys/orchestration/session_host.py:98
 msgid "session_host.session_id_ambiguous"
 msgstr ""
 
 #. English: Session not found: {session_id}
 #. chrys-meta={"fingerprint":"c3a7566b3d85bc5ed180316d6403fed8891dfed28367b1af3225547506c72fc2","multiline":false,"placeholders":["session_id"]}
-#: src/chrys/orchestration/session_host.py:89
+#: src/chrys/orchestration/session_host.py:90
 msgid "session_host.session_not_found"
 msgstr ""
 
 #. English: Session not found: {session_id}. Recent sessions: {recent}
 #. chrys-meta={"fingerprint":"c6f535c1d40398747bd66b1b7e6837d061de9f2ad4d5e2a7dbb71f6971b11582","multiline":false,"placeholders":["recent","session_id"]}
-#: src/chrys/orchestration/session_host.py:93
+#: src/chrys/orchestration/session_host.py:94
 msgid "session_host.session_not_found_with_recent"
 msgstr ""
 

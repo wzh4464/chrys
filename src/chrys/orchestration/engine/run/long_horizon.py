@@ -31,7 +31,6 @@ from chrys.kernel.exchanges import (
 )
 from chrys.orchestration.engine.run.workflow_extensions import RepairOutcome
 from chrys.service.llm.json_extract import json_object_candidates, repair_json_object_candidate
-from chrys.service.profiles.models.registry import ModelProfileRegistry
 from chrys.service.routing.delegation import (
     PactRunRequest,
     augment_delta_with_locations,
@@ -40,8 +39,7 @@ from chrys.service.routing.delegation import (
     localization_hints,
     materialize_pact_request,
 )
-from chrys.service.semantic_search import SemanticSearchConfig, SemanticSearchMode, localize_requirement
-from chrys.service.semantic_search.localization_model import resolve_localization_model_profile
+from chrys.service.semantic_search import SemanticSearchConfig, SemanticSearchMode, localize_requirement_async
 
 if TYPE_CHECKING:
     from chrys.service.requirement_clarification.snapshot import WorkspaceSnapshot
@@ -395,11 +393,6 @@ class LongHorizonExtensions:
     # -- internals -----------------------------------------------------
 
     async def _localize(self, revision: RequirementRevision, s0: WorkspaceSnapshot) -> None:
-        host = self._host
-        model_profile = self._localization_profile()
-        if model_profile is None:
-            await self._degrade("no model profile for code localization")
-            return
         artifact_dir = self._artifact_dir()
         if artifact_dir is None:
             await self._degrade("no session directory for localization artifacts")
@@ -409,17 +402,18 @@ class LongHorizonExtensions:
             await self._degrade("the frozen workspace view is unavailable")
             return
         try:
-            result = await asyncio.to_thread(
-                localize_requirement,
+            # The search is the semantic-search skill's own pipeline, in a
+            # subprocess with the model profile named by setting or by the
+            # session's active model; it resolves the profile file itself.
+            result = await localize_requirement_async(
                 view_root,
                 revision.rendered,
                 artifact_dir=artifact_dir,
-                config=SemanticSearchConfig(mode=SemanticSearchMode.AUTO),
-                model_profile=model_profile,
-                client=self._client(model_profile),
-                session_id=host._session_id,
-                parent_session_id=host._session_id,
-                session_dir=host._session_dir,
+                config=SemanticSearchConfig(
+                    mode=SemanticSearchMode.AUTO,
+                    timeout_seconds=LOCALIZATION_TIMEOUT_SECONDS,
+                    model_profile=self._localization_profile_selector(),
+                ),
             )
         except Exception as exc:
             await self._degrade(f"code localization failed: {exc}")
@@ -432,20 +426,13 @@ class LongHorizonExtensions:
             f"{len(self.localization.locations)} candidate location(s)",
         )
 
-    def _localization_profile(self) -> Any:
-        registry = ModelProfileRegistry()
-        registry.load_all()
-        return resolve_localization_model_profile(self._host._settings, registry, self._host._active_profile)
-
-    def _client(self, profile: Any) -> Any:
-        host = self._host
-        cache = host._side_call_clients
-        return cache.get(
-            profile,
-            session_id=host._session_id,
-            parent_session_id=host._session_id,
-            session_dir=host._session_dir,
-        )
+    def _localization_profile_selector(self) -> str:
+        """The cheap profile from settings when named, else the session's active model."""
+        configured = self._host._settings.semantic_search_model_profile.strip()
+        if configured:
+            return configured
+        active = self._host._active_profile
+        return active.id if active is not None else ""
 
     def _artifact_dir(self) -> Path | None:
         session_dir = self._host._session_dir

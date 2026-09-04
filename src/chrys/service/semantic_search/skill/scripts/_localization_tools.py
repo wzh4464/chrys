@@ -1,4 +1,5 @@
-#!/usr/bin/env python3
+# Copyright (c) 2026 Chrys. All rights reserved.
+
 """SemLoc-style repository search tools backed by ``LocalizationGraph``."""
 
 from __future__ import annotations

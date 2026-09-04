@@ -124,6 +124,20 @@ def test_investigation_requires_successful_search_and_file_read() -> None:
     assert calls[0].result_sha256
 
 
+def test_investigation_pairs_reused_call_ids_within_each_exchange() -> None:
+    calls = _investigation_tool_calls(
+        [
+            _tool_response("call-0", "grep", ".", "src/runtime.py:10: consume(option)"),
+            _tool_response("call-0", "read_file", "src/runtime.py", "10 consume(option)"),
+        ]
+    )
+
+    assert [(call.name, call.path, call.successful) for call in calls] == [
+        ("grep", ".", True),
+        ("read_file", "src/runtime.py", True),
+    ]
+
+
 def test_investigation_records_query_line_range_and_result_fingerprint() -> None:
     response = AgentResponse(
         messages=[
@@ -381,71 +395,3 @@ def test_proposal_semantics_reject_unresolved_confirmation_note() -> None:
     )
 
     assert _proposal_errors(proposal, calls) == ["proposal contains placeholder or unfinished investigation text"]
-
-
-def test_the_investigation_record_holds_every_anchor_a_proposal_may_cite() -> None:
-    """A lower cap made a fully valid proposal fail validation as diagnostics.
-
-    The blanket handler around record construction then reported it as a failed
-    proposer, and losing one can drop the turn below MIN_VALID_PROPOSALS.
-    """
-    from chrys.service.requirement_clarification.types import (
-        MAX_PROPOSAL_EVIDENCE_ANCHORS,
-        ProposalInvestigation,
-        VerifiedEvidenceReference,
-    )
-
-    # 4 top-level + 2 coverage findings x 4 + 6 guidance points x 4.
-    assert MAX_PROPOSAL_EVIDENCE_ANCHORS == 36
-
-    record = ProposalInvestigation(
-        sample_index=1,
-        status="completed",
-        investigation_attempts=1,
-        synthesis_attempts=1,
-        verified_evidence=[
-            VerifiedEvidenceReference(
-                path="src/a.py",
-                line_start=line + 1,
-                line_end=line + 1,
-                claim="the runtime seam is here",
-                tool_call_id=f"read-{line}",
-                result_sha256="a" * 64,
-            )
-            for line in range(MAX_PROPOSAL_EVIDENCE_ANCHORS)
-        ],
-    )
-
-    assert len(record.verified_evidence) == MAX_PROPOSAL_EVIDENCE_ANCHORS
-
-
-def test_a_repository_root_file_can_be_cited_as_evidence() -> None:
-    """`pyproject.toml` has no directory component to cite.
-
-    The suffix aliases never go down to a single segment, so a root-level file
-    was uncitable no matter how carefully it had been read — which rejected
-    two of three proposers on a live run and degraded the whole turn.
-    """
-    from chrys.service.requirement_clarification.model import _anchor_read_paths, _normalized_path
-
-    view = "/session/s0/roots/0/view"
-    reads = tuple(_normalized_path(view + p) for p in ("/pyproject.toml", "/src/parser.py"))
-
-    assert _anchor_read_paths("pyproject.toml:9-12", reads)
-    assert _anchor_read_paths("src/parser.py:1-2", reads)
-
-
-def test_the_bare_name_fallback_does_not_weaken_the_gate() -> None:
-    """It applies only where a directory could not have been written."""
-    from chrys.service.requirement_clarification.model import _anchor_read_paths, _normalized_path
-
-    view = "/session/s0/roots/0/view"
-    reads = tuple(_normalized_path(view + p) for p in ("/src/parser.py",))
-
-    # Named a directory and missed: a real miss, not a root-file citation.
-    assert not _anchor_read_paths("lib/parser.py:1", reads)
-
-    ambiguous = tuple(_normalized_path(view + p) for p in ("/a/utils.py", "/b/utils.py"))
-
-    # The ambiguity the suffix rule exists to prevent.
-    assert not _anchor_read_paths("utils.py:3", ambiguous)

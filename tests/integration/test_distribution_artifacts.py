@@ -40,3 +40,12 @@ def test_wheel_contains_a_loadable_simplified_chinese_catalog(built_wheel: Path)
     translations = gettext.GNUTranslations(io.BytesIO(catalog_bytes))
     assert translations.gettext("missing.key") == "missing.key"
     assert translations.info()["plural-forms"] == "nplurals=1; plural=0;"
+
+
+def test_wheel_contains_semantic_localization_skill(built_wheel: Path) -> None:
+    with ZipFile(built_wheel) as wheel:
+        members = set(wheel.namelist())
+
+    assert "chrys/service/semantic_search/skill/SKILL.md" in members
+    assert "chrys/service/semantic_search/skill/scripts/build_index.py" in members
+    assert "chrys/service/semantic_search/skill/scripts/localize_task.py" in members

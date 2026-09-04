@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Protocol
 
@@ -95,6 +95,10 @@ class TurnRunnerHost(Protocol):
     _on_successful_turn: Callable[[], None]
     _on_turn_started: Callable[[], None]
     _requirement_clarification_workflow: Any | None
+    _requirement_enrichment_workflow: Any | None
+
+    async def persist_recovery_now(self) -> bool: ...
+
     _last_route: RouteDecision | None
     _long_horizon_campaign: dict[str, Any] | None
 
@@ -165,7 +169,8 @@ class TurnRunner:
         # profile's own switch says: the router, not the profile, decided this
         # turn earns it.
         clarification_enabled = long_horizon or bool(profile is not None and profile.requirement_clarification.enabled)
-        if not clarification_enabled:
+        enrichment_enabled = not long_horizon and profile is not None and profile.requirement_enrichment.enabled
+        if not clarification_enabled and not enrichment_enabled:
             await self._run_fresh_standard(
                 text,
                 created_at=created_at,
@@ -181,6 +186,28 @@ class TurnRunner:
                 if admission_preparation is not None:
                     await admission_preparation.finished(outcome=PreparationOutcome.PREPARATION_FAILED)
                 return
+        if enrichment_enabled and profile is not None:
+            from chrys.orchestration.engine.run.requirement_enrichment import RequirementEnrichmentWorkflow
+            from chrys.service.semantic_search import SemanticSearchMode
+
+            config = profile.requirement_enrichment
+            await RequirementEnrichmentWorkflow(
+                self._host,
+                self,
+                strategy=config.clarification_strategy,
+                clarification_timeout_seconds=config.clarification_timeout_seconds,
+                localization_mode=SemanticSearchMode(config.localization_mode),
+                localization_timeout_seconds=config.localization_timeout_seconds,
+                localization_model_profile=config.localization_model_profile,
+            ).run(
+                text,
+                created_at=created_at,
+                contents=contents,
+                run_scope=run_scope,
+                injection_window=injection_window,
+                admission_preparation=admission_preparation,
+            )
+            return
         from chrys.orchestration.engine.run.requirement_clarification import RequirementClarificationWorkflow
 
         extensions = None
@@ -220,8 +247,15 @@ class TurnRunner:
         injection_window: CurrentRunInjectionWindow | None = None,
         admission_preparation: PreparationTrace | None = None,
         finalize: bool = True,
+        before_execution: Callable[[], Awaitable[None]] | None = None,
     ) -> None:
-        """Execute the ordinary fresh pass, with optional deferred finalization."""
+        """Execute the ordinary fresh pass, with optional deferred finalization.
+
+        *before_execution* runs after the pass is otherwise prepared and just
+        before the reminder middleware assembles the turn: the enrichment
+        preflight uses it to queue advisory guidance only once the snapshot it
+        was derived from is confirmed to still match the live workspace.
+        """
         _ = injection_window
         host = self._host
         if contents is None:
@@ -262,6 +296,8 @@ class TurnRunner:
             await asyncio.to_thread(write_rollback_snapshot)
             await self._refresh_runtime_skills(update_active_turn=False)
             self._queue_skill_reference_reminder(text, for_next_turn=True)
+            if before_execution is not None:
+                await before_execution()
             if host._reminder_middleware is not None:
                 if run_scope is not None:
                     host._reminder_middleware.prepare_turn(

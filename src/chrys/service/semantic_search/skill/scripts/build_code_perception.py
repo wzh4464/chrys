@@ -1,4 +1,5 @@
-#!/usr/bin/env python3
+# Copyright (c) 2026 Chrys. All rights reserved.
+
 """Build the unified code perception package for semantic-search requirement augmentation."""
 
 from __future__ import annotations
@@ -74,32 +75,13 @@ def load_inputs(args: argparse.Namespace) -> tuple[Path, Path, Path, Path, Path]
     return repo, requirement, artifact_dir, out, markdown
 
 
-# A component that never returns would hold the whole preflight past whatever
-# budget its caller set, so every child gets a bound of its own.
-COMPONENT_TIMEOUT_SECONDS = float(os.environ.get("SEMANTIC_SEARCH_COMPONENT_TIMEOUT", "900"))
-
-
-def run_component(
-    python: str,
-    script_name: str,
-    args: list[str],
-    *,
-    artifact_dir: Path,
-    timeout: float = COMPONENT_TIMEOUT_SECONDS,
-) -> dict[str, Any]:
+def run_component(python: str, script_name: str, args: list[str], *, artifact_dir: Path) -> dict[str, Any]:
     stdout_path = artifact_dir / f"{Path(script_name).stem.replace('_', '-')}.stdout"
     stderr_path = artifact_dir / f"{Path(script_name).stem.replace('_', '-')}.stderr"
     argv = [python, str(SCRIPT_DIR / script_name), *args]
     try:
-        proc = subprocess.run(  # noqa: S603 — argv is a list built from validated inputs
-            argv,
-            text=True,
-            capture_output=True,
-            check=False,
-            stdin=subprocess.DEVNULL,
-            timeout=timeout,
-        )
-    except (OSError, subprocess.SubprocessError) as err:
+        proc = subprocess.run(argv, text=True, capture_output=True, check=False, stdin=subprocess.DEVNULL, timeout=1800)
+    except OSError as err:
         stdout_path.write_text("", encoding="utf-8")
         stderr_path.write_text(str(err) + "\n", encoding="utf-8")
         return {
@@ -398,10 +380,8 @@ def render_markdown(payload: dict[str, Any]) -> str:
         "",
         "- Base code perception: CodeGraph when available, with builtin static perception as fallback.",
         "- Enhanced code perception: semantic-search links the original requirement to repository evidence.",
-        (
-            "- Requirement augmentation consumes `code-facts.json`, which includes the merged repository perception "
-            "and task-specific semantic perception."
-        ),
+        "- Requirement augmentation consumes `code-facts.json`, which includes the merged repository perception "
+        "and task-specific semantic perception.",
         "",
         "## Artifact Routes",
         "",

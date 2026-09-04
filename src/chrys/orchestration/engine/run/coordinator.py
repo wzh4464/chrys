@@ -345,7 +345,9 @@ class TurnCoordinator:
             # also inject only has to be added to
             # :meth:`EngineStateMachine.is_running` to be covered here.
             if host._fsm.is_running():
-                workflow = getattr(host, "_requirement_clarification_workflow", None)
+                workflow = getattr(host, "_requirement_enrichment_workflow", None) or getattr(
+                    host, "_requirement_clarification_workflow", None
+                )
                 if workflow is not None and workflow.accepts_amendments:
                     return await self._admit_requirement_amendment(
                         workflow,
@@ -632,9 +634,10 @@ class TurnCoordinator:
         executor = host._executor
         interrupt_task = host._turn_state.run_task
         host._trajectory_recorder.interrupt_requested_soon()
-        workflow = getattr(host, "_requirement_clarification_workflow", None)
-        if workflow is not None:
-            await workflow.request_stop()
+        for name in ("_requirement_clarification_workflow", "_requirement_enrichment_workflow"):
+            workflow = getattr(host, name, None)
+            if workflow is not None:
+                await workflow.request_stop()
         if executor is not None and not executor.is_running:
             host._turn_state.request_pre_executor_interrupt(interrupt_task)
         if host._sub_agent_tools is not None:

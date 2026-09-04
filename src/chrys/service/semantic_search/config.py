@@ -26,6 +26,8 @@ class SemanticSearchConfig:
     top_locations: int = 12
     timeout_seconds: float = 120.0
     max_tool_results: int = 20
+    max_files: int = 20_000
+    max_file_bytes: int = 350_000
     model_profile: str = ""
 
     def __post_init__(self) -> None:
@@ -39,3 +41,7 @@ class SemanticSearchConfig:
             raise ValueError("timeout_seconds must be positive")
         if self.max_tool_results < 1:
             raise ValueError("max_tool_results must be positive")
+        if self.max_files < 1:
+            raise ValueError("max_files must be positive")
+        if self.max_file_bytes < 1:
+            raise ValueError("max_file_bytes must be positive")

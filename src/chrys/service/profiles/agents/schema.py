@@ -339,6 +339,23 @@ class MemoryConfig:
 
 
 @dataclass
+class RequirementEnrichmentConfig:
+    """Parallel requirement clarification and semantic localization preflight.
+
+    The lighter sibling of the clarification workflow: one frozen snapshot,
+    both analyses concurrently, and their bounded advisory result injected as
+    a reminder before a single normal run -- no baseline pass, no repair.
+    """
+
+    enabled: bool = False
+    clarification_strategy: Literal["legacy-v1-exact", "legacy-v1-stabilized"] = "legacy-v1-stabilized"
+    clarification_timeout_seconds: float = 1800.0
+    localization_mode: Literal["auto", "fallback", "llm"] = "auto"
+    localization_timeout_seconds: float = 120.0
+    localization_model_profile: str = ""
+
+
+@dataclass
 class RequirementClarificationConfig:
     """Repository-grounded baseline/clarification/repair workflow.
 
@@ -426,5 +443,6 @@ class AgentProfile:
     compaction: CompactionConfig = field(default_factory=CompactionConfig)
     memory: MemoryConfig = field(default_factory=MemoryConfig)
     requirement_clarification: RequirementClarificationConfig = field(default_factory=RequirementClarificationConfig)
+    requirement_enrichment: RequirementEnrichmentConfig = field(default_factory=RequirementEnrichmentConfig)
     routing: RoutingConfig = field(default_factory=RoutingConfig)
     metadata: dict[str, Any] = field(default_factory=dict)

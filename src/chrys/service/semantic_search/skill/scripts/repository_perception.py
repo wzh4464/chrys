@@ -1,4 +1,5 @@
-#!/usr/bin/env python3
+# Copyright (c) 2026 Chrys. All rights reserved.
+
 """Merge builtin, CodeGraph, and index evidence into a repository perception document."""
 
 from __future__ import annotations

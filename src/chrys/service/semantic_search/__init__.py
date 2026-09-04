@@ -9,7 +9,7 @@ still produce a useful report.
 
 from .config import SemanticSearchConfig, SemanticSearchMode
 from .models import LocalizationArtifact, LocalizationResult
-from .pipeline import SemanticSearchError, localize_requirement
+from .pipeline import SemanticSearchError, localize_requirement, localize_requirement_async
 
 __all__ = [
     "LocalizationArtifact",
@@ -18,4 +18,5 @@ __all__ = [
     "SemanticSearchError",
     "SemanticSearchMode",
     "localize_requirement",
+    "localize_requirement_async",
 ]

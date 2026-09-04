@@ -31,6 +31,7 @@ from chrys.service.profiles.agents.schema import (
     MemoryConfig,
     ModelConfig,
     RequirementClarificationConfig,
+    RequirementEnrichmentConfig,
     RoutingConfig,
     ShellFilterConfig,
     SkillConfig,
@@ -61,6 +62,7 @@ _ENV_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _ACP_DEPTH_ENV = "CHRYS_ACP_SUBAGENT_DEPTH"
 _ACP_RESULT_MODES = frozenset({"last_segment", "transcript"})
 _REQUIREMENT_CLARIFICATION_STRATEGIES = frozenset({"legacy-v1-exact", "legacy-v1-stabilized"})
+_REQUIREMENT_LOCALIZATION_MODES = frozenset({"auto", "fallback", "llm"})
 
 
 def _coerce_bool(value: object, *, default: bool) -> bool:
@@ -555,6 +557,64 @@ def _parse_memory(raw: object) -> MemoryConfig:
     )
 
 
+def _parse_requirement_enrichment(raw: object) -> RequirementEnrichmentConfig:
+    if raw is None:
+        return RequirementEnrichmentConfig()
+    raw_map = _mapping_section(raw, "requirement_enrichment")
+    enabled = raw_map.get("enabled", False)
+    if not isinstance(enabled, bool):
+        raise AgentProfileLoadError("Agent profile field 'requirement_enrichment.enabled' must be a boolean")
+    strategy = raw_map.get("clarification_strategy", "legacy-v1-stabilized")
+    if not isinstance(strategy, str) or strategy not in _REQUIREMENT_CLARIFICATION_STRATEGIES:
+        allowed = ", ".join(sorted(_REQUIREMENT_CLARIFICATION_STRATEGIES))
+        raise AgentProfileLoadError(
+            "Agent profile field 'requirement_enrichment.clarification_strategy' must be one of: " + allowed
+        )
+    localization_mode = raw_map.get("localization_mode", "auto")
+    if not isinstance(localization_mode, str) or localization_mode not in _REQUIREMENT_LOCALIZATION_MODES:
+        allowed = ", ".join(sorted(_REQUIREMENT_LOCALIZATION_MODES))
+        raise AgentProfileLoadError(
+            "Agent profile field 'requirement_enrichment.localization_mode' must be one of: " + allowed
+        )
+    localization_model_profile = raw_map.get("localization_model_profile", "")
+    if not isinstance(localization_model_profile, str):
+        raise AgentProfileLoadError(
+            "Agent profile field 'requirement_enrichment.localization_model_profile' must be a string"
+        )
+    timeout_fields = {
+        "clarification_timeout_seconds": 1800.0,
+        "localization_timeout_seconds": 120.0,
+    }
+    timeouts: dict[str, float] = {}
+    for field_name, default in timeout_fields.items():
+        value = raw_map.get(field_name, default)
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
+            raise AgentProfileLoadError(
+                f"Agent profile field 'requirement_enrichment.{field_name}' must be a positive number"
+            )
+        timeouts[field_name] = float(value)
+    known = {
+        "enabled",
+        "clarification_strategy",
+        "localization_mode",
+        "localization_model_profile",
+        *timeout_fields,
+    }
+    unknown = set(raw_map) - known
+    if unknown:
+        raise AgentProfileLoadError(
+            "Unknown agent profile requirement_enrichment field(s): " + ", ".join(sorted(unknown))
+        )
+    return RequirementEnrichmentConfig(
+        enabled=enabled,
+        clarification_strategy=cast("Literal['legacy-v1-exact', 'legacy-v1-stabilized']", strategy),
+        clarification_timeout_seconds=timeouts["clarification_timeout_seconds"],
+        localization_mode=cast("Literal['auto', 'fallback', 'llm']", localization_mode),
+        localization_timeout_seconds=timeouts["localization_timeout_seconds"],
+        localization_model_profile=localization_model_profile,
+    )
+
+
 def _parse_requirement_clarification(raw: object) -> RequirementClarificationConfig:
     if raw is None:
         return RequirementClarificationConfig()
@@ -803,13 +863,20 @@ def load_profile_from_yaml(path: Path) -> AgentProfile:
             compaction=_parse_compaction(data.get("compaction")),
             memory=_parse_memory(data.get("memory")),
             requirement_clarification=_parse_requirement_clarification(data.get("requirement_clarification")),
+            requirement_enrichment=_parse_requirement_enrichment(data.get("requirement_enrichment")),
             routing=_parse_routing(data.get("routing")),
             metadata=data.get("metadata", {}),
         )
+        if profile.requirement_clarification.enabled and profile.requirement_enrichment.enabled:
+            raise AgentProfileLoadError(
+                f"Agent profile {profile.name!r} cannot enable requirement_clarification together with requirement_enrichment"
+            )
         if not acp_present:
             return profile
         if profile.requirement_clarification.enabled:
             raise AgentProfileLoadError(f"ACP profile {profile.name!r} cannot enable requirement_clarification")
+        if profile.requirement_enrichment.enabled:
+            raise AgentProfileLoadError(f"ACP profile {profile.name!r} cannot enable requirement_enrichment")
         if profile.routing.mode != "off":
             # An external ACP sub-agent never opens a turn of its own, so it
             # has nothing to route; a non-off mode here would silently do

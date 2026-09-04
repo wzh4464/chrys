@@ -1,4 +1,5 @@
-#!/usr/bin/env python3
+# Copyright (c) 2026 Chrys. All rights reserved.
+
 """Build a lightweight semantic-search repository index for requirement augmentation."""
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ from _common import (
     now_iso,
     path_tokens,
     read_text,
+    resolve_output_path,
     resolve_path,
     sha1_path,
     should_skip_dir,
@@ -56,11 +58,11 @@ def parse_repo(raw: str) -> tuple[str, Path]:
 def discover_files(root: Path, max_files: int) -> list[Path]:
     files: list[Path] = []
     for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = [name for name in dirnames if not should_skip_dir(name)]
         current = Path(dirpath)
+        dirnames[:] = [name for name in dirnames if not should_skip_dir(name) and not (current / name).is_symlink()]
         for filename in filenames:
             path = current / filename
-            if should_skip_file(path):
+            if path.is_symlink() or should_skip_file(path):
                 continue
             files.append(path)
             if max_files and len(files) >= max_files:
@@ -73,7 +75,9 @@ def is_probably_text(path: Path, sample_size: int = 4096) -> bool:
         sample = path.read_bytes()[:sample_size]
     except OSError:
         return False
-    return b"\x00" not in sample
+    if b"\0" in sample:
+        return False
+    return True
 
 
 def file_preview(path: Path, max_bytes: int) -> tuple[str, list[str]]:
@@ -188,14 +192,17 @@ def build_index(repos: list[tuple[str, Path]], max_file_bytes: int, max_files: i
     kind_counts: dict[str, int] = {}
     for repo_name, root in repos:
         for path in discover_files(root, max_files):
-            relative = path.relative_to(root).as_posix()
             try:
-                size = path.stat().st_size
+                try:
+                    size = path.stat().st_size
+                except OSError:
+                    # A dangling symlink, a vanished file, an unreadable mount: an
+                    # entry that cannot be stat'd is not indexable, and one of them
+                    # must not take the whole index -- and so `chrys locate` -- down.
+                    continue
             except OSError:
-                # A dangling symlink, a vanished file, an unreadable mount: an
-                # entry that cannot be stat'd is not indexable, and one of them
-                # must not take the whole index -- and so `chrys locate` -- down.
                 continue
+            relative = path.relative_to(root).as_posix()
             classification = classify_file(path, relative)
             preview, content_terms = file_preview(path, max_file_bytes)
             file_symbols = extract_symbols(relative, path, classification["language"], max_file_bytes)
@@ -209,7 +216,7 @@ def build_index(repos: list[tuple[str, Path]], max_file_bytes: int, max_files: i
                 "is_generated": classification["is_generated"],
                 "top_level": classification["top_level"],
                 "size": size,
-                "sha1": sha1_path(path),
+                "sha1": sha1_path(path) if size <= max_file_bytes else "",
                 "terms": stable_unique(
                     [*path_tokens(relative), *content_terms[:160], *tokenize(" ".join(symbol_terms))]
                 )[:260],
@@ -244,7 +251,7 @@ def main(argv: list[str]) -> int:
     try:
         args = parse_args(argv)
         repos = [parse_repo(raw) for raw in args.repo]
-        out = resolve_path(args.out)
+        out = resolve_output_path(args.out)
         index = build_index(repos, args.max_file_bytes, args.max_files)
         write_json(out, index)
         append_trace("build-index", {"out": str(out), "stats": index["stats"]})

@@ -8,8 +8,9 @@ each task's pinned upstream commit into an isolated workspace, and writes all
 Chrys/semantic-search artifacts below one directory per task.  The benchmark's
 ``solution/`` and verifier files are never copied into an agent workspace.
 
-The default operation is localization only.  ``--run-agent`` continues with a
-normal Chrys Code turn after the report has been generated.
+The default operation is localization only. ``--run-agent`` appends that report
+to a normal Chrys turn. ``--run-enrichment`` instead runs an agent profile whose
+native requirement-enrichment workflow owns clarification and localization.
 """
 
 from __future__ import annotations
@@ -66,6 +67,20 @@ def _task_id(task: dict[str, Any], position: int) -> str:
     return "".join(char if char.isalnum() or char in "-_." else "_" for char in str(raw))
 
 
+def _select_tasks(
+    tasks: list[dict[str, Any]],
+    *,
+    order: str,
+    offset: int,
+    limit: int,
+) -> list[dict[str, Any]]:
+    selected = list(tasks)
+    if order == "alphabetical":
+        selected.sort(key=lambda item: str(item.get("task_id") or item.get("instance_id") or item.get("id") or ""))
+    start = max(offset, 0)
+    return selected[start : start + max(limit, 0)]
+
+
 def _requirement(task: dict[str, Any]) -> str:
     task_dir = Path(str(task.get("task_dir", "")))
     instruction = task_dir / "instruction.md"
@@ -109,6 +124,7 @@ def _run_git(args: list[str], *, cwd: Path | None = None, timeout: float = 1_800
     return subprocess.run(  # noqa: S603
         ["git", *args],  # noqa: S607
         cwd=cwd,
+        stdin=subprocess.DEVNULL,
         capture_output=True,
         text=True,
         check=False,
@@ -146,27 +162,25 @@ def _checkout_workspace(
         metadata.get("repository_url") or task.get("repository_url") or task.get("repo_url") or ""
     ).strip()
     existing = _repo_for(task, repo_root)
-    if not (workspace / ".git").exists():
-        workspace.parent.mkdir(parents=True, exist_ok=True)
-        if existing != repo_root and (existing / ".git").exists():
-            # A --repo-root clone belongs to the user, not to this runner, and
-            # the reset below would `git clean -fdx` their .env, virtualenv and
-            # uncommitted edits away.  Clone from it instead: git hardlinks the
-            # objects, so this costs no network and no meaningful disk, and the
-            # workspace this runner then owns is genuinely its own.
+    if existing != repo_root and (existing / ".git").exists():
+        if not (workspace / ".git").exists():
+            if not clone:
+                raise RuntimeError(f"no owned workspace for {task.get('task_id')} at {workspace}")
+            workspace.parent.mkdir(parents=True, exist_ok=True)
             result = _run_git(["clone", str(existing), str(workspace)], timeout=3_600.0)
             if result.returncode:
                 detail = (result.stderr or result.stdout).strip()[-3_000:]
-                raise RuntimeError(f"could not clone {existing} for {task.get('task_id')}: {detail}")
-        else:
-            if not clone:
-                raise RuntimeError(f"no repository workspace for {task.get('task_id')} at {workspace}")
-            if not repository_url:
-                raise RuntimeError(f"task {task.get('task_id')} does not declare repository_url")
-            result = _run_git(["clone", repository_url, str(workspace)], timeout=3_600.0)
-            if result.returncode:
-                detail = (result.stderr or result.stdout).strip()[-3_000:]
-                raise RuntimeError(f"git clone failed for {task.get('task_id')}: {detail}")
+                raise RuntimeError(f"local git clone failed for {task.get('task_id')}: {detail}")
+    elif not (workspace / ".git").exists():
+        if not clone:
+            raise RuntimeError(f"no repository workspace for {task.get('task_id')} at {workspace}")
+        if not repository_url:
+            raise RuntimeError(f"task {task.get('task_id')} does not declare repository_url")
+        workspace.parent.mkdir(parents=True, exist_ok=True)
+        result = _run_git(["clone", repository_url, str(workspace)], timeout=3_600.0)
+        if result.returncode:
+            detail = (result.stderr or result.stdout).strip()[-3_000:]
+            raise RuntimeError(f"git clone failed for {task.get('task_id')}: {detail}")
     if base_commit:
         # Workspaces are owned by this runner.  Remove any untracked files
         # left by an interrupted/retried agent before restoring the pinned
@@ -218,7 +232,6 @@ def _run_locate(
     mode: str,
     model_profile: str,
     timeout: float,
-    localization_timeout: float,
 ) -> tuple[int, str, str]:
     command = [
         *command_prefix,
@@ -231,18 +244,20 @@ def _run_locate(
         str(artifact_dir),
         "--mode",
         mode,
-        # ``chrys locate`` defaults this to 120s, which is the budget for the
-        # whole localization loop -- far below one reasoning-model pass. Pass
-        # it explicitly so the outer subprocess timeout is never the shorter
-        # of the two and a slow model produces a report instead of a timeout.
         "--timeout",
-        str(localization_timeout),
+        str(timeout),
         "--json",
     ]
     if model_profile:
         command.extend(["--model-profile", model_profile])
     completed = subprocess.run(  # noqa: S603
-        command, capture_output=True, text=True, check=False, timeout=timeout, env=env
+        command,
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=timeout + 30,
+        env=env,
     )
     return completed.returncode, completed.stdout, completed.stderr
 
@@ -252,7 +267,7 @@ def _run_agent(
     env: dict[str, str],
     repo: Path,
     requirement_file: Path,
-    report: Path,
+    report: Path | None,
     *,
     agent: str,
     model: str,
@@ -267,14 +282,22 @@ def _run_agent(
         agent,
         "--workdir",
         str(repo),
-        "--localization-file",
-        str(report),
     ]
+    if report is not None:
+        command.extend(["--localization-file", str(report)])
     # Headless Chrys needs an explicit model selector; otherwise it may use an
     # empty global pointer even when an isolated model profile is present.
     if model:
         command.extend(["--model", model])
-    completed = subprocess.run(command, capture_output=True, text=True, check=False, timeout=timeout, env=env)  # noqa: S603
+    completed = subprocess.run(  # noqa: S603
+        command,
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=timeout,
+        env=env,
+    )
     return completed.returncode, completed.stdout, completed.stderr
 
 
@@ -290,40 +313,39 @@ def _timeout_output(value: str | bytes | None) -> str:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset", required=True, help="DeepSWE checkout, tasks directory, or legacy JSON/JSONL file")
-    parser.add_argument(
-        "--repo-root",
-        default="",
-        help=(
-            "Optional directory of pre-cloned task repositories to clone FROM. "
-            "They are never modified: each task gets its own workspace cloned from them."
-        ),
-    )
+    parser.add_argument("--repo-root", default="", help="Optional directory containing pre-cloned task repositories")
     parser.add_argument("--output-dir", required=True, help="Directory for per-task artifacts and workspaces")
     parser.add_argument("--chrys", default="", help="Chrys executable; default runs this checkout as a Python module")
     parser.add_argument("--chrys-python", default=sys.executable, help="Python executable used for the Chrys module")
     parser.add_argument(
-        "--chrys-src", default=str(Path(__file__).resolve().parents[2] / "src"), help="Chrys source directory"
+        "--chrys-src", default=str(Path(__file__).resolve().parents[1] / "src"), help="Chrys source directory"
     )
     parser.add_argument("--chrys-home", default="", help="Isolated Chrys home (default: OUTPUT_DIR/chrys-home)")
     parser.add_argument("--limit", type=int, default=20, help="Maximum tasks to run (default: 20)")
     parser.add_argument("--offset", type=int, default=0, help="Skip this many manifest tasks before applying --limit")
     parser.add_argument(
+        "--order",
+        choices=("manifest", "alphabetical"),
+        default="manifest",
+        help="Task selection order before offset/limit",
+    )
+    parser.add_argument(
         "--mode", choices=("fallback", "auto", "llm"), default="fallback", help="Semantic localization mode"
     )
     parser.add_argument("--localization-model", default="", help="Model profile used by LLM semantic localization")
-    parser.add_argument("--run-agent", action="store_true", help="Run Code after localization")
-    parser.add_argument("--agent", default="Code", help="Chrys agent profile for --run-agent")
-    parser.add_argument("--model", default="", help="Optional Chrys model profile for --run-agent")
+    run_mode = parser.add_mutually_exclusive_group()
+    run_mode.add_argument("--run-agent", action="store_true", help="Run an agent with the standalone localization")
+    run_mode.add_argument(
+        "--run-enrichment",
+        action="store_true",
+        help="Run an agent profile whose native workflow performs clarification and localization",
+    )
+    parser.add_argument("--agent", default="Code", help="Chrys agent profile for an agent run")
+    parser.add_argument("--model", default="", help="Optional Chrys model profile for an agent run")
     parser.add_argument(
         "--clone", action=argparse.BooleanOptionalAction, default=True, help="Clone missing task repositories"
     )
     parser.add_argument("--locate-timeout", type=float, default=900.0)
-    parser.add_argument(
-        "--localization-timeout",
-        type=float,
-        default=120.0,
-        help="Budget for the localization loop itself; must stay below --locate-timeout",
-    )
     parser.add_argument("--agent-timeout", type=float, default=3_600.0)
     parser.add_argument(
         "--per-task", action="store_true", help="Run one task at a time (recommended for long DeepSWE jobs)"
@@ -347,7 +369,8 @@ def main(argv: list[str] | None = None) -> int:
     output_dir.mkdir(parents=True, exist_ok=True)
     all_tasks = _read_tasks(dataset)
     start = max(args.offset, 0)
-    tasks = all_tasks[start : start + max(args.limit, 0)]
+    tasks = _select_tasks(all_tasks, order=args.order, offset=start, limit=args.limit)
+    agent_requested = args.run_agent or args.run_enrichment
     chrys_home = Path(args.chrys_home).expanduser().resolve() if args.chrys_home else output_dir / "chrys-home"
     command_prefix, command_env = _chrys_command(
         args.chrys,
@@ -363,21 +386,15 @@ def main(argv: list[str] | None = None) -> int:
         task_dir.mkdir(parents=True, exist_ok=True)
         result_path = task_dir / "result.json"
         if args.resume and result_path.is_file():
-            try:
-                previous = json.loads(result_path.read_text(encoding="utf-8"))
-            except OSError, ValueError:
-                # A result truncated by a killed run is not a result. Redo the
-                # task rather than aborting the whole resumed batch on it --
-                # the loop's own error handling starts below this point.
-                previous = {}
-            completed_statuses = {"completed"} if args.run_agent else {"localized", "completed"}
+            previous = json.loads(result_path.read_text(encoding="utf-8"))
+            completed_statuses = {"completed"} if agent_requested else {"localized", "completed"}
             # A timed-out/terminated agent may still have produced a useful
             # patch before the runner wrote its result.  Treat that durable
             # patch as resumable too; resetting the workspace and invoking the
             # model again would otherwise destroy the partial attempt.
             patch_path = task_dir / "model.patch"
             has_patch = patch_path.is_file() and patch_path.stat().st_size > 0
-            patch_is_resumable = args.run_agent and has_patch and not args.retry_agent
+            patch_is_resumable = agent_requested and has_patch and not args.retry_agent
             if isinstance(previous, dict) and (previous.get("status") in completed_statuses or patch_is_resumable):
                 summary.append(previous)
                 continue
@@ -403,7 +420,7 @@ def main(argv: list[str] | None = None) -> int:
             # the agent.  A missing report still triggers localization.
             report = localization_dir / "code-localization.md"
             reuse_localization = (args.resume or args.retry_agent) and args.run_agent and report.is_file()
-            if reuse_localization:
+            if args.run_enrichment or reuse_localization:
                 rc, stdout, stderr = 0, "", ""
             else:
                 rc, stdout, stderr = _run_locate(
@@ -415,21 +432,22 @@ def main(argv: list[str] | None = None) -> int:
                     mode=args.mode,
                     model_profile=args.localization_model,
                     timeout=args.locate_timeout,
-                    localization_timeout=args.localization_timeout,
                 )
                 (task_dir / "locate.stdout").write_text(stdout, encoding="utf-8")
                 (task_dir / "locate.stderr").write_text(stderr, encoding="utf-8")
-            record.update({"repo": str(repo), "base_commit": head, "localization_returncode": rc})
-            if rc != 0 or not report.is_file():
+            record.update({"repo": str(repo), "base_commit": head})
+            if not args.run_enrichment:
+                record["localization_returncode"] = rc
+            if not args.run_enrichment and (rc != 0 or not report.is_file()):
                 record.update({"status": "localization_failed", "error": stderr[-2000:]})
-            elif args.run_agent:
+            elif agent_requested:
                 try:
                     agent_rc, agent_out, agent_err = _run_agent(
                         command_prefix,
                         command_env,
                         repo,
                         requirement_file,
-                        report,
+                        None if args.run_enrichment else report,
                         agent=args.agent,
                         model=args.model,
                         timeout=args.agent_timeout,

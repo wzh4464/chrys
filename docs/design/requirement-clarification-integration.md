@@ -5,7 +5,7 @@
 本文记录 `feature/requirement-clarification` 分支中已经落地的产品实现，描述当前代码的真实行为。
 实施前方案仍保存在工作区上层的 `PLAN-0831.md`；若方案与本文不一致，以本文和当前代码为准。
 启用方式、TUI 友好的执行图、完整 artifact tree、逐文件语义和下游 AI 读取规则见更短的
-[`requirement-clarification-guide.md`](requirement-clarification-guide.md)；本文保留深层实现、隔离和恢复契约。
+[`REQUIREMENT-CLARIFICATION-GUIDE.md`](REQUIREMENT-CLARIFICATION-GUIDE.md)；本文保留深层实现、隔离和恢复契约。
 
 本次合入没有把 `variant_clarification` 的实验 runner 原样嵌入 Chrys，而是保留其 Route A
 语义，将产品能力拆入 Chrys 既有的 profile、service、orchestration、event、TUI、session 和

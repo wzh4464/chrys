@@ -13,12 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 from uuid import uuid4
 
-from chrys.foundation.events.types import (
-    Error,
-    RequirementClarificationPhaseChanged,
-    UserInjectResult,
-    Warning,
-)
+from chrys.foundation.events.types import Error, RequirementClarificationPhaseChanged, UserInjectResult, Warning
 from chrys.foundation.trajectory.ids import new_analytics_id
 from chrys.kernel import Message
 from chrys.orchestration.engine.run.workflow_extensions import (
@@ -97,8 +92,10 @@ class RequirementClarificationWorkflow:
         extensions: RequirementWorkflowExtensions | None = None,
     ) -> None:
         self._host = host
-        self._extensions: RequirementWorkflowExtensions = extensions or NoopExtensions()
         self._runner = runner
+        # The long-horizon track is this same workflow plus six hooks; the
+        # default keeps clarification byte-identical to running without them.
+        self._extensions: RequirementWorkflowExtensions = extensions or NoopExtensions()
         self._workflow_id = uuid4().hex
         self._snapshotter = WorkspaceSnapshotter()
         self._phase_name = RequirementWorkflowPhase.SNAPSHOT
@@ -108,7 +105,7 @@ class RequirementClarificationWorkflow:
         self._latest_clarification_status = "completed"
         self._latest_empty_reason: str | None = None
         self._stop_requested = False
-        self._side_calls: asyncio.Future[Any] | None = None
+        self._side_task: asyncio.Task[Any] | None = None
         self._artifacts: ClarificationArtifactStore | None = None
         self._s0: WorkspaceSnapshot | None = None
         self._p0: WorkspaceSnapshot | None = None
@@ -141,6 +138,8 @@ class RequirementClarificationWorkflow:
         self._latest_delta = ""
         self._latest_clarification_status = "completed"
         self._latest_empty_reason = None
+        if self._side_task is not None:
+            self._side_task.cancel()
         if self._artifacts is not None:
             try:
                 self._artifacts.save_requirement_input(
@@ -174,18 +173,11 @@ class RequirementClarificationWorkflow:
         return True
 
     async def request_stop(self) -> None:
-        """Stop the active phase and retain P0 whenever it already exists.
-
-        The clarification phase runs read-only side agents while the executor
-        sits idle, so interrupting the executor reaches nothing: without
-        cancelling the side calls themselves a Stop was not honoured until they
-        finished or timed out, which is half an hour with the shipped default.
-        """
+        """Stop the active phase and retain P0 whenever it already exists."""
         self._stop_requested = True
+        if self._side_task is not None:
+            self._side_task.cancel()
         await self._extensions.cancel()
-        side_calls = self._side_calls
-        if side_calls is not None and not side_calls.done():
-            side_calls.cancel()
         if self._host._executor.is_running:
             await self._host._executor.interrupt()
 
@@ -323,14 +315,12 @@ class RequirementClarificationWorkflow:
                     if executor.is_running:
                         await executor.interrupt()
                     executor.set_requirement_phase("")
-                    detail = f"initial implementation exceeded {self._initial_timeout_seconds:g} seconds"
                     await self._phase(
                         RequirementWorkflowPhase.INTERRUPTED,
                         revision.number,
-                        detail=detail,
+                        detail=f"initial implementation exceeded {self._initial_timeout_seconds:g} seconds",
                         terminal=True,
                     )
-                    await self._end_turn_with_error("requirement_clarification_timeout", detail)
                     await self._runner.finalize_current_run()
                     return
                 if executor.run_failed or executor.was_interrupted:
@@ -404,39 +394,38 @@ class RequirementClarificationWorkflow:
                     strategy=self._strategy,
                 )
                 try:
-                    self._side_calls = asyncio.gather(
-                        clarification_service.clarify(
-                            revision=revision,
-                            background=history_background,
-                            snapshot=s0,
-                        ),
-                        self._extensions.on_clarification_start(revision, s0),
-                        return_exceptions=True,
-                    )
                     async with asyncio.timeout(self._clarification_timeout_seconds):
-                        clarified, extension_outcome = await self._side_calls
-                    if isinstance(extension_outcome, BaseException):
-                        # Parallel work is additive: losing it costs evidence,
-                        # never the clarification the turn actually needs.
-                        logger.warning("Clarification-parallel extension failed", exc_info=extension_outcome)
-                        await host._bus.publish(
-                            Warning(
-                                code="requirement_clarification_extension_failed",
-                                message=f"parallel clarification work failed: {extension_outcome}",
-                                session_id=host._session_id,
+                        side_task = asyncio.create_task(
+                            clarification_service.clarify(
+                                revision=revision,
+                                background=history_background,
+                                snapshot=s0,
                             )
                         )
-                    if isinstance(clarified, BaseException):
-                        raise clarified
-                    result = clarified
+                        self._side_task = side_task
+                        # Parallel work is additive: losing it costs evidence,
+                        # never the clarification the turn actually needs.
+                        extension_task = asyncio.create_task(self._extensions.on_clarification_start(revision, s0))
+                        try:
+                            result = await side_task
+                        finally:
+                            extension_outcome = await _settle(extension_task)
+                        if isinstance(extension_outcome, BaseException):
+                            logger.warning("Clarification-parallel extension failed", exc_info=extension_outcome)
+                            await host._bus.publish(
+                                Warning(
+                                    code="requirement_clarification_extension_failed",
+                                    message=f"parallel clarification work failed: {extension_outcome}",
+                                    session_id=host._session_id,
+                                )
+                            )
                 except asyncio.CancelledError:
-                    # Only a Stop turns a cancellation into a graceful P0. Any
-                    # other cancellation is the turn itself going away and has
-                    # to keep propagating.
-                    if not self._stop_requested:
-                        raise
-                    await self._deliver_p0(p0_text, revision, detail="workflow stopped during clarification")
-                    return
+                    if self._stop_requested:
+                        await self._deliver_p0(p0_text, revision, detail="workflow stopped after P0")
+                        return
+                    if revision.number != self._revision.number:
+                        continue
+                    raise
                 except Exception as exc:
                     logger.warning("Requirement clarification side calls failed", exc_info=True)
                     detail = f"{type(exc).__name__}: {exc}"[:1000]
@@ -452,7 +441,8 @@ class RequirementClarificationWorkflow:
                         warnings=(f"clarification failed: {detail}",),
                     )
                 finally:
-                    self._side_calls = None
+                    if self._side_task is side_task:
+                        self._side_task = None
                 if revision.number != self._revision.number:
                     continue
                 self._latest_delta = result.delta
@@ -470,7 +460,7 @@ class RequirementClarificationWorkflow:
                         detail=f"clarification result persistence failed: {exc}",
                     )
                     return
-                if result.status == "completed" and not self._stop_requested:
+                if result.status == "completed":
                     pact_service = ClarificationService(
                         ChrysClarificationModel(
                             profile=model_profile,
@@ -482,18 +472,29 @@ class RequirementClarificationWorkflow:
                     )
                     try:
                         async with asyncio.timeout(self._clarification_timeout_seconds):
-                            pact_input, pact_usage = await pact_service.generate_pact_input(
-                                result=result,
-                                revision=revision,
-                                background=history_background,
-                                snapshot=s0,
-                                localization_hints=self._extensions.pact_input_hints(),
+                            side_task = asyncio.create_task(
+                                pact_service.generate_pact_input(
+                                    result=result,
+                                    revision=revision,
+                                    background=history_background,
+                                    snapshot=s0,
+                                    localization_hints=self._extensions.pact_input_hints(),
+                                )
                             )
+                            self._side_task = side_task
+                            pact_input, pact_usage = await side_task
                         result = replace(
                             result,
                             pact_input=pact_input,
                             usage_details=(*result.usage_details, *pact_usage),
                         )
+                    except asyncio.CancelledError:
+                        if self._stop_requested:
+                            await self._deliver_p0(p0_text, revision, detail="workflow stopped after P0")
+                            return
+                        if revision.number != self._revision.number:
+                            continue
+                        raise
                     except Exception as exc:
                         pact_generation_error = f"{type(exc).__name__}: {exc}"[:1000]
                         result = replace(
@@ -501,6 +502,9 @@ class RequirementClarificationWorkflow:
                             pact_generation_error=pact_generation_error,
                             warnings=(*result.warnings, f"PACT input generation failed: {pact_generation_error}"),
                         )
+                    finally:
+                        if self._side_task is side_task:
+                            self._side_task = None
                 else:
                     result = replace(
                         result,
@@ -652,9 +656,6 @@ class RequirementClarificationWorkflow:
             all_injections = [*baseline_injections, *self._late_injections]
             host._consumed_injections[:] = _reanchor_injections(all_injections, executor.history_state)
             await self._phase(RequirementWorkflowPhase.FINALIZING, revision.number)
-            # Anything that runs after the repair — a delegation pass, say —
-            # goes here rather than after finalization, so the turn closes on
-            # whatever the workspace and the executor actually ended with.
             await self._extensions.after_repair(
                 RepairOutcome(
                     status="succeeded",
@@ -692,6 +693,33 @@ class RequirementClarificationWorkflow:
                 await asyncio.to_thread(self._snapshotter.discard, s0)
             if p0 is not None:
                 await asyncio.to_thread(self._snapshotter.discard, p0)
+
+    def _pact_input_dir(self) -> Path | None:
+        """Where the accepted PACT pair landed, or None when none was generated."""
+        if self._artifacts is None:
+            return None
+        directory = self._artifacts.pact_input_dir
+        return directory if (directory / "goal-contract.json").is_file() else None
+
+    async def _end_turn_with_error(self, code: str, detail: str) -> None:
+        """Publish the terminal an aborted workflow otherwise never delivers.
+
+        A phase event is progress, not an outcome: the TUI keeps a turn open
+        until a final answer, an ``Error``, or the user's own Stop arrives, and
+        headless ``chrys run`` decides its exit status the same way. These
+        paths end the turn with no answer at all -- a rollback that failed and
+        left the workspace half repaired -- so without this the spinner runs
+        forever and a script exits 0 on a workspace nobody has told it is
+        inconsistent.
+        """
+        await self._host._bus.publish(
+            Error(
+                code=code,
+                message=f"Requirement clarification stopped: {detail}",
+                recoverable=True,
+                session_id=self._host._session_id,
+            )
+        )
 
     async def _deliver_p0(
         self,
@@ -748,15 +776,6 @@ class RequirementClarificationWorkflow:
                 logger.warning("Failed to persist requirement-clarification fallback summary", exc_info=True)
         await self._phase(phase, revision.number, detail=detail, terminal=True)
 
-    def _pact_input_dir(self) -> Path | None:
-        """Return ``06-pact-input/`` only when a validated pair was written there."""
-        if self._artifacts is None:
-            return None
-        directory = self._artifacts.root / "06-pact-input"
-        contract = directory / "goal-contract.json"
-        plan = directory / "initial-plan.json"
-        return directory if contract.is_file() and plan.is_file() else None
-
     async def _degraded(self, detail: str) -> None:
         await self._host._bus.publish(
             Warning(
@@ -766,26 +785,6 @@ class RequirementClarificationWorkflow:
             )
         )
         await self._phase(RequirementWorkflowPhase.DEGRADED, 1, detail=detail, terminal=True)
-
-    async def _end_turn_with_error(self, code: str, detail: str) -> None:
-        """Publish the terminal an aborted workflow otherwise never delivers.
-
-        A phase event is progress, not an outcome: the TUI keeps a turn open
-        until a final answer, an ``Error``, or the user's own Stop arrives, and
-        headless ``chrys run`` decides its exit status the same way. These
-        paths end the turn with no answer at all -- a self-inflicted timeout,
-        or a rollback that failed and left the workspace half repaired -- so
-        without this the spinner runs forever, the input bar stays locked, and
-        a script exits 0 on a workspace nobody has told it is inconsistent.
-        """
-        await self._host._bus.publish(
-            Error(
-                code=code,
-                message=f"Requirement clarification stopped: {detail}",
-                recoverable=True,
-                session_id=self._host._session_id,
-            )
-        )
 
     async def _phase(
         self,
@@ -849,6 +848,17 @@ def _history_background(history_state: dict[str, Any]) -> str:
         and not message.additional_properties.get("_chrys_kind")
     ]
     return "\n".join(rows)[-12_000:]
+
+
+async def _settle(task: asyncio.Task[Any]) -> BaseException | None:
+    """Wait for a parallel task and return its exception instead of raising it."""
+    try:
+        await task
+    except asyncio.CancelledError:
+        raise
+    except BaseException as exc:
+        return exc
+    return None
 
 
 def _repair_reminder(revision: RequirementRevision, delta: str) -> str:

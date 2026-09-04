@@ -31,6 +31,22 @@ def test_chrys_run_dispatches_to_run_subcommand(monkeypatch) -> None:
     assert calls == [["hello", "--agent", "Code"]]
 
 
+def test_chrys_locate_dispatches_to_locate_subcommand(monkeypatch) -> None:
+    calls: list[list[str]] = []
+
+    def fake_locate_main(argv: list[str]) -> int:
+        calls.append(argv)
+        return 12
+
+    import chrys.app.cli.locate as locate_module
+
+    monkeypatch.setattr(locate_module, "main", fake_locate_main)
+    monkeypatch.setattr(sys, "argv", ["chrys", "locate", "fix parser", "--json"])
+
+    assert cli_app.main() == 12
+    assert calls == [["fix parser", "--json"]]
+
+
 def test_pyapp_main_exits_with_dispatcher_return_code(monkeypatch) -> None:
     monkeypatch.setattr(cli_app, "main", lambda: 7)
 

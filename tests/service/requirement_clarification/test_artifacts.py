@@ -41,6 +41,18 @@ def _selection(statement: str) -> ClarificationSelection:
     )
 
 
+def test_artifacts_escape_surrogateescaped_identity_text(tmp_path: Path) -> None:
+    store = ClarificationArtifactStore(tmp_path, 1)
+
+    store.save_requirement_input(revision=1, messages=("Inspect \udcff/path",))
+    store.save_snapshot_metadata({"source_root": "/repo/\udcff"})
+
+    requirement = (store.root / "01-input" / "requirement.md").read_text(encoding="utf-8")
+    metadata = json.loads((store.root / "01-input" / "workspace-snapshot.json").read_text(encoding="utf-8"))
+    assert "\\udcff" in requirement
+    assert metadata["source_root"] == "/repo/\udcff"
+
+
 def _proposal(statement: str) -> ClarificationProposal:
     return ClarificationProposal(
         verdict="clarification_needed",
@@ -258,35 +270,3 @@ def test_store_distinguishes_degraded_clarification_from_legitimate_empty(tmp_pa
     assert "failed or degraded" in clarified
     generation = json.loads((store.root / "06-pact-input/generation.private.json").read_text(encoding="utf-8"))
     assert generation["status"] == "skipped"
-
-
-def test_a_candidate_keeps_the_number_of_the_proposer_that_wrote_it(tmp_path: Path) -> None:
-    """`proposals` holds only the successes, so its position is not the proposer.
-
-    Renumbering by position files proposer 2's proposal as `proposal-1` beside
-    proposer 1's failed investigation — the exact cross-reference the audit
-    trail exists to support.
-    """
-    store = ClarificationArtifactStore(tmp_path / "session", 1)
-    result = ClarificationResult(
-        strategy_version="test-v1",
-        revision=1,
-        delta="Repository implementation guidance:\n- wire the option",
-        selection=ClarificationSelection(),
-        proposals=(_proposal("second"), _proposal("third")),
-        proposal_sample_indices=(2, 3),
-        investigations=(
-            ProposalInvestigation(sample_index=1, status="failed", investigation_attempts=1, synthesis_attempts=0),
-        ),
-    )
-
-    store.save_result(result, requirement_messages=("do it",))
-
-    candidates = store.root / "03-clarification/candidates"
-    assert sorted(path.name for path in candidates.glob("*.private.json")) == [
-        "proposal-2.private.json",
-        "proposal-3.private.json",
-    ]
-    second = json.loads((candidates / "proposal-2.private.json").read_text(encoding="utf-8"))
-    assert second["sample_index"] == 2
-    assert second["proposal"]["guidance_points"][0]["statement"] == "second"

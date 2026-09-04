@@ -59,6 +59,8 @@ def test_load_minimal_yaml(tmp_path: Path) -> None:
     assert profile.requirement_clarification.initial_timeout_seconds == 5400.0
     assert profile.requirement_clarification.repair_timeout_seconds == 5400.0
     assert profile.requirement_clarification.strategy == "legacy-v1-stabilized"
+    assert profile.requirement_enrichment.enabled is False
+    assert profile.requirement_enrichment.localization_mode == "auto"
 
 
 def test_load_requirement_clarification_exact_legacy_strategy(tmp_path: Path) -> None:
@@ -133,6 +135,51 @@ def test_load_requirement_clarification_rejects_invalid_phase_timeout(tmp_path: 
     )
 
     with pytest.raises(AgentProfileLoadError, match="repair_timeout_seconds"):
+        load_profile_from_yaml(path)
+
+
+def test_load_parallel_requirement_enrichment(tmp_path: Path) -> None:
+    path = tmp_path / "enrichment.yaml"
+    path.write_text(
+        "name: enrichment\nrequirement_enrichment:\n  enabled: true\n"
+        "  clarification_strategy: legacy-v1-exact\n"
+        "  clarification_timeout_seconds: 30\n"
+        "  localization_mode: fallback\n"
+        "  localization_timeout_seconds: 9\n"
+        "  localization_model_profile: local-model\n",
+        encoding="utf-8",
+    )
+
+    profile = load_profile_from_yaml(path)
+
+    assert profile.requirement_enrichment.enabled is True
+    assert profile.requirement_enrichment.clarification_strategy == "legacy-v1-exact"
+    assert profile.requirement_enrichment.clarification_timeout_seconds == 30.0
+    assert profile.requirement_enrichment.localization_mode == "fallback"
+    assert profile.requirement_enrichment.localization_timeout_seconds == 9.0
+    assert profile.requirement_enrichment.localization_model_profile == "local-model"
+
+
+def test_load_requirement_enrichment_rejects_legacy_workflow_conflict(tmp_path: Path) -> None:
+    path = tmp_path / "conflict.yaml"
+    path.write_text(
+        "name: conflict\nrequirement_clarification:\n  enabled: true\nrequirement_enrichment:\n  enabled: true\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(AgentProfileLoadError, match="cannot enable requirement_clarification"):
+        load_profile_from_yaml(path)
+
+
+@pytest.mark.parametrize("field", ["clarification_timeout_seconds", "localization_timeout_seconds"])
+def test_load_requirement_enrichment_rejects_invalid_timeout(tmp_path: Path, field: str) -> None:
+    path = tmp_path / "invalid-enrichment.yaml"
+    path.write_text(
+        f"name: invalid\nrequirement_enrichment:\n  enabled: true\n  {field}: 0\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(AgentProfileLoadError, match=field):
         load_profile_from_yaml(path)
 
 
@@ -1074,20 +1121,20 @@ def test_builtin_last_words_templates_are_supplementary_only() -> None:
     paths = sorted(builtins_dir.glob("*.yaml"))
     agent_specific_emphasis = {
         "Code": "build/test/lint outcomes",
+        "LongHorizon": "does not relitigate them",
         "Explore": "exact search/glob patterns",
         "General": "cannot ask the caller for clarification",
         "Plan": "drafted plan items",
         "QA": "git history or blame context",
-        "LongHorizon": "read or changed",
     }
     templates: dict[str, str] = {}
 
     assert paths
     for path in paths:
         data = yaml.safe_load(path.read_text(encoding="utf-8"))
-        if "compaction" not in data:
-            # An ACP profile runs no in-process loop, so it compacts nothing.
-            assert data.get("acp"), path.name
+        if "acp" in data:
+            # An external ACP agent has no Chrys compaction to template; the
+            # registry resets any such section on it.
             continue
         template = data["compaction"]["last_words_template"]
         templates[path.stem] = template

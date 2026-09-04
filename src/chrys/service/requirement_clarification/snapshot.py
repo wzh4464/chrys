@@ -145,18 +145,14 @@ def _safe_view_destination(view_root: Path, relative_path: str) -> Path:
     return destination
 
 
-def _ensure_restore_parent(path: Path) -> None:
-    """Create a restore destination's parent without touching existing modes.
+def _ensure_restore_parent(directory: Path) -> None:
+    """Create a parent inside the live workspace without touching its mode.
 
-    Restore writes into the user's *live* workspace, so
-    ``ensure_owner_only_directory`` is wrong here: it unconditionally chmods the
-    directory to 0700, and because snapshot entries record file and symlink
-    modes only, that tightening is never captured, never restored, and never
-    reported by ``matches()`` or by ``git status``. One failed repair would
-    otherwise leave the repository root and every restored file's directory
-    owner-only for good.
+    ``ensure_owner_only_directory`` is right for the snapshot's private tree
+    and wrong here: restoring a file must not chmod the user's own source
+    directories to 0700 as a side effect.
     """
-    path.mkdir(parents=True, exist_ok=True)
+    directory.mkdir(parents=True, exist_ok=True)
 
 
 def _materialize_model_entry(
@@ -443,9 +439,9 @@ class WorkspaceSnapshotter:
             # own ignore rules, and the repair may have changed them. Scanning
             # before the snapshot's `.gitignore` was written back asked the
             # repair which of its files should be rolled back -- a repair that
-            # created `build/output.log` and added `build/` to `.gitignore`
-            # kept the file, and the later `matches()` then failed as a
-            # conflict over the workspace it had just "restored".
+            # created `generated/output.txt` and added `generated/` to
+            # `.gitignore` kept the file, and the later `matches()` then failed
+            # as a conflict over the workspace it had just "restored".
             current = {
                 relative
                 for relative, _path, _info in self._iter_entries(
@@ -722,7 +718,7 @@ class WorkspaceSnapshotter:
     def _restore_reference(reference: SnapshotReference, blob_root: Path) -> None:
         destination = Path(reference.source_path)
         entry = reference.entry
-        _ensure_restore_parent(destination.parent)
+        ensure_owner_only_directory(destination.parent)
         data = (blob_root / entry.content_hash).read_bytes()
         if destination.exists() or destination.is_symlink():
             if destination.is_dir() and not destination.is_symlink():

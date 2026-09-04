@@ -9,12 +9,8 @@ import json
 import sys
 from pathlib import Path
 
-from chrys.foundation.config.settings import Settings
-from chrys.foundation.config.warnings import settings_warning_events
+from chrys.foundation.platform.files import atomic_write_owner_only_text
 from chrys.orchestration.startup import bootstrap_runtime
-from chrys.service.profiles.models.registry import ModelProfileRegistry
-from chrys.service.profiles.models.resolver import resolve_profile_selector
-from chrys.service.profiles.models.schema import ModelProfile
 from chrys.service.semantic_search import SemanticSearchConfig, SemanticSearchMode, localize_requirement
 
 
@@ -28,8 +24,12 @@ def build_parser() -> argparse.ArgumentParser:
         "-o",
         help="Markdown report path (defaults to <repo>/.semantic-search/code-localization.md)",
     )
-    parser.add_argument("--artifact-dir", help="Artifact directory inside the repository")
-    parser.add_argument("--mode", choices=[item.value for item in SemanticSearchMode], default="auto")
+    parser.add_argument("--artifact-dir", help="Dedicated artifact directory (defaults inside the repository)")
+    parser.add_argument(
+        "--mode",
+        choices=[item.value for item in SemanticSearchMode if item is not SemanticSearchMode.OFF],
+        default="auto",
+    )
     parser.add_argument("--max-iterations", type=int, default=20)
     parser.add_argument("--top-locations", type=int, default=12)
     parser.add_argument("--timeout", type=float, default=120.0)
@@ -40,73 +40,52 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _prepare_runtime() -> Settings:
-    """Load .env, sanitize proxies, and install settings before localizing."""
-    bootstrap = bootstrap_runtime(dotenv_override=True, configure_stdio=True, setup_telemetry=False)
-    for warning in (*bootstrap.warnings, *settings_warning_events(bootstrap.loaded)):
-        sys.stderr.write(f"Warning: {warning.message}\n")
-    return bootstrap.settings
-
-
-def _resolve_model(settings: Settings, selector: str) -> ModelProfile | None:
-    """Resolve the localization model: the flag, then the setting, then the active model."""
-    registry = ModelProfileRegistry()
-    registry.load_all()
-    for candidate in (selector.strip(), settings.semantic_search_model_profile.strip(), settings.model_profile.strip()):
-        if not candidate:
-            continue
-        resolved = resolve_profile_selector(registry, candidate)
-        if resolved is not None:
-            return resolved
-        sys.stderr.write(f"Warning: model profile not found: {candidate}\n")
-    return None
-
-
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     if (args.requirement is None) == (args.task is None):
         parser.error("provide either REQUIREMENT or --task FILE, not both")
-    settings = _prepare_runtime()
-    model_profile = _resolve_model(settings, args.model_profile)
+    repo = Path(args.repo).expanduser().resolve()
+    bootstrap_runtime(
+        dotenv_override=True,
+        configure_stdio=True,
+        project_root=repo,
+    )
     try:
         task_path = Path(args.task).expanduser().resolve() if args.task else None
         requirement = task_path.read_text(encoding="utf-8") if task_path else args.requirement
+        artifact_dir = Path(args.artifact_dir).expanduser().resolve() if args.artifact_dir else None
         result = localize_requirement(
-            args.repo,
+            repo,
             requirement,
-            artifact_dir=args.artifact_dir,
+            artifact_dir=artifact_dir,
             config=SemanticSearchConfig(
                 mode=SemanticSearchMode(args.mode),
                 max_iterations=args.max_iterations,
                 top_locations=args.top_locations,
                 timeout_seconds=args.timeout,
-                model_profile=model_profile.id if model_profile is not None else "",
+                model_profile=args.model_profile,
             ),
             refresh=args.refresh,
             codegraph_command=args.codegraph_command,
-            model_profile=model_profile,
         )
+        if args.output:
+            output = Path(args.output).expanduser().resolve()
+            try:
+                output.relative_to(repo)
+            except ValueError as exc:
+                raise ValueError("--output must be inside --repo") from exc
+            report = result.artifacts.report_markdown.read_text(encoding="utf-8")
+            atomic_write_owner_only_text(output, report)
     except (OSError, ValueError, RuntimeError) as exc:
         sys.stderr.write(f"Error: {exc}\n")
         return 1
-    if args.output:
-        output = Path(args.output).expanduser().resolve()
-        try:
-            output.relative_to(Path(args.repo).expanduser().resolve())
-        except ValueError:
-            sys.stderr.write("Error: --output must be inside --repo\n")
-            return 1
-        output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_text(result.artifacts.report_markdown.read_text(encoding="utf-8"), encoding="utf-8")
     if args.json:
-        sys.stdout.write(json.dumps(result.payload, ensure_ascii=False, indent=2) + "\n")
+        sys.stdout.write(json.dumps(result.payload, ensure_ascii=True, indent=2) + "\n")
     else:
         sys.stdout.write(f"Wrote code localization: {result.artifacts.report_markdown}\n")
         if result.reused:
             sys.stdout.write("Reused matching localization cache.\n")
-        for warning in result.warnings:
-            sys.stderr.write(f"Warning: {warning}\n")
     return 0
 
 

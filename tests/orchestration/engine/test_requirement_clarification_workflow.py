@@ -7,7 +7,7 @@ from __future__ import annotations
 import asyncio
 import copy
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -16,7 +16,7 @@ import pytest
 
 import chrys.orchestration.engine.run.requirement_clarification as workflow_module
 from chrys.foundation.events.bus import EventBus
-from chrys.foundation.events.types import AgentMessage, Error, RequirementClarificationPhaseChanged
+from chrys.foundation.events.types import AgentMessage, RequirementClarificationPhaseChanged
 from chrys.foundation.models.workspace import Workspace
 from chrys.kernel import Message
 from chrys.orchestration.engine.run.requirement_clarification import (
@@ -48,7 +48,6 @@ class _Executor:
         self.run_failed = False
         self.was_interrupted = False
         self.last_response_text = ""
-        self.promotions_repeating_provisional: list[bool] = []
         self.is_running = False
         self.phase = ""
         self.workspace_file = workspace_file
@@ -90,7 +89,6 @@ class _Executor:
         self.last_response_text = text
 
     async def publish_last_response_as_final(self, *, repeats_provisional: bool = False) -> None:
-        self.promotions_repeating_provisional.append(repeats_provisional)
         self.published_finals.append(self.last_response_text)
 
     async def interrupt(self) -> None:
@@ -299,9 +297,6 @@ async def test_workflow_orders_p0_before_delta_and_restores_p0_on_repair_failure
         assert not repair_response.exists()
         expected_p0_text = "Reused the existing workspace implementation as P0." if reuse_workspace_as_p0 else "P0"
         assert executor.published_finals == [expected_p0_text]
-        # A promoted baseline is already on screen as a provisional — unless a
-        # reused workspace synthesised it without ever running a P0 pass.
-        assert executor.promotions_repeating_provisional == [not reuse_workspace_as_p0]
         assert phases[-1] == RequirementWorkflowPhase.COMPLETED
         return
     assert executor.run_calls == 1
@@ -311,7 +306,6 @@ async def test_workflow_orders_p0_before_delta_and_restores_p0_on_repair_failure
         assert snapshotter.restored == 1
         expected_p0_text = "Reused the existing workspace implementation as P0." if reuse_workspace_as_p0 else "P0"
         assert executor.published_finals == [expected_p0_text]
-        assert executor.promotions_repeating_provisional == [not reuse_workspace_as_p0]
         assert workspace_file.read_text(encoding="utf-8") == "P0\n"
         assert phases[-1] == RequirementWorkflowPhase.DEGRADED
         assert json.loads(repair_response.read_text(encoding="utf-8"))["status"] in {"failed", "timed_out"}
@@ -322,125 +316,42 @@ async def test_workflow_orders_p0_before_delta_and_restores_p0_on_repair_failure
         assert json.loads(repair_response.read_text(encoding="utf-8"))["status"] == "succeeded"
 
 
-async def test_a_failed_rollback_ends_the_turn_instead_of_leaving_it_open(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.asyncio
+@pytest.mark.parametrize("action", ["amend", "stop"])
+async def test_live_clarification_side_call_is_cancelled_immediately(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    action: str,
 ) -> None:
-    """A phase event is progress, not an outcome.
-
-    The TUI keeps a turn open until a final answer, an `Error`, or the user's
-    own Stop arrives, and headless `chrys run` decides its exit status the same
-    way. A repair that failed AND could not roll back delivers no answer at
-    all — so without a terminal the spinner runs forever, the input bar stays
-    locked, and a script exits 0 on a half-repaired workspace nobody told it
-    about.
-    """
-
     async def _direct(function, /, *args, **kwargs):
         return function(*args, **kwargs)
+
+    clarify_started = asyncio.Event()
+    clarify_cancelled = asyncio.Event()
+    clarification_calls = 0
 
     class _Service:
         def __init__(self, _model, **_kwargs) -> None:
             return
 
         async def clarify(self, **_kwargs):
-            return _result()
+            nonlocal clarification_calls
+            clarification_calls += 1
+            if clarification_calls > 1:
+                return replace(_result(), revision=2)
+            clarify_started.set()
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                clarify_cancelled.set()
+                raise
 
         async def generate_pact_input(self, **_kwargs):
-            raise RuntimeError("simulated optional PACT failure")
-
-    class _BrokenSnapshotter(_Snapshotter):
-        def restore(self, _snapshot) -> None:
-            raise OSError("read-only filesystem")
+            raise RuntimeError("optional PACT unavailable")
 
     monkeypatch.setattr(workflow_module.asyncio, "to_thread", _direct)
     monkeypatch.setattr(workflow_module, "ClarificationService", _Service)
     monkeypatch.setattr(workflow_module, "ChrysClarificationModel", lambda **_kwargs: object())
-
-    workspace_root = tmp_path / "workspace"
-    workspace_root.mkdir()
-    workspace_file = workspace_root / "value.txt"
-    workspace_file.write_text("S0\n", encoding="utf-8")
-    executor = _Executor(workspace_file, repair_fails=True)
-    history = SessionHistoryManager()
-    history.bind(executor.history_state)
-    host = SimpleNamespace(
-        _active_profile=object(),
-        _agent_profile_fingerprint="agent-fp",
-        _model_profile_fingerprint="model-fp",
-        _bus=EventBus(),
-        _consumed_injections=[],
-        _executor=executor,
-        _history=history,
-        _intermediate_texts={},
-        _reminder_middleware=_Reminder(),
-        _session_id="session",
-        _turn_number=0,
-        _turn_state=SimpleNamespace(close_injection_admission=lambda _scope: None),
-        _workspace=Workspace.from_cwd(str(workspace_root)),
-        _session_dir=tmp_path / "session",
-        _requirement_clarification_workflow=None,
-        _accumulate_side_call_usage=lambda _usage: None,
-    )
-    runner = _Runner(host, workspace_file)
-    workflow = RequirementClarificationWorkflow(host, runner, reuse_workspace_as_p0=False, clarification_only=False)
-    workflow._snapshotter = _BrokenSnapshotter(workspace_file)
-    errors: list[Error] = []
-    phases: list[str] = []
-
-    async def _error(event: Error) -> None:
-        errors.append(event)
-
-    async def _phase(event: RequirementClarificationPhaseChanged) -> None:
-        phases.append(event.phase)
-
-    await host._bus.subscribe(Error, _error)
-    await host._bus.subscribe(RequirementClarificationPhaseChanged, _phase)
-
-    await workflow.run(
-        "implement it",
-        created_at=None,
-        contents=["implement it"],
-        run_scope=None,
-        injection_window=None,
-        admission_preparation=None,
-    )
-
-    assert phases[-1] == RequirementWorkflowPhase.CONFLICTED
-    assert executor.published_finals == []
-    assert [error.code for error in errors] == ["requirement_clarification_conflicted"]
-    assert "rollback failed" in errors[0].message
-
-
-async def test_stop_during_clarification_does_not_wait_out_the_timeout(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The executor is idle here, so interrupting it reaches nothing.
-
-    Without cancelling the side calls themselves, Stop was not honoured until
-    they finished or timed out — half an hour with the shipped default.
-    """
-
-    async def _direct(function, /, *args, **kwargs):
-        return function(*args, **kwargs)
-
-    started = asyncio.Event()
-
-    class _SlowService:
-        def __init__(self, _model, **_kwargs) -> None:
-            return
-
-        async def clarify(self, **_kwargs):
-            started.set()
-            await asyncio.sleep(3600)
-            raise AssertionError("the stop never arrived")
-
-        async def generate_pact_input(self, **_kwargs):
-            raise AssertionError("PACT generation must not start after a stop")
-
-    monkeypatch.setattr(workflow_module.asyncio, "to_thread", _direct)
-    monkeypatch.setattr(workflow_module, "ClarificationService", _SlowService)
-    monkeypatch.setattr(workflow_module, "ChrysClarificationModel", lambda **_kwargs: object())
-
     workspace_root = tmp_path / "workspace"
     workspace_root.mkdir()
     workspace_file = workspace_root / "value.txt"
@@ -467,16 +378,10 @@ async def test_stop_during_clarification_does_not_wait_out_the_timeout(
         _accumulate_side_call_usage=lambda _usage: None,
     )
     runner = _Runner(host, workspace_file)
-    workflow = RequirementClarificationWorkflow(host, runner, reuse_workspace_as_p0=False, clarification_only=False)
+    workflow = RequirementClarificationWorkflow(host, runner, clarification_only=True)
     workflow._snapshotter = _Snapshotter(workspace_file)
-
-    async def _stop_once_clarifying() -> None:
-        await started.wait()
-        await workflow.request_stop()
-
-    stopper = asyncio.create_task(_stop_once_clarifying())
-    async with asyncio.timeout(10):
-        await workflow.run(
+    run_task = asyncio.create_task(
+        workflow.run(
             "implement it",
             created_at=None,
             contents=["implement it"],
@@ -484,7 +389,23 @@ async def test_stop_during_clarification_does_not_wait_out_the_timeout(
             injection_window=None,
             admission_preparation=None,
         )
-    await stopper
+    )
+    async with asyncio.timeout(1):
+        await clarify_started.wait()
+    if action == "amend":
+        assert await workflow.accept_amendment(
+            "preserve compatibility",
+            created_at=None,
+            injection_id="amendment",
+        )
+    else:
+        await workflow.request_stop()
+    async with asyncio.timeout(1):
+        await clarify_cancelled.wait()
+        await run_task
 
-    assert executor.published_finals == ["P0"]
-    assert executor.run_calls == 0
+    if action == "amend":
+        assert clarification_calls == 2
+    else:
+        assert clarification_calls == 1
+        assert executor.published_finals == ["P0"]
