@@ -60,6 +60,7 @@ class TurnRouterHost(Protocol):
     _route_fingerprint: str
     _tiebreaker_guard: TiebreakerGuard
     _sub_agent_tools: Any | None
+    _agent_registry: Any | None
 
     @property
     def _settings(self) -> Settings: ...
@@ -305,8 +306,23 @@ class TurnRouter:
     # ------------------------------------------------------------------
 
     def _pact_tool_available(self, config: RoutingConfig) -> bool:
+        """Whether the profile that will RUN this turn can hand work to a campaign.
+
+        Not the current profile: routing a long-horizon turn switches to
+        ``target_profile``, and the campaign tool deliberately lives only
+        there — ``Code`` does not carry ``chrys_pact``. Asking the profile we
+        are about to switch away from made every campaign unreachable from the
+        default profile, which is the entire path this track exists to take.
+        """
+        pact_tool = config.long_horizon.pact_tool
+        target = config.target_profile.strip()
+        if target:
+            registry = self._host._agent_registry
+            profile = registry.get(target) if registry is not None else None
+            if profile is not None:
+                return any((ref.tool_name or ref.profile) == pact_tool for ref in profile.sub_agents.agents)
         tools = self._host._sub_agent_tools
-        return tools is not None and config.long_horizon.pact_tool in tools.tool_names()
+        return tools is not None and pact_tool in tools.tool_names()
 
     def _may_inherit(self, previous: RouteDecision, signals: PromptSignals, config: RoutingConfig) -> bool:
         """Whether the previous turn's verdict still describes this one."""

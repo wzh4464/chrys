@@ -14,7 +14,7 @@ from chrys.foundation.config.settings import Settings
 from chrys.foundation.events.bus import EventBus
 from chrys.foundation.events.types import RouteOverride, TurnRouted, Warning
 from chrys.orchestration.engine.run.routing import TurnRouter
-from chrys.service.profiles.agents.schema import AgentProfile, RoutingConfig
+from chrys.service.profiles.agents.schema import AgentProfile, RoutingConfig, SubAgentRef
 from chrys.service.profiles.models.schema import ModelProfile
 from chrys.service.routing.classifier import RouteBand, RouteDecision, RouteTrack
 from chrys.service.routing.guard import TiebreakerGuard
@@ -61,6 +61,7 @@ class _Host:
     _route_fingerprint: str = ""
     _tiebreaker_guard: TiebreakerGuard = field(default_factory=TiebreakerGuard)
     _sub_agent_tools: Any = field(default_factory=lambda: _Tools({"chrys_pact"}))
+    _agent_registry: Any = None
     settings: Settings = field(default_factory=lambda: Settings(pact_verify_command="uv run pytest"))
     switched: list[str] = field(default_factory=list)
     switch_ok: bool = True
@@ -542,3 +543,52 @@ async def test_a_standard_turn_cannot_be_downgraded_further(ready_workspace: Pat
     await router.publish(await router.decide(_TRIVIAL, turn=1), turn=1)
 
     assert routed[-1].can_downgrade is False
+
+
+async def test_a_campaign_stays_reachable_from_a_profile_without_the_tool(ready_workspace: Path) -> None:
+    """`Code` deliberately does not carry `chrys_pact`; `LongHorizon` does.
+
+    Probing the profile we are about to switch AWAY from demoted every strong
+    decision to `pact_not_ready`, so a campaign could never be reached from the
+    default profile — the entire path this track exists to take.
+    """
+
+    class _Registry:
+        def get(self, name: str) -> AgentProfile | None:
+            if name != "LongHorizon":
+                return None
+            target = AgentProfile(name="LongHorizon")
+            target.sub_agents.agents.append(SubAgentRef(profile="ChrysPact", tool_name="chrys_pact"))
+            return target
+
+    host = _Host(
+        _agent_profile=_profile(mode="auto", target_profile="LongHorizon"),
+        _sub_agent_tools=_Tools(set()),
+        _agent_registry=_Registry(),
+    )
+
+    decision = await _router(host, cwd=ready_workspace).decide(_STRONG, turn=1)
+
+    assert decision.band is RouteBand.STRONG_LONG_HORIZON
+    assert decision.plan.pact is True
+    assert "pact_not_ready" not in decision.reason
+
+
+async def test_a_target_profile_that_lacks_the_tool_still_vetoes(ready_workspace: Path) -> None:
+    """The veto is real, not skipped: it just asks the right profile."""
+
+    class _Registry:
+        def get(self, name: str) -> AgentProfile | None:
+            return AgentProfile(name=name)
+
+    host = _Host(
+        _agent_profile=_profile(mode="auto", target_profile="LongHorizon"),
+        _sub_agent_tools=_Tools({"chrys_pact"}),
+        _agent_registry=_Registry(),
+    )
+
+    decision = await _router(host, cwd=ready_workspace).decide(_STRONG, turn=1)
+
+    assert decision.band is RouteBand.LEAN_LONG_HORIZON
+    assert decision.plan.pact is False
+    assert "pact_not_ready" in decision.reason
