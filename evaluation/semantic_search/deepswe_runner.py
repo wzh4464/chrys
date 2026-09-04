@@ -25,7 +25,11 @@ import tomllib
 from pathlib import Path
 from typing import Any
 
-from evaluation.deepswe.verify import verify_command_for
+try:
+    from evaluation.deepswe.verify import verify_command_for
+except ModuleNotFoundError:  # run by path (`python evaluation/semantic_search/deepswe_runner.py`)
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    from evaluation.deepswe.verify import verify_command_for
 
 
 def _read_tasks(path: Path) -> list[dict[str, Any]]:
