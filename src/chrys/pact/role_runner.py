@@ -162,6 +162,26 @@ _FENCED_WHOLE = re.compile(r"\A\s*```[A-Za-z0-9_+-]*[ \t]*\r?\n(.*?)\r?\n[ \t]*`
 
 _JSON_PROTOCOL_ROLES = frozenset({"manager", "planner"})
 
+# What the runtime's own prompts leave implicit and live campaigns tripped over: a
+# Planner that merged two missions by deleting one ("Planner proposal cannot delete
+# existing Missions"), a Planner that decorated missions with a `successors` field the
+# schema rejects, a Manager that answered in prose. Said once more, plainly.
+_ROLE_PROTOCOL_REMINDERS = {
+    "planner": (
+        "Protocol constraints (the runtime rejects proposals that break them):\n"
+        "- Never delete or rename an existing mission. To replace one, add a NEW mission whose "
+        "`supersedes` names the mission it replaces; the old mission stays in the graph.\n"
+        "- A mission has exactly these fields: id, objective, target_ac_ids, dependencies, "
+        "supersedes, verification_intent. No successors, no status, no notes.\n"
+        "- Reply with the JSON object only: no prose before or after it, no Markdown fence."
+    ),
+    "manager": (
+        "Protocol constraints: reply with the JSON decision object only -- no prose before or "
+        "after it, no Markdown fence. Use `expected_plan_revision` and "
+        "`expected_work_state_revision` exactly as given in the input."
+    ),
+}
+
 
 def _protocol_payload(text: str) -> str:
     """The JSON object a Manager or Planner reply carries, wherever the model put it.
@@ -307,6 +327,8 @@ class InProcessChrysAdapter:
         preserve_runtime = False
         try:
             prompt = request.prompt
+            if self.semantic_role in _ROLE_PROTOCOL_REMINDERS:
+                prompt = f"{prompt}\n\n{_ROLE_PROTOCOL_REMINDERS[self.semantic_role]}"
             if self.semantic_role == "reviewer":
                 self._clear_review_transport(transport_path)
                 prompt += _REVIEW_TRANSPORT_EPILOGUE
