@@ -187,6 +187,9 @@ uv run pytest -m "not integration and not gc_calibration"
 | 09-04 | 评审三轮 | 3 条判定为**不宜盲修**：role 运行时孤儿、重试不更新图、崩溃恢复轮次无 mutation 账本 | 写进 `docs/design/long-horizon-known-gaps.md` §1b、1c、1d，含机制与运维含义 |
 | 09-04 | 评审三轮 | 1 条核实后不是缺陷：repair 阶段抑制 `Error` 是刻意的（工作流提升 P0 并交付有效答复）；其"回滚也失败时什么都不投递"的子情形是真缺陷，已单独修复 | 保留原行为，子情形见 `84ab04b7` |
 | 09-04 | 重做 | 用户要求前两个模块**尽量复用上游** `feature/requirement-clarification-localization`（squash、88 文件、含 enrichment 预检与 SnapshotReadTools）；两个模块整体取上游，共享引擎文件保留本分支并手工补入上游新增，本分支对这两个模块的修复逐条重放（上游已独立修好的四条不重放）；in-process 定位模型删除，长程 track 改走上游 `localize_requirement_async` | `f44f614c` 合并提交；全量 19451 通过 |
+| 09-04 | e2e | 合并后首个端到端跑通（P0/repair/`.pact-io` 全过），但会话产物暴露三处：简报读 `05-outcome/`（finalize 之后才写）→ 写着"(clarification produced none)"；委派 reminder 在调用 `_run_fresh_standard` **之前**入队，挂在 repair pass 的 current state 上，委派 pass 没看到（轨迹：3 次 read + 1 次 zsh，`campaign: null`）；本地定位被默认 120 s 预算掐断 | 简报先读 `03-clarification/deliverable/`；reminder 经 `before_execution` 以 `for_next_turn=True` 入队；smoke 脚本导出 900 s 预算（`8d87fdcc`） |
+| 09-04 | e2e | smoke 脚本用 shell 环境变量判断图是否配置，而图在 `~/.chrys/.env` 里由 chrys 自己加载 → 记忆那半在图真正活着的机器上被跳过 | 改问 `chrys memory doctor --json`（`1d2e5939`）；写回已手工验证：会话 1 轮待沉淀 → 沉淀 → 图中 `chrys_trajectories` 0→6 |
+| 09-04 | DeepSWE | `runs/first20-lh` 以 `--run-long-horizon` 启动（11:07），模型配置与基线一致，定位预算 1800 s；远端无 `pact.verify_command`，按设计不委派 campaign。第一题 P0 约 15–20 min（推理模型），预计每题 45–60 min | 每 10 min 核对；无需为 `8d87fdcc` 重启（它只影响 campaign 路径） |
 
 ## 7. 交付状态（09-03 收尾）
 
