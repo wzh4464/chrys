@@ -23758,7 +23758,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._fire_pre_compact_hook",
       "source_column": 8,
-      "source_line": 2027,
+      "source_line": 2037,
       "wrapper_target": null
     },
     {
@@ -23778,7 +23778,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._fire_sub_agent_hook",
       "source_column": 8,
-      "source_line": 2020,
+      "source_line": 2030,
       "wrapper_target": null
     },
     {
@@ -23798,7 +23798,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._make_acp_tool._invoke_acp",
       "source_column": 20,
-      "source_line": 882,
+      "source_line": 886,
       "wrapper_target": null
     },
     {
@@ -23818,7 +23818,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._make_acp_tool._invoke_acp",
       "source_column": 42,
-      "source_line": 912,
+      "source_line": 916,
       "wrapper_target": null
     },
     {
@@ -23838,7 +23838,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._make_acp_tool._invoke_acp",
       "source_column": 20,
-      "source_line": 926,
+      "source_line": 930,
       "wrapper_target": null
     },
     {
@@ -23858,7 +23858,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentTools._make_acp_tool._invoke_acp",
       "source_column": 16,
-      "source_line": 935,
+      "source_line": 939,
       "wrapper_target": "chrys.orchestration.sub_agents.tools.SubAgentTools._fire_sub_agent_hook"
     },
     {
@@ -23878,7 +23878,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._make_acp_tool._invoke_acp",
       "source_column": 25,
-      "source_line": 1097,
+      "source_line": 1101,
       "wrapper_target": null
     },
     {
@@ -23898,7 +23898,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._make_acp_tool._invoke_acp",
       "source_column": 20,
-      "source_line": 1112,
+      "source_line": 1116,
       "wrapper_target": null
     },
     {
@@ -23918,7 +23918,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentTools._make_acp_tool._invoke_acp",
       "source_column": 20,
-      "source_line": 1132,
+      "source_line": 1136,
       "wrapper_target": "chrys.orchestration.sub_agents.tools._finish_cancellation_cleanup"
     },
     {
@@ -23938,7 +23938,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._make_acp_tool._invoke_acp",
       "source_column": 24,
-      "source_line": 1150,
+      "source_line": 1154,
       "wrapper_target": null
     },
     {
@@ -23958,7 +23958,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._make_acp_tool._invoke_acp",
       "source_column": 24,
-      "source_line": 1167,
+      "source_line": 1171,
       "wrapper_target": null
     },
     {
@@ -23978,7 +23978,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._make_acp_tool._invoke_acp",
       "source_column": 24,
-      "source_line": 1187,
+      "source_line": 1191,
       "wrapper_target": null
     },
     {
@@ -23998,7 +23998,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentTools._make_acp_tool._invoke_acp",
       "source_column": 24,
-      "source_line": 1194,
+      "source_line": 1198,
       "wrapper_target": "chrys.orchestration.sub_agents.tools.SubAgentTools._fire_sub_agent_hook"
     },
     {
@@ -24018,7 +24018,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._make_acp_tool._invoke_acp._finalize_cancellation",
       "source_column": 20,
-      "source_line": 1052,
+      "source_line": 1056,
       "wrapper_target": null
     },
     {
@@ -24038,7 +24038,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._make_acp_tool._invoke_acp._record_attempt",
       "source_column": 20,
-      "source_line": 987,
+      "source_line": 991,
       "wrapper_target": null
     },
     {
@@ -24058,7 +24058,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._make_acp_tool._invoke_acp._record_attempt",
       "source_column": 24,
-      "source_line": 999,
+      "source_line": 1003,
       "wrapper_target": null
     },
     {
@@ -24078,7 +24078,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._make_acp_tool._invoke_acp._record_pause",
       "source_column": 20,
-      "source_line": 1025,
+      "source_line": 1029,
       "wrapper_target": null
     },
     {
@@ -24098,7 +24098,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._make_tool._invoke",
       "source_column": 20,
-      "source_line": 1519,
+      "source_line": 1529,
       "wrapper_target": null
     },
     {
@@ -24118,7 +24118,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._make_tool._invoke",
       "source_column": 42,
-      "source_line": 1553,
+      "source_line": 1563,
       "wrapper_target": null
     },
     {
@@ -24138,7 +24138,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentTools._make_tool._invoke",
       "source_column": 20,
-      "source_line": 1559,
+      "source_line": 1569,
       "wrapper_target": "chrys.orchestration.sub_agents.tools.SubAgentTools._refresh_skill_catalog"
     },
     {
@@ -24158,7 +24158,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._make_tool._invoke",
       "source_column": 20,
-      "source_line": 1569,
+      "source_line": 1579,
       "wrapper_target": null
     },
     {
@@ -24178,7 +24178,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentTools._make_tool._invoke",
       "source_column": 16,
-      "source_line": 1578,
+      "source_line": 1588,
       "wrapper_target": "chrys.orchestration.sub_agents.tools.SubAgentTools._fire_sub_agent_hook"
     },
     {
@@ -24198,7 +24198,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._make_tool._invoke",
       "source_column": 29,
-      "source_line": 1874,
+      "source_line": 1884,
       "wrapper_target": null
     },
     {
@@ -24218,7 +24218,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentTools._make_tool._invoke",
       "source_column": 20,
-      "source_line": 1885,
+      "source_line": 1895,
       "wrapper_target": "chrys.orchestration.sub_agents.tools._finish_cancellation_cleanup"
     },
     {
@@ -24238,7 +24238,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._make_tool._invoke",
       "source_column": 24,
-      "source_line": 1888,
+      "source_line": 1898,
       "wrapper_target": null
     },
     {
@@ -24258,7 +24258,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._make_tool._invoke",
       "source_column": 24,
-      "source_line": 1898,
+      "source_line": 1908,
       "wrapper_target": null
     },
     {
@@ -24278,7 +24278,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._make_tool._invoke",
       "source_column": 24,
-      "source_line": 1916,
+      "source_line": 1926,
       "wrapper_target": null
     },
     {
@@ -24298,7 +24298,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._make_tool._invoke",
       "source_column": 24,
-      "source_line": 1923,
+      "source_line": 1933,
       "wrapper_target": null
     },
     {
@@ -24318,7 +24318,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentTools._make_tool._invoke",
       "source_column": 24,
-      "source_line": 1932,
+      "source_line": 1942,
       "wrapper_target": "chrys.orchestration.sub_agents.tools.SubAgentTools._fire_sub_agent_hook"
     },
     {
@@ -24338,7 +24338,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._make_tool._invoke",
       "source_column": 24,
-      "source_line": 1973,
+      "source_line": 1983,
       "wrapper_target": null
     },
     {
@@ -24358,7 +24358,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._make_tool._invoke._publish_validation_retry",
       "source_column": 24,
-      "source_line": 1748,
+      "source_line": 1758,
       "wrapper_target": null
     },
     {
@@ -24378,7 +24378,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentTools._make_tool._make_invocation_runtime._on_pre_compact",
       "source_column": 16,
-      "source_line": 1340,
+      "source_line": 1350,
       "wrapper_target": "chrys.orchestration.sub_agents.tools.SubAgentTools._fire_pre_compact_hook"
     },
     {
@@ -24398,7 +24398,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentTools._make_tool._make_invocation_runtime._publish_compaction_status",
       "source_column": 16,
-      "source_line": 1418,
+      "source_line": 1428,
       "wrapper_target": "chrys.orchestration.sub_agents.tools.SubAgentTools._publish_sub_agent_compaction_status"
     },
     {
@@ -24418,7 +24418,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._make_tool._make_invocation_runtime._publish_last_words_retry",
       "source_column": 16,
-      "source_line": 1398,
+      "source_line": 1408,
       "wrapper_target": null
     },
     {
@@ -24438,7 +24438,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._publish_sub_agent_compaction_status",
       "source_column": 12,
-      "source_line": 2062,
+      "source_line": 2072,
       "wrapper_target": null
     },
     {
@@ -24458,7 +24458,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._publish_sub_agent_compaction_status",
       "source_column": 12,
-      "source_line": 2075,
+      "source_line": 2085,
       "wrapper_target": null
     },
     {
@@ -24478,7 +24478,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._publish_sub_agent_compaction_status",
       "source_column": 8,
-      "source_line": 2084,
+      "source_line": 2094,
       "wrapper_target": null
     },
     {
@@ -24498,7 +24498,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._refresh_skill_catalog",
       "source_column": 29,
-      "source_line": 744,
+      "source_line": 748,
       "wrapper_target": null
     },
     {
@@ -24518,7 +24518,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools._refresh_skill_catalog",
       "source_column": 12,
-      "source_line": 751,
+      "source_line": 755,
       "wrapper_target": null
     },
     {
@@ -24538,7 +24538,7 @@
       "primitive": "gather",
       "qualname": "SubAgentTools.cascade_abort_all",
       "source_column": 18,
-      "source_line": 2388,
+      "source_line": 2398,
       "wrapper_target": null
     },
     {
@@ -24558,7 +24558,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools.cleanup",
       "source_column": 16,
-      "source_line": 2411,
+      "source_line": 2421,
       "wrapper_target": null
     },
     {
@@ -24578,7 +24578,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools.cleanup",
       "source_column": 16,
-      "source_line": 2417,
+      "source_line": 2427,
       "wrapper_target": null
     },
     {
@@ -24598,7 +24598,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools.register",
       "source_column": 28,
-      "source_line": 540,
+      "source_line": 544,
       "wrapper_target": null
     },
     {
@@ -24618,7 +24618,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools.register",
       "source_column": 16,
-      "source_line": 542,
+      "source_line": 546,
       "wrapper_target": null
     },
     {
@@ -24638,7 +24638,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentTools.register",
       "source_column": 42,
-      "source_line": 600,
+      "source_line": 604,
       "wrapper_target": "chrys.service.skills.adapter.create_skills_provider"
     },
     {
@@ -24658,7 +24658,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools.register",
       "source_column": 16,
-      "source_line": 611,
+      "source_line": 615,
       "wrapper_target": null
     },
     {
@@ -24678,7 +24678,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools.register",
       "source_column": 8,
-      "source_line": 688,
+      "source_line": 692,
       "wrapper_target": null
     },
     {
@@ -24698,7 +24698,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentTools.register._on_pre_compact",
       "source_column": 12,
-      "source_line": 552,
+      "source_line": 556,
       "wrapper_target": "chrys.orchestration.sub_agents.tools.SubAgentTools._fire_pre_compact_hook"
     },
     {
@@ -24718,7 +24718,7 @@
       "primitive": "wrapper",
       "qualname": "SubAgentTools.register._publish_compaction_status",
       "source_column": 12,
-      "source_line": 661,
+      "source_line": 665,
       "wrapper_target": "chrys.orchestration.sub_agents.tools.SubAgentTools._publish_sub_agent_compaction_status"
     },
     {
@@ -24738,7 +24738,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools.register._publish_last_words_retry",
       "source_column": 12,
-      "source_line": 645,
+      "source_line": 649,
       "wrapper_target": null
     },
     {
@@ -24758,7 +24758,7 @@
       "primitive": "awaitable",
       "qualname": "SubAgentTools.register_acp",
       "source_column": 16,
-      "source_line": 775,
+      "source_line": 779,
       "wrapper_target": null
     },
     {

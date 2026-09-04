@@ -477,6 +477,10 @@ class SubAgentTools:
 
         self._runtime = runtime
         self._ask_user_timeout_seconds = settings.ask_user_timeout_seconds
+        # Forwarded to a `command: chrys` child so `pact-agent --verify-from-settings`
+        # resolves the same command this session did; the child's environment is
+        # an allowlist and inherits nothing from ours by design.
+        self._pact_verify_command = settings.pact_verify_command.strip()
         runtime_cwd = runtime.cwd if isinstance(runtime.cwd, str) else None
         if not self._workspace_cwd and runtime_cwd is not None:
             self._workspace_cwd = runtime_cwd
@@ -1227,11 +1231,17 @@ class SubAgentTools:
         try:
             command = resolve_env_templates(config.command, location="ACP command")
             args = tuple(resolve_env_templates(arg, location="ACP argument") for arg in config.args)
+            is_self = config.command == _SELF_COMMAND
             command, args = _resolve_self_command(command, args)
             env = {
                 key: resolve_env_templates(value, location=f"ACP environment {key!r}")
                 for key, value in config.env.items()
             }
+            if is_self and self._pact_verify_command and "CHRYS_PACT_VERIFY_COMMAND" not in env:
+                # The first live campaign died here: the parent knew the verify
+                # command, the child was spawned into a clean environment and
+                # refused to start without one.
+                env["CHRYS_PACT_VERIFY_COMMAND"] = self._pact_verify_command
             cwd_raw = resolve_env_templates(config.cwd, location="ACP cwd") if config.cwd else runtime.cwd
         except ValueError as exc:
             raise AcpConfigError(str(exc), cause=exc) from exc
