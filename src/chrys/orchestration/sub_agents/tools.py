@@ -1243,6 +1243,20 @@ class SubAgentTools:
                 # command, the child was spawned into a clean environment and
                 # refused to start without one.
                 env["CHRYS_PACT_VERIFY_COMMAND"] = self._pact_verify_command
+            if is_self:
+                # A self child is this program again: the provider credentials and
+                # CHRYS_* settings its model profiles and roles resolve from the
+                # environment must reach it, or a role host fails to spawn with an
+                # unresolved `{{OPENROUTER_API_KEY}}` -- which is how every campaign in
+                # the first container run died with "Manager provider turn was
+                # unusable: spawn_failed".
+                for name, value in os.environ.items():
+                    if name in env or not value:
+                        continue
+                    if name.startswith("CHRYS_") or name.endswith(
+                        ("_API_KEY", "_AUTH_TOKEN", "_API_BASE", "_BASE_URL")
+                    ):
+                        env[name] = value
             session_root = os.environ.get("CHRYS_SESSION_ROOT_DIR", "").strip()
             if is_self and session_root and "CHRYS_SESSION_ROOT_DIR" not in env:
                 # The campaign's role sessions belong with this session's store: a
