@@ -272,6 +272,7 @@ def _run_agent(
     agent: str,
     model: str,
     timeout: float,
+    route: str = "",
 ) -> tuple[int, str, str]:
     command = [
         *command_prefix,
@@ -283,6 +284,11 @@ def _run_agent(
         "--workdir",
         str(repo),
     ]
+    if route:
+        # The long-horizon track localizes and clarifies on its own frozen
+        # snapshot; forcing the route is what makes a benchmark exercise it
+        # regardless of how each task's wording would have scored.
+        command.extend(["--route", route])
     if report is not None:
         command.extend(["--localization-file", str(report)])
     # Headless Chrys needs an explicit model selector; otherwise it may use an
@@ -340,6 +346,15 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Run an agent profile whose native workflow performs clarification and localization",
     )
+    run_mode.add_argument(
+        "--run-long-horizon",
+        action="store_true",
+        help=(
+            "Run each task as one forced long-horizon turn (chrys run --route long-horizon): the track freezes "
+            "the workspace, localizes and clarifies on the snapshot, repairs, and delegates a campaign when the "
+            "workspace can verify one. No separate localization preflight is run."
+        ),
+    )
     parser.add_argument("--agent", default="Code", help="Chrys agent profile for an agent run")
     parser.add_argument("--model", default="", help="Optional Chrys model profile for an agent run")
     parser.add_argument(
@@ -370,7 +385,8 @@ def main(argv: list[str] | None = None) -> int:
     all_tasks = _read_tasks(dataset)
     start = max(args.offset, 0)
     tasks = _select_tasks(all_tasks, order=args.order, offset=start, limit=args.limit)
-    agent_requested = args.run_agent or args.run_enrichment
+    agent_requested = args.run_agent or args.run_enrichment or args.run_long_horizon
+    native_analysis = args.run_enrichment or args.run_long_horizon
     chrys_home = Path(args.chrys_home).expanduser().resolve() if args.chrys_home else output_dir / "chrys-home"
     command_prefix, command_env = _chrys_command(
         args.chrys,
@@ -420,7 +436,7 @@ def main(argv: list[str] | None = None) -> int:
             # the agent.  A missing report still triggers localization.
             report = localization_dir / "code-localization.md"
             reuse_localization = (args.resume or args.retry_agent) and args.run_agent and report.is_file()
-            if args.run_enrichment or reuse_localization:
+            if native_analysis or reuse_localization:
                 rc, stdout, stderr = 0, "", ""
             else:
                 rc, stdout, stderr = _run_locate(
@@ -436,9 +452,9 @@ def main(argv: list[str] | None = None) -> int:
                 (task_dir / "locate.stdout").write_text(stdout, encoding="utf-8")
                 (task_dir / "locate.stderr").write_text(stderr, encoding="utf-8")
             record.update({"repo": str(repo), "base_commit": head})
-            if not args.run_enrichment:
+            if not native_analysis:
                 record["localization_returncode"] = rc
-            if not args.run_enrichment and (rc != 0 or not report.is_file()):
+            if not native_analysis and (rc != 0 or not report.is_file()):
                 record.update({"status": "localization_failed", "error": stderr[-2000:]})
             elif agent_requested:
                 try:
@@ -447,10 +463,11 @@ def main(argv: list[str] | None = None) -> int:
                         command_env,
                         repo,
                         requirement_file,
-                        None if args.run_enrichment else report,
+                        None if native_analysis else report,
                         agent=args.agent,
                         model=args.model,
                         timeout=args.agent_timeout,
+                        route="long-horizon" if args.run_long_horizon else "",
                     )
                 except subprocess.TimeoutExpired as exc:
                     agent_rc = None

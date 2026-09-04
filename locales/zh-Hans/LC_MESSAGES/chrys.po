@@ -620,13 +620,13 @@ msgstr "默认智能体"
 
 #. English: Developer mode
 #. chrys-meta={"fingerprint":"369178c5ddde77e0844a3eb19fed57b63f5659f16d8d3fd8e9ae1a2e03d08afc","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:645
+#: src/chrys/foundation/config/settings.py:648
 msgid "settings.app.dev_mode.label"
 msgstr "开发者模式"
 
 #. English: Default approval mode
 #. chrys-meta={"fingerprint":"c8e65280cb85901d51d8d710a52c18865fd88c7247b342d14df96d915ed2b0fa","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:644
+#: src/chrys/foundation/config/settings.py:647
 msgid "settings.approval.default_mode.label"
 msgstr "默认审批模式"
 
@@ -650,19 +650,19 @@ msgstr "上下文警告阈值"
 
 #. English: Save prompt history
 #. chrys-meta={"fingerprint":"13ccf737d1cfc849550262751b32576f593ac1e0b4a99192437ab3c519048ff8","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:673
+#: src/chrys/foundation/config/settings.py:676
 msgid "settings.history.prompt.enabled.label"
 msgstr "保存提示词历史"
 
 #. English: Max transient retries
 #. chrys-meta={"fingerprint":"d5460f5ca26e427c6b0b266cf04c7d364d9e116aeaa4d3158676c7a1e16a0d01","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:636
+#: src/chrys/foundation/config/settings.py:639
 msgid "settings.llm.retry.max_transient.label"
 msgstr "瞬时错误最大重试次数"
 
 #. English: Capture raw HTTP traffic
 #. chrys-meta={"fingerprint":"40b190430db426c4537cd5f615a99a67f9c59cc82c7b679a804f5906528537d4","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:678
+#: src/chrys/foundation/config/settings.py:681
 msgid "settings.log.raw_http_capture.label"
 msgstr "捕获原始 HTTP 流量"
 
@@ -682,19 +682,19 @@ msgstr "已忽略无效的 CHRYS_MAX_TRANSIENT_RETRIES={raw}；应为非负整�
 
 #. English: Team memory MCP
 #. chrys-meta={"fingerprint":"07b866170ea7e728d40c3a8615521a7e2229db0a97b66645ca1ccfb506d63c96","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:626
+#: src/chrys/foundation/config/settings.py:629
 msgid "settings.memory.mcp.enabled.label"
 msgstr "团队记忆 MCP"
 
 #. English: Memory writeback idle delay
 #. chrys-meta={"fingerprint":"aea30733ddfc8a1039f7fb2e37ae2720299082cb0cbcf31ef2be6d659e3b7c8e","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:627
+#: src/chrys/foundation/config/settings.py:630
 msgid "settings.memory.writeback.idle_seconds.label"
 msgstr "记忆写回空闲时长"
 
 #. English: Write memory back at session end
 #. chrys-meta={"fingerprint":"278d60b6c678f760cf30bfa49e33e1659268d936554cd130b5c988d3a0205d1f","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:630
+#: src/chrys/foundation/config/settings.py:633
 msgid "settings.memory.writeback.on_session_end.label"
 msgstr "会话结束时写回记忆"
 
@@ -712,7 +712,7 @@ msgstr "审批裁判模型"
 
 #. English: Buddy model
 #. chrys-meta={"fingerprint":"639cbc46db6fb15f9747fa24936f4a22222b7f6d2b7e07dd066f3a4214049066","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:677
+#: src/chrys/foundation/config/settings.py:680
 msgid "settings.model.role.buddy_model_id.label"
 msgstr "Buddy 模型"
 
@@ -724,121 +724,121 @@ msgstr "会话标题模型"
 
 #. English: Mutation coordination
 #. chrys-meta={"fingerprint":"dbbb25f61a0d70961427295b459688511b4cf822c30611bd831abc0c625e51c4","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:649
+#: src/chrys/foundation/config/settings.py:652
 msgid "settings.mutations.coordination.enabled.label"
 msgstr "变更协调"
 
 #. English: Parallel implicit tools
 #. chrys-meta={"fingerprint":"4063dafa8f4fbc01259840faf2aa5317140eae30e70498e7f68a8d32e573ca33","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:646
+#: src/chrys/foundation/config/settings.py:649
 msgid "settings.mutations.parallel_implicit_tools.label"
 msgstr "并行隐式工具"
 
 #. English: Snapshot max file size (MB)
 #. chrys-meta={"fingerprint":"4cbf47989673d04c8d54a2b33a67b3df7963ff715bd49b5cf149133d980ae7ac","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:652
+#: src/chrys/foundation/config/settings.py:655
 msgid "settings.mutations.snapshot.max_file_mb.label"
 msgstr "快照单文件上限 (MB)"
 
 #. English: Skip binary files in snapshots
 #. chrys-meta={"fingerprint":"dba97bc24ab2e506584ee1a9977a7f752ab06933136b99e061b214d40c7157cc","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:655
+#: src/chrys/foundation/config/settings.py:658
 msgid "settings.mutations.snapshot.skip_binary.label"
 msgstr "快照跳过二进制文件"
 
 #. English: fsatrace path
 #. chrys-meta={"fingerprint":"fc2fe8132e7d2d08187fc2c4f7cca13f3bc89cec813983ea9881355cb2102c75","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:680
+#: src/chrys/foundation/config/settings.py:683
 msgid "settings.mutations.trace.fsatrace_path.label"
 msgstr "fsatrace 路径"
 
 #. English: Mutation trace mode
 #. chrys-meta={"fingerprint":"6d397497354815bf63d7085b2864efd279d0c33932fbe0bc1f4d892e984d6dc4","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:679
+#: src/chrys/foundation/config/settings.py:682
 msgid "settings.mutations.trace.mode.label"
 msgstr "变更追踪模式"
 
 #. English: Desktop popup
 #. chrys-meta={"fingerprint":"8eb85e8157d46237ae5a0780dbb040d74dc00863bc374963763c3c59b52b878e","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:684
+#: src/chrys/foundation/config/settings.py:687
 msgid "settings.notifications.delivery.desktop.label"
 msgstr "桌面弹窗"
 
 #. English: Sound
 #. chrys-meta={"fingerprint":"0edb2f0a3aa954af4b6e423def5d3a2b272768f9858f73885661bb3de18d8ae1","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:685
+#: src/chrys/foundation/config/settings.py:688
 msgid "settings.notifications.delivery.sound.label"
 msgstr "声音"
 
 #. English: Enable notifications
 #. chrys-meta={"fingerprint":"75a6b37c216a8dd0a7543b8815971ce0858343a85bf0b8347cc6668d45a33ecd","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:683
+#: src/chrys/foundation/config/settings.py:686
 msgid "settings.notifications.enabled.label"
 msgstr "启用通知"
 
 #. English: Approval required
 #. chrys-meta={"fingerprint":"91ad277f70ef7f3c8f70a50ac6e0fb87a0f975a5b4af51dbecda1807d2c65a1e","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:689
+#: src/chrys/foundation/config/settings.py:692
 msgid "settings.notifications.events.approval_required.label"
 msgstr "需要审批"
 
 #. English: Question asked
 #. chrys-meta={"fingerprint":"83dbedf1d7b6665acba01bcb7d00daa1309dae18bfdad41ceda5a2f7b6bde57b","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:692
+#: src/chrys/foundation/config/settings.py:695
 msgid "settings.notifications.events.ask_user.label"
 msgstr "提出问题"
 
 #. English: Turn complete
 #. chrys-meta={"fingerprint":"a40bdd3eaaaa4a2cbcb2e7c7120e15f83ffa34df5681462ddf0433b7622c8794","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:693
+#: src/chrys/foundation/config/settings.py:696
 msgid "settings.notifications.events.turn_complete.label"
 msgstr "轮次完成"
 
 #. English: Turn error
 #. chrys-meta={"fingerprint":"90dd6472f99360a8ece584a1c36686caf739e297e8875f7cd713bb1c44505562","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:696
+#: src/chrys/foundation/config/settings.py:699
 msgid "settings.notifications.events.turn_error.label"
 msgstr "轮次出错"
 
 #. English: Suppress while focused
 #. chrys-meta={"fingerprint":"046ee4e5605e9a6036bf6146ccbb03e9bd68c912d820b736d43ab51861e03152","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:686
+#: src/chrys/foundation/config/settings.py:689
 msgid "settings.notifications.suppress_when_focused.label"
 msgstr "获得焦点时暂停通知"
 
 #. English: OpenTelemetry export
 #. chrys-meta={"fingerprint":"69aff5252270ba1de0f97a93aa242b8f214ab9981b5c3b4e564773db0785439d","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:665
+#: src/chrys/foundation/config/settings.py:668
 msgid "settings.otel.enabled.label"
 msgstr "OpenTelemetry 导出"
 
 #. English: Telemetry endpoint
 #. chrys-meta={"fingerprint":"c912a3e7bbb47120aea00064b381776f9f7675e8f77ba7d412ca74afd1ed78e8","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:666
+#: src/chrys/foundation/config/settings.py:669
 msgid "settings.otel.endpoint.label"
 msgstr "遥测端点"
 
 #. English: Include sensitive data in telemetry
 #. chrys-meta={"fingerprint":"aae80818a597fae6502581583f748044fbec6feaec6a8add656f5b66882c0751","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:667
+#: src/chrys/foundation/config/settings.py:670
 msgid "settings.otel.sensitive_data.label"
 msgstr "遥测中包含敏感数据"
 
 #. English: PACT verify command
 #. chrys-meta={"fingerprint":"8bcd3e0b7da1be3613f8b6ad9c621a3df54a274d440a97929bcbd0eb6788d887","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:621
+#: src/chrys/foundation/config/settings.py:624
 msgid "settings.pact.verify_command.label"
 msgstr "PACT 校验命令"
 
 #. English: Load project settings
 #. chrys-meta={"fingerprint":"2a87f33f6c3c6354f36d0b6af25cea969f5d50769c8cff67a1730759ba21be09","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:681
+#: src/chrys/foundation/config/settings.py:684
 msgid "settings.project.config_enabled.label"
 msgstr "加载项目设置"
 
 #. English: Load project hooks
 #. chrys-meta={"fingerprint":"2aaab6464ac86e0c96020b41474a39b035a75875637a6a78b74e9e9fb75df16b","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:682
+#: src/chrys/foundation/config/settings.py:685
 msgid "settings.project.hooks_enabled.label"
 msgstr "加载项目钩子"
 
@@ -912,21 +912,27 @@ msgstr "已忽略 {source}={raw}：应为文本。"
 
 #. English: Rollback snapshots to keep
 #. chrys-meta={"fingerprint":"55a31d3a59a160b084b2c00427b9b4009b1c6974d00ce8a18793394ff3d1fb95","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:664
+#: src/chrys/foundation/config/settings.py:667
 msgid "settings.rollback.snapshots_keep.label"
 msgstr "保留的回滚快照数"
 
 #. English: Long-horizon routing
 #. chrys-meta={"fingerprint":"497e7d9f975ed3216b8ec1b6e1129ad601ecacff401bad3f773666b1c57382eb","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:622
+#: src/chrys/foundation/config/settings.py:625
 msgid "settings.routing.mode.label"
 msgstr "长程任务路由"
 
 #. English: Routing tiebreaker model
 #. chrys-meta={"fingerprint":"3c994650a210cfacb11e6bd46e18a62170b5b5161187b88f4383268abbbc83b6","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:623
+#: src/chrys/foundation/config/settings.py:626
 msgid "settings.routing.tiebreaker_model_profile.label"
 msgstr "路由裁决模型"
+
+#. English: Code localization timeout (seconds)
+#. chrys-meta={"fingerprint":"70653ff6e9ebdd20e3dd34ac9566b72ec59b73875281cab707cecba673ff0a64","multiline":false,"placeholders":[]}
+#: src/chrys/foundation/config/settings.py:621
+msgid "settings.semantic_search.localization_timeout_seconds.label"
+msgstr "代码定位超时（秒）"
 
 #. English: Code localization model
 #. chrys-meta={"fingerprint":"4a7c5314f6b5e7c6d340de81cc9c6e72203f14803b3485c54d85cea47c721347","multiline":false,"placeholders":[]}
@@ -942,55 +948,55 @@ msgstr "自动生成会话标题"
 
 #. English: Session storage root
 #. chrys-meta={"fingerprint":"63215578e32dfadd77686fb999b77a7428cdb5ddf7f020a2743640acc90294e9","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:672
+#: src/chrys/foundation/config/settings.py:675
 msgid "settings.storage.session_root_dir.label"
 msgstr "会话存储根目录"
 
 #. English: Show questions in the chat
 #. chrys-meta={"fingerprint":"abf6d12f715644e3877de9f27e5415b713bb7cb83a3b41a65eb9c87f829d5a73","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:671
+#: src/chrys/foundation/config/settings.py:674
 msgid "settings.tools.ask_user.inline.label"
 msgstr "在对话中显示提问"
 
 #. English: Ask-user timeout (seconds)
 #. chrys-meta={"fingerprint":"64ea78f36d5ccf356213939276281f8bdcc63110da9770f9c23e6a366a9a549f","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:668
+#: src/chrys/foundation/config/settings.py:671
 msgid "settings.tools.ask_user.timeout_seconds.label"
 msgstr "询问用户超时（秒）"
 
 #. English: Tool result ceiling (tokens)
 #. chrys-meta={"fingerprint":"3084c2a0b19e95311fe3ca34e27d3efcf045f0f49ab2b210b2528cc72f866e88","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:637
+#: src/chrys/foundation/config/settings.py:640
 msgid "settings.tools.result.ceiling_tokens.label"
 msgstr "工具结果上限（token）"
 
 #. English: Trajectory verification commands
 #. chrys-meta={"fingerprint":"6806f0b121dd24b1e62428a97eca57c2835facb6b59ae3a0a186eeff05bf16f8","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:633
+#: src/chrys/foundation/config/settings.py:636
 msgid "settings.trajectory.verify_commands.label"
 msgstr "轨迹验证命令"
 
 #. English: Inline file snapshot limit (chars)
 #. chrys-meta={"fingerprint":"3015009b3de207debb7885f98f17bed11c19f449985ba0b247c4d75dda739e33","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:674
+#: src/chrys/foundation/config/settings.py:677
 msgid "settings.ui.chat.file_snapshot_inline_chars.label"
 msgstr "内联文件快照上限（字符）"
 
 #. English: Editor keymap
 #. chrys-meta={"fingerprint":"66c6bfce6c8be56b157631ae18937e606af7ba047ebc9a45c095198081a19cd6","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:642
+#: src/chrys/foundation/config/settings.py:645
 msgid "settings.ui.editor.keymap.label"
 msgstr "编辑器键位"
 
 #. English: UI Language
 #. chrys-meta={"fingerprint":"c672d310c6eb95b40873386412e4ee8135202d247258f69ab3c812295fc199e5","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:641
+#: src/chrys/foundation/config/settings.py:644
 msgid "settings.ui.locale.label"
 msgstr "界面显示语言"
 
 #. English: Theme
 #. chrys-meta={"fingerprint":"49d55fbf7777cdaa91c6617170df2667a0ff527402e1e40134fa8897ce704da7","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:640
+#: src/chrys/foundation/config/settings.py:643
 msgid "settings.ui.theme.label"
 msgstr "主题"
 
@@ -1002,19 +1008,19 @@ msgstr "已忽略 {path} 中的未知设置键：{keys}。"
 
 #. English: Workspace change notices
 #. chrys-meta={"fingerprint":"5a97c1c496d19d152fde8fb46c8b00d790b570e106aaadba7f89a2cbc893dd51","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:658
+#: src/chrys/foundation/config/settings.py:661
 msgid "settings.workspace.change_notice.enabled.label"
 msgstr "工作区变更通知"
 
 #. English: Workspace change notice entries
 #. chrys-meta={"fingerprint":"fd9ed282c3c98f56f458d59a50510ad1558811820cf32a6bce0f3e8fb7718b9f","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:661
+#: src/chrys/foundation/config/settings.py:664
 msgid "settings.workspace.change_notice.max_entries.label"
 msgstr "工作区变更通知条目数"
 
 #. English: Recent workspaces to keep
 #. chrys-meta={"fingerprint":"589e95ce05a41e68068b80d7e939bdcc06e71d292c5c1a721f24c43b3c3e0ec4","multiline":false,"placeholders":[]}
-#: src/chrys/foundation/config/settings.py:643
+#: src/chrys/foundation/config/settings.py:646
 msgid "settings.workspace.mru_max_entries.label"
 msgstr "保留的最近工作区数"
 

@@ -63,6 +63,7 @@ _READ_AT_USE_KEYS = frozenset(
         "routing.mode",
         "routing.tiebreaker_model_profile",
         "semantic_search.model_profile",
+        "semantic_search.localization_timeout_seconds",
     }
 )
 """Live keys whose consumers re-read settings per use, so a save is the apply."""

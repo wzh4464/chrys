@@ -618,6 +618,9 @@ _LABEL_CONTEXT_WARN_THRESHOLD_PCT = msg(
 _LABEL_SEMANTIC_SEARCH_MODEL_PROFILE = msg(
     "settings.semantic_search.model_profile.label", fallback="Code localization model"
 )
+_LABEL_SEMANTIC_SEARCH_LOCALIZATION_TIMEOUT = msg(
+    "settings.semantic_search.localization_timeout_seconds.label", fallback="Code localization timeout (seconds)"
+)
 _LABEL_PACT_VERIFY_COMMAND = msg("settings.pact.verify_command.label", fallback="PACT verify command")
 _LABEL_ROUTING_MODE = msg("settings.routing.mode.label", fallback="Long-horizon routing")
 _LABEL_ROUTING_TIEBREAKER_MODEL_PROFILE = msg(
@@ -1315,6 +1318,23 @@ class Settings:
             apply=Apply.LIVE,
             group="semantic_search",
             kind=Kind.TEXT,
+        ),
+    )
+    # Wall-clock budget for the long-horizon track's code search, which runs
+    # beside clarification and must not become the turn's critical path. The
+    # default suits a bounded graph walk with a fast model; a reasoning model
+    # on a large repository needs an order of magnitude more, and a benchmark
+    # sets it through the environment variable rather than a settings file.
+    semantic_search_localization_timeout_seconds: float = field(
+        default=120.0,
+        metadata=spec(
+            key="semantic_search.localization_timeout_seconds",
+            label=_LABEL_SEMANTIC_SEARCH_LOCALIZATION_TIMEOUT,
+            env="CHRYS_SEMANTIC_SEARCH_LOCALIZATION_TIMEOUT",
+            coerce=float_coercer(minimum=1.0),
+            apply=Apply.LIVE,
+            group="semantic_search",
+            kind=Kind.FLOAT,
         ),
     )
 

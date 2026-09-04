@@ -131,10 +131,11 @@ class LongHorizonExtensions:
         await self._phase(LongHorizonPhase.LOCALIZING, "searching the frozen workspace")
         self._task = asyncio.create_task(self._localize(revision, s0), name="long-horizon-localization")
         try:
-            await asyncio.wait_for(asyncio.shield(self._task), LOCALIZATION_TIMEOUT_SECONDS)
+            budget = self._localization_budget()
+            await asyncio.wait_for(asyncio.shield(self._task), budget)
         except TimeoutError:
             self._task.cancel()
-            await self._degrade(f"code localization exceeded {LOCALIZATION_TIMEOUT_SECONDS:g} seconds")
+            await self._degrade(f"code localization exceeded {budget:g} seconds")
         except asyncio.CancelledError:
             self._task.cancel()
             raise
@@ -411,7 +412,7 @@ class LongHorizonExtensions:
                 artifact_dir=artifact_dir,
                 config=SemanticSearchConfig(
                     mode=SemanticSearchMode.AUTO,
-                    timeout_seconds=LOCALIZATION_TIMEOUT_SECONDS,
+                    timeout_seconds=self._localization_budget(),
                     model_profile=self._localization_profile_selector(),
                 ),
             )
@@ -425,6 +426,11 @@ class LongHorizonExtensions:
             LongHorizonPhase.MERGING,
             f"{len(self.localization.locations)} candidate location(s)",
         )
+
+    def _localization_budget(self) -> float:
+        """The search's wall-clock budget: the setting, else the module default."""
+        configured = float(self._host._settings.semantic_search_localization_timeout_seconds)
+        return configured if configured > 0 else LOCALIZATION_TIMEOUT_SECONDS
 
     def _localization_profile_selector(self) -> str:
         """The cheap profile from settings when named, else the session's active model."""
