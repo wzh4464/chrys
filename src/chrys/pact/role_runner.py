@@ -179,6 +179,9 @@ _ROLE_PROTOCOL_REMINDERS = {
         "supersedes, verification_intent. No successors, no status, no notes.\n"
         '- `operations` items are exactly `{"op":"add_mission","mission_id":...}` or '
         '`{"op":"supersede_mission","mission_id":<old>,"replacement_mission_ids":[...]}`.\n'
+        "- `affected_mission_ids` is exactly the set of mission ids your operations name (each "
+        "`mission_id` plus every entry of `replacement_mission_ids`), no duplicates; "
+        "`affected_ac_ids` lists the acceptance criteria those missions target, no duplicates.\n"
         "- Use `parent_plan_revision` and `input_work_state_revision` exactly as given in the input, "
         "and change something material (a proposal identical to the current plan is rejected).\n"
         "- Reply with the JSON object as the text of your message: no prose before or after it, "
