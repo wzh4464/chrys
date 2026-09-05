@@ -188,7 +188,10 @@ _ROLE_PROTOCOL_REMINDERS = {
         "no Markdown fence, and never written to a file instead of the reply."
     ),
     "manager": (
-        "Protocol constraints: reply with the JSON decision object as the text of your message "
+        "Protocol constraints: `selected_mission_id` belongs to the `select` action alone -- it "
+        "must name a mission from the Frontier there, and must be null or absent for every other "
+        "action (retry, request_replan, escalate, stop). "
+        "Reply with the JSON decision object as the text of your message "
         "-- no prose before or after it, no Markdown fence, never written to a file instead of "
         "the reply. Use `expected_plan_revision` and `expected_work_state_revision` exactly as "
         "given in the input."
