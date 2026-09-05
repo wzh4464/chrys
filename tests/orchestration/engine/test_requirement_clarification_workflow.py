@@ -47,6 +47,7 @@ class _Executor:
         self.service_session_id = "provider-h0"
         self.run_failed = False
         self.was_interrupted = False
+        self.last_error = ""
         self.last_response_text = ""
         self.is_running = False
         self.phase = ""
@@ -86,6 +87,7 @@ class _Executor:
     def adopt_fallback_success(self, text: str) -> None:
         self.run_failed = False
         self.was_interrupted = False
+        self.last_error = ""
         self.last_response_text = text
 
     async def publish_last_response_as_final(self, *, repeats_provisional: bool = False) -> None:
@@ -585,3 +587,88 @@ async def test_a_degraded_clarification_still_generates_the_pact_input(
     assert "simulated PACT failure after degradation" in generation["error"]
     assert generation["clarification_status"] == "degraded"
     assert any("generated from the requirement alone" in warning for warning in generation["warnings"])
+
+
+@pytest.mark.asyncio
+async def test_a_failed_baseline_pass_still_reaches_clarification_and_repair(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A provider error in P0 must not throw the turn away: the workspace holds its edits."""
+
+    async def _direct(function, /, *args, **kwargs):
+        return function(*args, **kwargs)
+
+    class _Service:
+        def __init__(self, _model, **_kwargs) -> None:
+            return
+
+        async def clarify(self, **_kwargs):
+            return _result()
+
+        async def generate_pact_input(self, **_kwargs):
+            raise RuntimeError("not exercised here")
+
+    monkeypatch.setattr(workflow_module.asyncio, "to_thread", _direct)
+    monkeypatch.setattr(workflow_module, "ClarificationService", _Service)
+    monkeypatch.setattr(workflow_module, "ChrysClarificationModel", lambda **_kwargs: object())
+
+    workspace_root = tmp_path / "workspace"
+    workspace_root.mkdir()
+    workspace_file = workspace_root / "value.txt"
+    workspace_file.write_text("S0\n", encoding="utf-8")
+    executor = _Executor(workspace_file)
+    history = SessionHistoryManager()
+    history.bind(executor.history_state)
+    warnings: list[str] = []
+    bus = EventBus()
+    host = SimpleNamespace(
+        _active_profile=object(),
+        _agent_profile_fingerprint="agent-fp",
+        _model_profile_fingerprint="model-fp",
+        _bus=bus,
+        _consumed_injections=[],
+        _executor=executor,
+        _history=history,
+        _intermediate_texts={},
+        _reminder_middleware=_Reminder(),
+        _session_id="session",
+        _turn_number=0,
+        _turn_state=SimpleNamespace(close_injection_admission=lambda _scope: None),
+        _workspace=Workspace.from_cwd(str(workspace_root)),
+        _session_dir=tmp_path / "session",
+        _requirement_clarification_workflow=None,
+        _accumulate_side_call_usage=lambda _usage: None,
+    )
+
+    class _FailingRunner(_Runner):
+        async def _run_fresh_standard(self, text: str, **kwargs) -> None:
+            # Edits land, then the provider returns reasoning without an answer.
+            self.workspace_file.write_text("P0\n", encoding="utf-8")
+            self.host._executor.history_state["messages"] = [Message("user", [text])]
+            self.host._executor.run_failed = True
+            self.host._executor.last_error = "no visible answer generated"
+
+    runner = _FailingRunner(host, workspace_file)
+    snapshotter = _Snapshotter(workspace_file)
+    workflow = RequirementClarificationWorkflow(host, runner)
+    workflow._snapshotter = snapshotter
+
+    async def _warning(event: Warning) -> None:
+        warnings.append(event.code)
+
+    await bus.subscribe(Warning, _warning)
+    await workflow.run(
+        "do the thing",
+        created_at=None,
+        contents=["do the thing"],
+        run_scope=None,
+        injection_window=None,
+        admission_preparation=None,
+    )
+
+    assert "requirement_clarification_p0_failed" in warnings
+    assert "p0" in snapshotter.calls
+    assert executor.run_calls == 1  # the repair pass ran on the partial baseline
+    assert executor.last_response_text == "P1"
+    assert executor.run_failed is False
+    assert runner.finalized == 1

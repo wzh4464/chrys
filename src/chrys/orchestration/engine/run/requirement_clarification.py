@@ -322,34 +322,34 @@ class RequirementClarificationWorkflow:
                     if executor.is_running:
                         await executor.interrupt()
                     await _settle_executor(executor)
-                if executor.run_failed or (executor.was_interrupted and not p0_timed_out):
+                if executor.was_interrupted and not p0_timed_out:
                     executor.set_requirement_phase("")
-                    await self._phase(
-                        RequirementWorkflowPhase.INTERRUPTED
-                        if executor.was_interrupted
-                        else RequirementWorkflowPhase.DEGRADED,
-                        revision.number,
-                        terminal=True,
-                    )
+                    await self._phase(RequirementWorkflowPhase.INTERRUPTED, revision.number, terminal=True)
                     await self._runner.finalize_current_run()
                     return
 
-                if p0_timed_out:
-                    detail = (
-                        f"initial implementation exceeded {self._initial_timeout_seconds:g} seconds; "
-                        "continuing with the partial baseline"
-                    )
-                    executor.adopt_fallback_success(
-                        executor.last_response_text.strip()
-                        or "The baseline pass was stopped at its time budget; the workspace holds its partial changes."
-                    )
-                    await host._bus.publish(
-                        Warning(
-                            code="requirement_clarification_p0_timeout",
-                            message=detail,
-                            session_id=host._session_id,
+                p0_failed = executor.run_failed
+                if p0_timed_out or p0_failed:
+                    if p0_failed:
+                        # A baseline pass that ended in a provider error (a reply with
+                        # reasoning but no text, a dropped connection) is no reason to
+                        # abandon the turn: the workspace holds whatever it wrote, and
+                        # clarification and repair exist to improve exactly that. One
+                        # benchmark task answered with nothing at all after an hour.
+                        code = "requirement_clarification_p0_failed"
+                        detail = f"initial implementation failed ({executor.last_error or 'unknown error'}); continuing with the partial baseline"
+                        fallback = "The baseline pass failed; the workspace holds whatever changes it had made."
+                    else:
+                        code = "requirement_clarification_p0_timeout"
+                        detail = (
+                            f"initial implementation exceeded {self._initial_timeout_seconds:g} seconds; "
+                            "continuing with the partial baseline"
                         )
-                    )
+                        fallback = (
+                            "The baseline pass was stopped at its time budget; the workspace holds its partial changes."
+                        )
+                    executor.adopt_fallback_success(executor.last_response_text.strip() or fallback)
+                    await host._bus.publish(Warning(code=code, message=detail, session_id=host._session_id))
                 p0_text = executor.last_response_text
                 p0_history = executor.snapshot_history()
                 baseline_injections = list(host._consumed_injections)
