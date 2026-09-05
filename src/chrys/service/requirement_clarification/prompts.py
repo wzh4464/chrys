@@ -136,7 +136,9 @@ existing acceptance criterion, and
 every acceptance criterion must be covered. Dependencies must reference mission ids and form a DAG. Put cross-mission
 implementation invariants in constraints. verification_intent describes public evidence to collect, never hidden
 grader commands. Do not emit runtime-owned state or extra fields. Return exactly the closed
-pact-runtime/initial-plan/v1 shape.
+pact-runtime/initial-plan/v1 shape: an object with the keys schema, constraints and missions, where
+missions is the array of mission objects. No other top-level key is accepted, and the array must be
+named missions rather than placed under any other name.
 This turn has no tools: everything you need is in the prompt; reply with the JSON object and nothing else.
 """
 
