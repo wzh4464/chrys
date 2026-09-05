@@ -709,6 +709,7 @@ def test_planner_and_manager_prompts_carry_the_protocol_constraints() -> None:
     )
     assert "JSON decision object as the text of your message" in _ROLE_PROTOCOL_REMINDERS["manager"]
     assert "`selected_mission_id` belongs to the `select` action alone" in _ROLE_PROTOCOL_REMINDERS["manager"]
+    assert "change ONLY what the error names" in _ROLE_PROTOCOL_REMINDERS["planner"]
     assert set(_ROLE_PROTOCOL_REMINDERS) == {"planner", "manager"}
 
 
