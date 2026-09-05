@@ -184,6 +184,9 @@ _ROLE_PROTOCOL_REMINDERS = {
         "`affected_ac_ids` lists the acceptance criteria those missions target, no duplicates.\n"
         "- Use `parent_plan_revision` and `input_work_state_revision` exactly as given in the input, "
         "and change something material (a proposal identical to the current plan is rejected).\n"
+        "- If you are asked to repair the format of a proposal, change ONLY what the error names: "
+        "every other field -- reason, rationale, constraints, missions, the revisions -- must come "
+        "back byte for byte, or the repair is rejected as a changed decision.\n"
         "- Reply with the JSON object as the text of your message: no prose before or after it, "
         "no Markdown fence, and never written to a file instead of the reply."
     ),
