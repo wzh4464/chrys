@@ -397,3 +397,7 @@ uv run pytest -m "not integration and not gc_calibration"
   输入生成失败 → 没有 campaign。原因是中继不强制 `response_format` 的 json_schema，模型只能猜形状。
   修复 `e05e4380`：每个结构化调用把 JSON Schema 原文写进提示词。awilix 该次归档到
   `~/lhs/attempts/rerun-schema-failures/`，21:38 第六次重启 20 题。
+- 09-07 02:35 rescue daemon v2：原版在救援时把引擎 SIGSTOP，导致 3 题被救援期间引擎不再启动新题
+  （并发塌到 1 到 2）。改为只停看门狗并 `docker rename` 容器，引擎到期 kill 失败后记 agent_timeout
+  并继续起新题；孤儿容器自行写 solution.patch，daemon 在其退出后拷到 run dir。当日 drizzle、superjson
+  已完整跑完（campaign completed，补丁 1302 / 1428 行），awilix、koota、textual 被救援继续跑。
