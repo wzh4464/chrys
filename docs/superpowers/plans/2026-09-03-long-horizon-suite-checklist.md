@@ -304,6 +304,19 @@ uv run pytest -m "not integration and not gc_calibration"
 - **两次 rc=137**（sql-formatter、python-statemachine，均在 P0/P1 阶段）：chrys 进程被 SIGKILL 后 `timeout` 转发信号；
   docker/内核日志无 OOM 记录，转写里也没有模型执行的 kill 命令，原因未定。已将容器内存提到 10g、限制工具链并行度。
 
+### 09-06 轨迹分析（18/20 campaign 完成时）
+
+- 18 个完成 campaign 的实例：澄清 15 个 completed（3 个 degraded 仍靠原始需求生成了 PACT 输入）；每题召回到 600–750
+  字符的 canonical rules（内容偏通用）；定位命中 gold 文件平均 80%（drizzle 1/17、scc 3/12 偏低）；验证通过率
+  91/96 轮；补丁中位数 1601 行、平均覆盖 80% 的 gold 文件、18/18 至少命中一个；campaign 时长 51 min–2 h 52 min。
+- **经验沉淀为零**（`3135b232`/`0a8782fa`）：两处叠加——run_generation.sh 的 pass 末 sweep 用相对路径（cd 到 chrys
+  树后失效，日志里 "No sessions directory"），且宿主侧 label 由容器内 cwd `/app` 推出（全部落到 general）；更根本的是
+  `_repository_python` 对 venv 的 `bin/python` 做了 `resolve()`，实际启动的是基解释器，worker 报 `No module named
+  neo4j`，所有 sweep 沉淀静默失败。修好后手动 deposit 成功；`resweep_all.sh` 正把当前运行与归档尝试按题目 label
+  全部补沉淀。
+- **中途卡死**（6 次：drizzle×2、arcane×2、sql-formatter×2）：campaign 进行中会话完全停写、CPU 归零，pact_core 的
+  3600 s 回合超时未触发；均以 SIGTERM 手工停掉后重跑成功。待专门修复（角色回合需要停滞检测）。
+
 ## 7. 交付状态（09-03 收尾）
 
 - 36 个 task 全部完成并 commit 在本地 `integration/long-horizon-suite`（`origin/main..HEAD` 共 96 个
