@@ -401,3 +401,8 @@ uv run pytest -m "not integration and not gc_calibration"
   （并发塌到 1 到 2）。改为只停看门狗并 `docker rename` 容器，引擎到期 kill 失败后记 agent_timeout
   并继续起新题；孤儿容器自行写 solution.patch，daemon 在其退出后拷到 run dir。当日 drizzle、superjson
   已完整跑完（campaign completed，补丁 1302 / 1428 行），awilix、koota、textual 被救援继续跑。
+- 03:20 koota 卡死 18 分钟（CPU 0、无事件）。用 `docker exec --privileged` + py-spy 和 Python 3.14 的
+  `sys.remote_exec` 导出 asyncio 任务链：主 agent 的委派工具停在 `AcpSubAgentController._pause_and_wait`——
+  pact-agent 的一帧 session/update 未通过 `SessionNotification` 校验，ACP client 判为 transport 故障，控制器
+  暂停等人工 Retry/Abort，headless 下无人应答。修 `12324df7`：`chrys run` 装 headless 策略（重试 2 次后中止），
+  ACP client 对畸形 update 只告警丢弃。运行中的旧树容器由 daemon v3 注入 `request_retry()` 解卡（koota 已恢复）。
