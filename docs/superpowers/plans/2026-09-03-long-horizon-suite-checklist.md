@@ -317,6 +317,11 @@ uv run pytest -m "not integration and not gc_calibration"
 - **中途卡死**（6 次：drizzle×2、arcane×2、sql-formatter×2）：campaign 进行中会话完全停写、CPU 归零，pact_core 的
   3600 s 回合超时未触发；均以 SIGTERM 手工停掉后重跑成功。待专门修复（角色回合需要停滞检测）。
 
+- **格式修复改语义**（`5a289324`）：expr、sqlfmt 先后死于 `format repair changed Planner semantics`——提示里写了"只改
+  错误指出的字段"仍挡不住模型重写 reason/missions。角色运行器现在自己保真：把运行时引用的 `<invalid-output>` 里
+  pact_core 指纹字段（revisions、reason、rationale、constraints、missions、affected ids）覆盖到修复回复上，只允许
+  schema 与 operations 变化。
+
 ## 7. 交付状态（09-03 收尾）
 
 - 36 个 task 全部完成并 commit 在本地 `integration/long-horizon-suite`（`origin/main..HEAD` 共 96 个
