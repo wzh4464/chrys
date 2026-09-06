@@ -14871,7 +14871,7 @@
           "when": "all_paths"
         }
       ],
-      "expression": "await self._phase(RequirementWorkflowPhase.INTERRUPTED if executor.was_interrupted else RequirementWorkflowPhase.DEGRADED, revision.number, terminal=True)",
+      "expression": "await self._phase(RequirementWorkflowPhase.INTERRUPTED, revision.number, terminal=True)",
       "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:15",
       "module": "chrys.orchestration.engine.run.requirement_clarification",
       "ordinal": 15,
@@ -14898,7 +14898,7 @@
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 20,
-      "source_line": 334,
+      "source_line": 328,
       "wrapper_target": null
     },
     {
@@ -14911,14 +14911,14 @@
           "when": "all_paths"
         }
       ],
-      "expression": "await host._bus.publish(Warning(code='requirement_clarification_p0_timeout', message=detail, session_id=host._session_id))",
+      "expression": "await host._bus.publish(Warning(code=code, message=detail, session_id=host._session_id))",
       "identity": "chrys.orchestration.engine.run.requirement_clarification:RequirementClarificationWorkflow.run:17",
       "module": "chrys.orchestration.engine.run.requirement_clarification",
       "ordinal": 17,
       "primitive": "awaitable",
       "qualname": "RequirementClarificationWorkflow.run",
       "source_column": 20,
-      "source_line": 346,
+      "source_line": 352,
       "wrapper_target": null
     },
     {

@@ -217,6 +217,45 @@ _JSON_FOLLOWUP_PROMPT = (
 _JSON_FOLLOWUP_TIMEOUT_SECONDS = 600.0
 
 
+# pact_core fingerprints these fields of a Planner proposal and rejects a format
+# repair that changes any of them ("format repair changed Planner semantics"). A
+# model asked to fix one field tends to rewrite the others too, so the repair's
+# semantics are taken from the original proposal and only the rest from the reply.
+_PLANNER_SEMANTIC_FIELDS = (
+    "parent_plan_revision",
+    "input_work_state_revision",
+    "reason",
+    "rationale",
+    "constraints",
+    "missions",
+    "affected_mission_ids",
+    "affected_ac_ids",
+)
+_REPAIR_MARKER = "Structured Output Repair"
+_INVALID_OUTPUT = re.compile(r"<invalid-output>\s*(.*?)\s*</invalid-output>", re.DOTALL)
+
+
+def _preserve_repair_semantics(prompt: str, payload: str) -> str:
+    """For a Planner format repair, keep the original proposal's semantic fields."""
+    if _REPAIR_MARKER not in prompt:
+        return payload
+    match = _INVALID_OUTPUT.search(prompt)
+    if match is None:
+        return payload
+    try:
+        original = json.loads(match.group(1))
+        repaired = json.loads(payload)
+    except ValueError:
+        return payload
+    if not isinstance(original, dict) or not isinstance(repaired, dict):
+        return payload
+    merged = dict(repaired)
+    for field in _PLANNER_SEMANTIC_FIELDS:
+        if field in original:
+            merged[field] = original[field]
+    return json.dumps(merged)
+
+
 def _is_json_object(text: str) -> bool:
     try:
         return isinstance(json.loads(text), dict)
@@ -412,6 +451,8 @@ class InProcessChrysAdapter:
                 status, final_text, diagnostic = self._map_outcome(host.last_turn_outcome)
                 if status == "completed" and self.semantic_role in _JSON_PROTOCOL_ROLES:
                     final_text = _protocol_payload(final_text)
+                    if self.semantic_role == "planner":
+                        final_text = _preserve_repair_semantics(prompt, final_text)
                 if (
                     self.semantic_role in _JSON_PROTOCOL_ROLES
                     and status in ("completed", "output_missing")

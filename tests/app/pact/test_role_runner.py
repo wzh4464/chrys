@@ -754,3 +754,47 @@ async def test_worker_turn_without_text_is_not_asked_again(tmp_path: Path) -> No
 
     assert result.status == "output_missing"
     assert len(factory.hosts[0].prompts) == 1
+
+
+def test_a_planner_format_repair_keeps_the_original_semantics() -> None:
+    from chrys.pact.role_runner import _preserve_repair_semantics
+
+    original = {
+        "schema": "pact-runtime/plan-revision-proposal/v1",
+        "parent_plan_revision": 2,
+        "input_work_state_revision": 5,
+        "reason": "m1 blocked",
+        "rationale": "split it",
+        "constraints": ["keep API"],
+        "missions": [
+            {
+                "id": "m1a",
+                "objective": "half",
+                "target_ac_ids": ["ac-1"],
+                "dependencies": [],
+                "supersedes": ["m1"],
+                "verification_intent": "run",
+            }
+        ],
+        "operations": [{"op": "supersede_mission", "mission_id": "m1", "successor": "m1a"}],
+        "affected_mission_ids": ["m1", "m1a"],
+        "affected_ac_ids": ["ac-1"],
+    }
+    prompt = (
+        "# Planner Structured Output Repair\n<validation-error>bad op</validation-error>\n<invalid-output>\n"
+        + json.dumps(original)
+        + "\n</invalid-output>"
+    )
+    reply = dict(
+        original,
+        reason="rewritten",
+        missions=[],
+        operations=[{"op": "supersede_mission", "mission_id": "m1", "replacement_mission_ids": ["m1a"]}],
+    )
+
+    merged = json.loads(_preserve_repair_semantics(prompt, json.dumps(reply)))
+
+    assert merged["reason"] == "m1 blocked"
+    assert merged["missions"] == original["missions"]
+    assert merged["operations"] == reply["operations"]
+    assert _preserve_repair_semantics("# Runtime Planner Proposal", json.dumps(reply)) == json.dumps(reply)
