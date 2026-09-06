@@ -10,7 +10,7 @@ id: deepswe-lh
 name: DeepSeek V4 Pro (openlux relay, DeepSWE long-horizon)
 provider: deepseek-openai
 api_style: chat_completions
-model_id: deepseek-v4-pro
+model_id: "deepseek-v4-pro:stable"
 base_url: https://api.openlux.ai/v1
 # The placeholder keeps its historical name: run_generation.sh forwards OPENROUTER_API_KEY
 # into the container whatever relay it holds a key for (openlux since 2026-09-06).
