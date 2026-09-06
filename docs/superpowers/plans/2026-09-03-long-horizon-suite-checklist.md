@@ -349,6 +349,14 @@ uv run pytest -m "not integration and not gc_calibration"
   filterwarnings 串，指令里一行都没有），returns-validated-error-accumulation 的实现与 gold 有 258 行逐字相同
   （上游实现原样复现）——更像模型记忆了公开仓库的上游 PR，而非 harness 泄露；Harbor 元数据未记录网络模式。
 
+- **为什么长程比普通轨道差（`77fe3aae`、`6d7135f4`，09-06 16:05 起全量重跑 20 题）**：两处结构性缺口叠加。
+  (1) Worker/Reviewer 看不到需求原文——Goal Contract 刻意去名字化，mission 目标再压缩，Worker 实现的是转述；
+  (2) campaign 在 P1 修复后的工作区上跑，但 Initial Plan 是对 S0（P0 之前）快照生成的，Worker 也不知道基线已经
+  实现了什么，于是把 P1 做过的东西换个名字重做一遍（superjson 的 P1 模块与最终补丁文件名都不同）。修复：委派时
+  把需求原文（requirement.md）和基线摘要（baseline.md：P1 的自述 + git status + 最近提交）放到合同旁，Worker/
+  Reviewer 提示末尾附上并要求"补全、修正既有实现，不要重写、改名"。之前 1–7 轮的结果归档到
+  `~/lhs/attempts/final-passes-1-7`，评分 `~/lhs/final/`。
+
 ## 7. 交付状态（09-03 收尾）
 
 - 36 个 task 全部完成并 commit 在本地 `integration/long-horizon-suite`（`origin/main..HEAD` 共 96 个
