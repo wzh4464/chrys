@@ -256,7 +256,6 @@ def _preserve_repair_semantics(prompt: str, payload: str) -> str:
     return json.dumps(merged)
 
 
-_REQUIREMENT_MAX_CHARS = 16_000
 _REQUIREMENT_HEADER = (
     "## Authoritative requirement (verbatim)\n\n"
     "The acceptance criteria above summarize this text; where they are vaguer than it, this "
@@ -294,7 +293,7 @@ def _staged_file(workdir: Path, name: str) -> str:
             except OSError:
                 continue
             if text:
-                return text[:_REQUIREMENT_MAX_CHARS]
+                return text
     return ""
 
 

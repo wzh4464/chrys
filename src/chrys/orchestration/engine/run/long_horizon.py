@@ -69,10 +69,6 @@ MEMORY_PRIOR_MAX_CHARS = 2000
 MEMORY_PRIOR_TIMEOUT_SECONDS = 45.0
 
 
-_BASELINE_TEXT_LIMIT = 6000
-_BASELINE_GIT_LIMIT = 3000
-
-
 def _git_lines(workspace: Path, *args: str) -> str:
     git = shutil.which("git")
     if git is None:
@@ -89,7 +85,7 @@ def _git_lines(workspace: Path, *args: str) -> str:
         )
     except OSError, subprocess.SubprocessError:
         return ""
-    return completed.stdout.strip()[:_BASELINE_GIT_LIMIT]
+    return completed.stdout.strip()
 
 
 def _baseline_summary(workspace: Path, host: Any, baseline: str) -> str:
@@ -102,7 +98,8 @@ def _baseline_summary(workspace: Path, host: Any, baseline: str) -> str:
     if baseline == "none":
         return ""
     executor = getattr(host, "_executor", None)
-    text = str(getattr(executor, "last_response_text", "") or "").strip()[:_BASELINE_TEXT_LIMIT]
+    # Whole, never truncated: a cut summary drops exactly the names the campaign needs.
+    text = str(getattr(executor, "last_response_text", "") or "").strip()
     parts = [f"Baseline pass: {baseline}."]
     if text:
         parts.append("### The baseline's own summary of what it implemented\n" + text)
