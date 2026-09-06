@@ -406,3 +406,7 @@ uv run pytest -m "not integration and not gc_calibration"
   pact-agent 的一帧 session/update 未通过 `SessionNotification` 校验，ACP client 判为 transport 故障，控制器
   暂停等人工 Retry/Abort，headless 下无人应答。修 `12324df7`：`chrys run` 装 headless 策略（重试 2 次后中止），
   ACP client 对畸形 update 只告警丢弃。运行中的旧树容器由 daemon v3 注入 `request_retry()` 解卡（koota 已恢复）。
+- 07:30 前三题 Harbor 验证：drizzle、superjson、awilix 全部 resolved（reward 1，F2P 234/234，P2P 844/844）。
+  按用户要求剩余 9 题改为优先级顺序启动（原版做出来的优先，其次按此前 F2P 率）：换了新引擎
+  （`~/lhs/launch_rest.sh`，JOBS=4），旧引擎的 5 个在跑容器变为孤儿由 daemon 兜底；
+  daemon 同时把孤儿的补丁写进 patch store 供 grade.py 使用。
