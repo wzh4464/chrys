@@ -330,6 +330,15 @@ uv run pytest -m "not integration and not gc_calibration"
 - 解读：campaign 用任务自带的回归脚本验证"没弄坏什么"（P2P 几乎全绿），但对隐藏的新测试只能靠需求理解，
   多数题实现了大部分行为、漏掉边角；boa/scc/arcane 这类隐藏测试很多的题最吃亏。
 
+- **与普通轨道全量跑（deepswe-chrys-dsv4-full，113 题、DeepSeek V4 Pro、chrys 0.21.1 标准轨道）对照**：普通轨道
+  47/113 resolved（42%），题中位时长 58 min，14 题 AgentTimeoutError；在我们的 20 题上 resolved 6/20（arcane、
+  awilix、drizzle、koota-entity、sql-formatter、superjson），F2P 均值约 0.74。长程轨道 1/18 resolved 但 F2P 均值
+  0.84——部分分更高、二值分更低。逐题看 superjson：普通轨道 80/80，长程 76/80，差的 4 个是注解模式、classFilter
+  按 error.name 匹配、公开的 registerErrorStackProcessor——都是指令里明写的细节。Worker 提示只有 Goal Contract 的
+  一段概括（Goal Contract 指令刻意剥离名字与具体行为）加 mission 目标，看不到 4159 字的原始需求。
+  修复（`77fe3aae`）：委派时把需求原文写到 `.pact-io/chrys-pact/<id>/requirement.md`，Worker/Reviewer 提示末尾
+  附上原文（worktree 里通过主检出找到）。
+
 ## 7. 交付状态（09-03 收尾）
 
 - 36 个 task 全部完成并 commit 在本地 `integration/long-horizon-suite`（`origin/main..HEAD` 共 96 个
