@@ -313,7 +313,7 @@ uv run pytest -m "not integration and not gc_calibration"
   树后失效，日志里 "No sessions directory"），且宿主侧 label 由容器内 cwd `/app` 推出（全部落到 general）；更根本的是
   `_repository_python` 对 venv 的 `bin/python` 做了 `resolve()`，实际启动的是基解释器，worker 报 `No module named
   neo4j`，所有 sweep 沉淀静默失败。修好后手动 deposit 成功；`resweep_all.sh` 正把当前运行与归档尝试按题目 label
-  全部补沉淀。
+  全部补沉淀：完成后图里有 20 个任务 label、435 条轨迹、137 个主回合 deposit、0 失败。
 - **中途卡死**（6 次：drizzle×2、arcane×2、sql-formatter×2）：campaign 进行中会话完全停写、CPU 归零，pact_core 的
   3600 s 回合超时未触发；均以 SIGTERM 手工停掉后重跑成功。待专门修复（角色回合需要停滞检测）。
 
