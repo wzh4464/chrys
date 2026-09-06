@@ -339,6 +339,16 @@ uv run pytest -m "not integration and not gc_calibration"
   修复（`77fe3aae`）：委派时把需求原文写到 `.pact-io/chrys-pact/<id>/requirement.md`，Worker/Reviewer 提示末尾
   附上原文（worktree 里通过主检出找到）。
 
+- **"不合理测试"与泄露审计**（`~/lhs/f2p_audit.py`）：按保守规则（失败的隐藏测试名里的 API 名/描述词在指令里
+  一个都找不到才算"未指定"），普通轨道 791 个失败测试中 51 个未指定、resolved 47→48/113；我们 160 个失败中 2 个、
+  1→1/18——隐藏测试基本都是指令写明的，差距是真实的。软口径（隐藏测试 ≥95% 通过且无回归）：普通轨道 64/113
+  （在我们 18 题上 12），我们 6/18；≥90%：76/113（14）对 10/18。
+  泄露：我们的补丁与 gold 相似度最高 0.16、不含隐藏测试文件（LoLBench 按构造排除，且镜像内没有隐藏测试、GitHub
+  被黑洞）。普通轨道有 29 个补丁改到了隐藏补丁也改的既有测试文件，多数只是编辑同一文件（同行相似度 ≤0.09）；两例
+  可疑：narwhals-rolling-window-suite 的测试改动与隐藏测试有 109 行逐字相同（hypothesis 用例函数、
+  filterwarnings 串，指令里一行都没有），returns-validated-error-accumulation 的实现与 gold 有 258 行逐字相同
+  （上游实现原样复现）——更像模型记忆了公开仓库的上游 PR，而非 harness 泄露；Harbor 元数据未记录网络模式。
+
 ## 7. 交付状态（09-03 收尾）
 
 - 36 个 task 全部完成并 commit 在本地 `integration/long-horizon-suite`（`origin/main..HEAD` 共 96 个
