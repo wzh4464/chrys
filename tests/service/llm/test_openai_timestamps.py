@@ -52,3 +52,12 @@ def test_normalize_openai_created_payload_leaves_standard_seconds_object_unchang
     payload = SimpleNamespace(created=1_717_171_717)
 
     assert normalize_openai_created_payload(payload) is payload
+
+
+def test_openai_created_at_iso_tolerates_a_missing_created_field() -> None:
+    from chrys.service.llm.openai_timestamps import openai_created_at_iso
+
+    # A gateway's trailing usage chunk: ``{"choices": [], "usage": {...}}`` with no ``created``.
+    assert openai_created_at_iso(None) is None
+    assert openai_created_at_iso("") is None
+    assert openai_created_at_iso(1788690724) == "2026-09-06T10:32:04.000000Z"

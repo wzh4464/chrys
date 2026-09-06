@@ -29,9 +29,17 @@ def normalize_openai_created_timestamp(value: Any) -> Any:
     return value
 
 
-def openai_created_at_iso(value: Any) -> str:
-    """Format an OpenAI-compatible ``created`` value as an ISO timestamp."""
+def openai_created_at_iso(value: Any) -> str | None:
+    """Format an OpenAI-compatible ``created`` value as an ISO timestamp.
+
+    Returns ``None`` when the payload carries no usable timestamp: some
+    gateways end a stream with a bare usage chunk (``choices: []`` and no
+    ``id``/``created``/``model``), and ``fromtimestamp(None)`` turned that
+    final chunk into a failed model run.
+    """
     created = normalize_openai_created_timestamp(value)
+    if isinstance(created, bool) or not isinstance(created, (int, float)):
+        return None
     return datetime.fromtimestamp(created, tz=UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
 
