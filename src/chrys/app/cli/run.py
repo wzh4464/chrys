@@ -15,6 +15,7 @@ import time
 from collections.abc import Iterable
 from pathlib import Path
 
+from chrys.app.cli.headless_sub_agents import install_headless_sub_agent_policy
 from chrys.app.features.buddy.lifecycle import on_successful_turn as on_buddy_successful_turn
 from chrys.app.parsing import SanitizingArgumentParser
 from chrys.foundation.branding import APP_DISPLAY_NAME
@@ -556,6 +557,8 @@ async def run_command(args: argparse.Namespace, holder: PreparedRuntimeHolder) -
             reminder_middleware = host.engine._reminder_middleware
             if reminder_middleware is not None:
                 reminder_middleware.queue_hook_reminders([localization_reminder])
+        # Nobody is at the screen to answer a paused sub-agent: decide for them.
+        await install_headless_sub_agent_policy(host.event_bus, host.session_id)
         if args.route != "auto":
             # Published before the prompt so it is waiting when the message is
             # admitted; the engine consumes it for exactly that one turn. The

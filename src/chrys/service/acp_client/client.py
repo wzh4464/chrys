@@ -1901,7 +1901,20 @@ class AcpAgentClient:
                     continue
                 if not _valid_raw_usage_update(item):
                     continue
-                notification = SessionNotification.model_validate(item)
+                try:
+                    notification = SessionNotification.model_validate(item)
+                except ValidationError as exc:
+                    # One malformed frame must not end the attempt: it took a
+                    # whole PACT campaign down with it (the run then paused for
+                    # a decision nobody in a headless run could give).
+                    update = item.get("update")
+                    kind = update.get("sessionUpdate") if isinstance(update, dict) else None
+                    logger.warning(
+                        "Dropping a malformed ACP session/update (%s): %s",
+                        kind or "unknown",
+                        str(exc)[:400],
+                    )
+                    continue
                 sequence += 1
                 await self._update_sink.put(sequence, notification)
         except asyncio.CancelledError:
