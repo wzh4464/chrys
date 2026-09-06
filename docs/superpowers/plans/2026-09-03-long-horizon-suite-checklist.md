@@ -410,3 +410,5 @@ uv run pytest -m "not integration and not gc_calibration"
   按用户要求剩余 9 题改为优先级顺序启动（原版做出来的优先，其次按此前 F2P 率）：换了新引擎
   （`~/lhs/launch_rest.sh`，JOBS=4），旧引擎的 5 个在跑容器变为孤儿由 daemon 兜底；
   daemon 同时把孤儿的补丁写进 patch store 供 grade.py 使用。
+- 07:35 引擎不保留 `--instances` 顺序（第 4 个起了 scc），改为按优先级分批起引擎：现引擎 #3 只跑
+  langchain、kombu、cliffy（2 路），boa、sqlfmt 待负载下降后另起；其余 12 题作为孤儿容器由 daemon 兜底。
