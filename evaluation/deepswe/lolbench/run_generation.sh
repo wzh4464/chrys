@@ -96,7 +96,12 @@ python3 scripts/lolbench_eval.py --in-container --skip-grade --no-stdlib-strip \
 
 # --- deposit the captured sessions into the graph from the host ---
 echo "### sweeping captured chrys sessions into ContextGraph ###"
+# The sweep runs from the chrys checkout, so the session root must be absolute, and
+# the label must be the instance id (the in-container label): the envelope's cwd is
+# the container's /app, which resolves to nothing on the host and would file every
+# deposit under "general", where recall by task never finds it.
 for d in runs/deepswe/"$AGENT_NAME"/*/agent_out/chrys; do
   [ -d "$d" ] || continue
-  ( cd "$CHRYS_SRC" && CHRYS_SESSION_ROOT_DIR="$d" uv run chrys memory sweep --idle-seconds 0 ) || true
+  iid="$(basename "$(dirname "$(dirname "$d")")")"
+  ( cd "$CHRYS_SRC" && CHRYS_SESSION_ROOT_DIR="$LOLBENCH/$d" CHRYS_MEMORY_REPO_LABEL="$iid" uv run chrys memory sweep --idle-seconds 0 ) || true
 done
