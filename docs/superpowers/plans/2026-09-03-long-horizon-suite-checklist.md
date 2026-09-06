@@ -377,3 +377,14 @@ uv run pytest -m "not integration and not gc_calibration"
 - §5 的两项已于 09-04 闭环：初始图接的是 CAPBench selected-Harbor（2525 条 canonical rule），
   verify_command 由我决定并验证。`chrys debug router` 对强带需求现在给出
   `pact_ready=True` / `plan localization=True clarification=True pact=True`——整条长程链路可达。
+
+## 09-06 18:40 偏差记录：角色输入分工 + openlux 429
+
+- 用户指出 Goal Contract 生成是占位实现，应接周鑫的需求澄清结果；08-27 周四讨论定的分工是
+  第一轮 Worker 拿原始题干，goal 和澄清结果给 Reviewer 评审。已按此实现（`d72eb12c`）：
+  Goal Contract prompt 追加澄清 ΔR；`clarification.md` 与 contract 并列落盘；
+  `_campaign_context(workdir, role)` 按角色分发（Worker：requirement+baseline；
+  Reviewer：clarified requirement + goal-contract.json + baseline）。
+- openlux 上游对 `deepseek-v4-pro` 间歇 429（"当前分组上游负载已饱和"），7 并发 + 3 次重试下
+  awilix/mashumaro 整题失败。`http_max_retries` 提到 10，`rerun_resume.sh` 改 JOBS=5，
+  18:40 在新树上重启 20 题完整 rerun（rescue daemon 已挂）。
