@@ -19,6 +19,6 @@ max_context_tokens: 200000
 max_output_tokens: 32000
 http_connect_timeout: 10
 http_read_timeout: 1800.0
-http_max_retries: 3
+http_max_retries: 10
 stream: true
 chat_options: '{"extra_body": {"reasoning": {"effort": "high"}}}'
