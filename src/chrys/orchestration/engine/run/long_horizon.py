@@ -295,7 +295,12 @@ class LongHorizonExtensions:
             return
         assert outcome.pact_input_dir is not None
         try:
-            request = materialize_pact_request(Path(self._workspace_cwd()), outcome.pact_input_dir, uuid4().hex[:12])
+            request = materialize_pact_request(
+                Path(self._workspace_cwd()),
+                outcome.pact_input_dir,
+                uuid4().hex[:12],
+                requirement=self._requirement,
+            )
         except OSError as exc:
             await self._degrade_delegation(f"could not stage the PACT inputs: {exc}", outcome)
             return

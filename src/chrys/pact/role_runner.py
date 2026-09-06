@@ -256,6 +256,39 @@ def _preserve_repair_semantics(prompt: str, payload: str) -> str:
     return json.dumps(merged)
 
 
+_REQUIREMENT_MAX_CHARS = 16_000
+_REQUIREMENT_HEADER = (
+    "## Authoritative requirement (verbatim)\n\n"
+    "The acceptance criteria above summarize this text; where they are vaguer than it, this "
+    "text is the contract -- keep every option name, mode, message and behaviour exactly as "
+    "written here.\n\n"
+)
+
+
+def _campaign_requirement(workdir: Path) -> str:
+    """The requirement staged beside the contract, from the workdir or its primary checkout."""
+    from chrys.pact.verify_shim import primary_checkout
+
+    roots = [workdir]
+    primary = primary_checkout(workdir)
+    if primary is not None:
+        roots.append(primary)
+    for root in roots:
+        candidates = sorted(
+            (root / ".pact-io" / "chrys-pact").glob("*/requirement.md"),
+            key=lambda path: path.stat().st_mtime,
+            reverse=True,
+        )
+        for candidate in candidates:
+            try:
+                text = candidate.read_text(encoding="utf-8").strip()
+            except OSError:
+                continue
+            if text:
+                return text[:_REQUIREMENT_MAX_CHARS]
+    return ""
+
+
 def _is_json_object(text: str) -> bool:
     try:
         return isinstance(json.loads(text), dict)
@@ -409,6 +442,10 @@ class InProcessChrysAdapter:
             prompt = request.prompt
             if self.semantic_role in _ROLE_PROTOCOL_REMINDERS:
                 prompt = f"{prompt}\n\n{_ROLE_PROTOCOL_REMINDERS[self.semantic_role]}"
+            if self.semantic_role in ("worker", "reviewer"):
+                requirement = await asyncio.to_thread(_campaign_requirement, request.workdir)
+                if requirement:
+                    prompt = f"{prompt}\n\n{_REQUIREMENT_HEADER}{requirement}"
             if self.semantic_role == "reviewer":
                 self._clear_review_transport(transport_path)
                 prompt += _REVIEW_TRANSPORT_EPILOGUE

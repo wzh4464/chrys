@@ -798,3 +798,22 @@ def test_a_planner_format_repair_keeps_the_original_semantics() -> None:
     assert merged["missions"] == original["missions"]
     assert merged["operations"] == reply["operations"]
     assert _preserve_repair_semantics("# Runtime Planner Proposal", json.dumps(reply)) == json.dumps(reply)
+
+
+@pytest.mark.asyncio
+async def test_worker_prompts_carry_the_staged_requirement_verbatim(tmp_path: Path) -> None:
+    factory = _FakeHostFactory([_HostScript(outcome=EndTurn(final_text="done"))])
+    base = _base_settings()
+    updates: list[object] = []
+    adapter = _adapter(semantic_role="worker", base_settings=base, factory=factory, updates=updates)
+    workdir = tmp_path / "ws"
+    staged = workdir / ".pact-io" / "chrys-pact" / "req1"
+    staged.mkdir(parents=True)
+    (staged / "requirement.md").write_text("Add `errorStack` with modes off, string, frames.\n", encoding="utf-8")
+
+    with patch("chrys.pact.role_runner.load_settings", autospec=True, return_value=base):
+        await asyncio.to_thread(adapter.run_turn, _request(workdir))
+
+    prompt = factory.hosts[0].prompts[0]
+    assert "## Authoritative requirement (verbatim)" in prompt
+    assert "modes off, string, frames" in prompt

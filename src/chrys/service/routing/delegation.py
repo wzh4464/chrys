@@ -141,12 +141,25 @@ class PactRunRequest:
         )
 
 
-def materialize_pact_request(workspace_cwd: Path, pact_input_dir: Path, request_id: str) -> PactRunRequest:
+REQUIREMENT_FILE_NAME = "requirement.md"
+
+
+def materialize_pact_request(
+    workspace_cwd: Path, pact_input_dir: Path, request_id: str, *, requirement: str = ""
+) -> PactRunRequest:
     """Copy the accepted pair into ``.pact-io/`` and describe where they landed.
 
     The campaign runs in the workspace, so its inputs have to be inside it and
     named relatively: an absolute path from this session's artifact tree would
     not resolve for the agent that reads them.
+
+    *requirement* is the user's requirement verbatim. The Goal Contract is a
+    deliberate abstraction of it (no names, no exact behaviours), and Workers
+    that saw only the contract implemented the paraphrase: on DeepSWE the
+    campaign track passed 84% of the hidden tests but resolved 1 task in 18
+    where the plain track resolved 6 in 20, losing on option names, exact
+    modes and error messages the instruction had spelled out. The roles read
+    this file beside the contract.
     """
     destination = workspace_cwd / ".pact-io" / "chrys-pact" / request_id
     destination.mkdir(parents=True, exist_ok=True)
@@ -154,6 +167,8 @@ def materialize_pact_request(workspace_cwd: Path, pact_input_dir: Path, request_
     plan = destination / "initial-plan.json"
     contract.write_bytes((pact_input_dir / "goal-contract.json").read_bytes())
     plan.write_bytes((pact_input_dir / "initial-plan.json").read_bytes())
+    if requirement.strip():
+        (destination / REQUIREMENT_FILE_NAME).write_text(requirement.strip() + "\n", encoding="utf-8")
     return PactRunRequest(
         request_id=request_id,
         contract_path=contract.relative_to(workspace_cwd).as_posix(),
