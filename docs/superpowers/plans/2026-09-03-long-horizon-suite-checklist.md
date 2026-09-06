@@ -388,3 +388,7 @@ uv run pytest -m "not integration and not gc_calibration"
 - openlux 上游对 `deepseek-v4-pro` 间歇 429（"当前分组上游负载已饱和"），7 并发 + 3 次重试下
   awilix/mashumaro 整题失败。`http_max_retries` 提到 10，`rerun_resume.sh` 改 JOBS=5，
   18:40 在新树上重启 20 题完整 rerun（rescue daemon 已挂）。
+- 19:00–19:33 追加三处：(1) openlux 每个流末尾发一个无 `created` 的 usage chunk，chrys 转时间戳崩溃
+  → 主会话最后一个 token 后失败，修 `6b0033dc`；(2) 用户要求用 `:stable` 标签（`390631d2`）；
+  (3) openlux 的 V4 Pro 无法关闭思考，P0 提示下推理超过 32k token 被截断后原样重试（每次 7 分钟），
+  `max_output_tokens` 提到 65536（`fa55540a`）。19:33 第四次重启 20 题 rerun。
