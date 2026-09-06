@@ -82,16 +82,20 @@ def _repository_path() -> Path:
 
 
 def _repository_python(repository: Path) -> Path:
+    # Never resolve symlinks here: a virtual environment's bin/python is a symlink
+    # to the base interpreter, and Python finds the environment (pyvenv.cfg, its
+    # site-packages) from the path it was invoked through. Resolving it launched
+    # the bare base interpreter, which had no neo4j, and every deposit failed.
     configured = os.environ.get("CONTEXTGRAPH_PYTHON", "").strip()
     if configured:
-        interpreter = Path(configured).expanduser().resolve()
+        interpreter = Path(configured).expanduser().absolute()
         if not interpreter.is_file():
             raise RuntimeError(f"CONTEXTGRAPH_PYTHON does not name a file: {interpreter}")
         return interpreter
     for candidate in (repository / ".venv" / "bin" / "python", repository / ".venv" / "Scripts" / "python.exe"):
         if candidate.is_file():
-            return candidate
-    return Path(sys.executable).resolve()
+            return candidate.absolute()
+    return Path(sys.executable).absolute()
 
 
 def _timeout_seconds() -> int:
