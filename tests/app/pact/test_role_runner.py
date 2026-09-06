@@ -810,6 +810,9 @@ async def test_worker_prompts_carry_the_staged_requirement_verbatim(tmp_path: Pa
     staged = workdir / ".pact-io" / "chrys-pact" / "req1"
     staged.mkdir(parents=True)
     (staged / "requirement.md").write_text("Add `errorStack` with modes off, string, frames.\n", encoding="utf-8")
+    (staged / "baseline.md").write_text(
+        "Baseline pass: p1.\n### Recent commits\nabc123 add errorStack\n", encoding="utf-8"
+    )
 
     with patch("chrys.pact.role_runner.load_settings", autospec=True, return_value=base):
         await asyncio.to_thread(adapter.run_turn, _request(workdir))
@@ -817,3 +820,5 @@ async def test_worker_prompts_carry_the_staged_requirement_verbatim(tmp_path: Pa
     prompt = factory.hosts[0].prompts[0]
     assert "## Authoritative requirement (verbatim)" in prompt
     assert "modes off, string, frames" in prompt
+    assert "## Existing baseline implementation" in prompt
+    assert "abc123 add errorStack" in prompt

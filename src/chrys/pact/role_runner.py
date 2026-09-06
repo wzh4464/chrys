@@ -265,8 +265,17 @@ _REQUIREMENT_HEADER = (
 )
 
 
-def _campaign_requirement(workdir: Path) -> str:
-    """The requirement staged beside the contract, from the workdir or its primary checkout."""
+_BASELINE_HEADER = (
+    "## Existing baseline implementation (already in the workspace)\n\n"
+    "A baseline pass already implemented this requirement in the workspace before the campaign "
+    "started; the plan was drawn up before it existed. Read the workspace first. Complete and "
+    "correct the existing implementation against the requirement above; do not rewrite, rename "
+    "or remove what already satisfies it, and keep every public name the requirement states.\n\n"
+)
+
+
+def _staged_file(workdir: Path, name: str) -> str:
+    """The newest ``<workdir>/.pact-io/chrys-pact/*/<name>``, from the workdir or its primary checkout."""
     from chrys.pact.verify_shim import primary_checkout
 
     roots = [workdir]
@@ -275,7 +284,7 @@ def _campaign_requirement(workdir: Path) -> str:
         roots.append(primary)
     for root in roots:
         candidates = sorted(
-            (root / ".pact-io" / "chrys-pact").glob("*/requirement.md"),
+            (root / ".pact-io" / "chrys-pact").glob(f"*/{name}"),
             key=lambda path: path.stat().st_mtime,
             reverse=True,
         )
@@ -287,6 +296,18 @@ def _campaign_requirement(workdir: Path) -> str:
             if text:
                 return text[:_REQUIREMENT_MAX_CHARS]
     return ""
+
+
+def _campaign_context(workdir: Path) -> str:
+    """Requirement and baseline sections for a Worker or Reviewer prompt."""
+    sections = []
+    requirement = _staged_file(workdir, "requirement.md")
+    if requirement:
+        sections.append(_REQUIREMENT_HEADER + requirement)
+    baseline = _staged_file(workdir, "baseline.md")
+    if baseline:
+        sections.append(_BASELINE_HEADER + baseline)
+    return "\n\n".join(sections)
 
 
 def _is_json_object(text: str) -> bool:
@@ -443,9 +464,9 @@ class InProcessChrysAdapter:
             if self.semantic_role in _ROLE_PROTOCOL_REMINDERS:
                 prompt = f"{prompt}\n\n{_ROLE_PROTOCOL_REMINDERS[self.semantic_role]}"
             if self.semantic_role in ("worker", "reviewer"):
-                requirement = await asyncio.to_thread(_campaign_requirement, request.workdir)
-                if requirement:
-                    prompt = f"{prompt}\n\n{_REQUIREMENT_HEADER}{requirement}"
+                context = await asyncio.to_thread(_campaign_context, request.workdir)
+                if context:
+                    prompt = f"{prompt}\n\n{context}"
             if self.semantic_role == "reviewer":
                 self._clear_review_transport(transport_path)
                 prompt += _REVIEW_TRANSPORT_EPILOGUE

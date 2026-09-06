@@ -14,6 +14,8 @@ import asyncio
 import json
 import logging
 import re
+import shutil
+import subprocess
 import time
 from collections.abc import Iterator
 from dataclasses import dataclass, field
@@ -65,6 +67,52 @@ MEMORY_PRIOR_MAX_CHARS = 2000
 # Overlapped by clarification, which takes minutes; fifteen seconds was cut
 # close enough for a loaded machine's two embedding calls to miss it.
 MEMORY_PRIOR_TIMEOUT_SECONDS = 45.0
+
+
+_BASELINE_TEXT_LIMIT = 6000
+_BASELINE_GIT_LIMIT = 3000
+
+
+def _git_lines(workspace: Path, *args: str) -> str:
+    git = shutil.which("git")
+    if git is None:
+        return ""
+    try:
+        completed = subprocess.run(  # noqa: S603 - fixed git argv
+            [git, *args],
+            cwd=workspace,
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+    except OSError, subprocess.SubprocessError:
+        return ""
+    return completed.stdout.strip()[:_BASELINE_GIT_LIMIT]
+
+
+def _baseline_summary(workspace: Path, host: Any, baseline: str) -> str:
+    """What the baseline pass left in the workspace, for the campaign's Workers.
+
+    The repaired baseline's own final answer names the modules and behaviours it
+    built; the git view lists what changed. Together they let a mission complete
+    the existing implementation instead of rebuilding it under other names.
+    """
+    if baseline == "none":
+        return ""
+    executor = getattr(host, "_executor", None)
+    text = str(getattr(executor, "last_response_text", "") or "").strip()[:_BASELINE_TEXT_LIMIT]
+    parts = [f"Baseline pass: {baseline}."]
+    if text:
+        parts.append("### The baseline's own summary of what it implemented\n" + text)
+    status = _git_lines(workspace, "status", "--porcelain")
+    log = _git_lines(workspace, "log", "--oneline", "-n", "8")
+    if status:
+        parts.append("### Uncommitted changes (git status --porcelain)\n" + status)
+    if log:
+        parts.append("### Recent commits\n" + log)
+    return "\n\n".join(parts)
 
 
 class LongHorizonPhase:
@@ -300,6 +348,7 @@ class LongHorizonExtensions:
                 outcome.pact_input_dir,
                 uuid4().hex[:12],
                 requirement=self._requirement,
+                baseline=_baseline_summary(Path(self._workspace_cwd()), self._host, outcome.baseline),
             )
         except OSError as exc:
             await self._degrade_delegation(f"could not stage the PACT inputs: {exc}", outcome)

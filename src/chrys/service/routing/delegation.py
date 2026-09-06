@@ -142,10 +142,11 @@ class PactRunRequest:
 
 
 REQUIREMENT_FILE_NAME = "requirement.md"
+BASELINE_FILE_NAME = "baseline.md"
 
 
 def materialize_pact_request(
-    workspace_cwd: Path, pact_input_dir: Path, request_id: str, *, requirement: str = ""
+    workspace_cwd: Path, pact_input_dir: Path, request_id: str, *, requirement: str = "", baseline: str = ""
 ) -> PactRunRequest:
     """Copy the accepted pair into ``.pact-io/`` and describe where they landed.
 
@@ -169,6 +170,11 @@ def materialize_pact_request(
     plan.write_bytes((pact_input_dir / "initial-plan.json").read_bytes())
     if requirement.strip():
         (destination / REQUIREMENT_FILE_NAME).write_text(requirement.strip() + "\n", encoding="utf-8")
+    if baseline.strip():
+        # The campaign starts on the repaired baseline's workspace, but its plan was
+        # drawn against the pre-baseline snapshot: without this note the Workers
+        # re-implemented what the baseline had already built, differently.
+        (destination / BASELINE_FILE_NAME).write_text(baseline.strip() + "\n", encoding="utf-8")
     return PactRunRequest(
         request_id=request_id,
         contract_path=contract.relative_to(workspace_cwd).as_posix(),

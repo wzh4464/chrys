@@ -252,10 +252,16 @@ def test_the_requirement_is_staged_beside_the_contract(tmp_path: Path) -> None:
     workspace = tmp_path / "ws"
     workspace.mkdir()
 
-    materialize_pact_request(workspace, source, "abc", requirement="  Do the thing exactly.  ")
+    materialize_pact_request(
+        workspace, source, "abc", requirement="  Do the thing exactly.  ", baseline="Baseline pass: p1."
+    )
 
     assert (workspace / ".pact-io" / "chrys-pact" / "abc" / "requirement.md").read_text(
         encoding="utf-8"
     ) == "Do the thing exactly.\n"
+    assert (workspace / ".pact-io" / "chrys-pact" / "abc" / "baseline.md").read_text(
+        encoding="utf-8"
+    ) == "Baseline pass: p1.\n"
     materialize_pact_request(workspace, source, "def")
+    assert not (workspace / ".pact-io" / "chrys-pact" / "def" / "baseline.md").exists()
     assert not (workspace / ".pact-io" / "chrys-pact" / "def" / "requirement.md").exists()
