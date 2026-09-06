@@ -513,3 +513,15 @@ async def test_the_goal_contract_and_plan_are_pure_synthesis_calls(monkeypatch: 
         options["response_format"] is kind
         for options, kind in zip(agent.options, (PactGoalContract, PactInitialPlan), strict=True)
     )
+
+
+@pytest.mark.asyncio
+async def test_a_structured_side_call_spells_out_the_schema_in_the_prompt(monkeypatch: pytest.MonkeyPatch) -> None:
+    agent = _RunAgent([AgentResponse(value=_Reply(ok=True))])
+    model = _model_for_run(monkeypatch, agent)
+
+    await model._run("Produce the object.", response_format=_Reply, instructions="i", route_kind="k", route_part="1")
+
+    assert agent.prompts[0].startswith("Produce the object.")
+    assert "validates against this JSON Schema" in agent.prompts[0]
+    assert '"ok"' in agent.prompts[0]

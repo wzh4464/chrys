@@ -110,6 +110,26 @@ def _stateless_options[ResponseT: BaseModel](
 logger = logging.getLogger(__name__)
 
 _STRUCTURED_REPLY_ATTEMPTS = 2
+
+
+def _schema_suffix(response_format: type[BaseModel]) -> str:
+    """The reply's JSON Schema, spelled out in the prompt.
+
+    ``response_format`` carries the schema to the provider, but a relay that
+    does not enforce structured outputs leaves the model guessing the shape:
+    through one such relay all three proposers invented their own field names
+    (34 validation errors each) and the Initial Plan put objects where
+    strings belong, so the campaign never launched. The schema in the text
+    costs a few hundred tokens and holds regardless of the provider.
+    """
+    schema = json.dumps(response_format.model_json_schema(), ensure_ascii=False, sort_keys=True)
+    return (
+        "\n\nReply with exactly one JSON object that validates against this JSON Schema: every "
+        "required key, the exact key names, the exact enum values, arrays of the declared item type "
+        "(a string where a string is declared, never an object), no extra keys, no fence, no prose.\n" + schema
+    )
+
+
 _STRUCTURED_REPLY_REMINDER = (
     "Your previous reply was not the required JSON object (prose, a fence, or tool-call "
     "markup instead of the object). This turn has no tools to call. Reply with exactly one "
@@ -492,6 +512,8 @@ class ChrysClarificationModel:
                 options["allow_multiple_tool_calls"] = False
             if tool_choice_none:
                 options["tool_choice"] = "none"
+            if response_format is not None:
+                message = f"{message}{_schema_suffix(response_format)}"
             response = await agent.run(
                 message,
                 stream=False,
@@ -779,6 +801,7 @@ class ChrysClarificationModel:
                 # so keeps a model from "calling" a tool as raw markup in its text
                 # (DeepSeek's <|DSML|tool_calls> blocks arrived instead of the object).
                 options["tool_choice"] = "none"
+            prompt = f"{prompt}{_schema_suffix(response_format)}"
             attempts = 0
             while True:
                 attempts += 1
