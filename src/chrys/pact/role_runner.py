@@ -184,6 +184,8 @@ _ROLE_PROTOCOL_REMINDERS = {
         "`affected_ac_ids` lists the acceptance criteria those missions target, no duplicates.\n"
         "- Use `parent_plan_revision` and `input_work_state_revision` exactly as given in the input, "
         "and change something material (a proposal identical to the current plan is rejected).\n"
+        "- Every mission targets at least one acceptance criterion: `target_ac_ids` is never empty, "
+        "and `dependencies` name only missions that exist in the proposal.\n"
         "- The proposal object carries exactly these keys and no others: schema, "
         "parent_plan_revision, input_work_state_revision, reason, rationale, constraints, "
         "missions, operations, affected_mission_ids, affected_ac_ids.\n"
