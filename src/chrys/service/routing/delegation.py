@@ -143,10 +143,17 @@ class PactRunRequest:
 
 REQUIREMENT_FILE_NAME = "requirement.md"
 BASELINE_FILE_NAME = "baseline.md"
+CLARIFICATION_FILE_NAME = "clarification.md"
 
 
 def materialize_pact_request(
-    workspace_cwd: Path, pact_input_dir: Path, request_id: str, *, requirement: str = "", baseline: str = ""
+    workspace_cwd: Path,
+    pact_input_dir: Path,
+    request_id: str,
+    *,
+    requirement: str = "",
+    baseline: str = "",
+    clarification: str = "",
 ) -> PactRunRequest:
     """Copy the accepted pair into ``.pact-io/`` and describe where they landed.
 
@@ -159,8 +166,9 @@ def materialize_pact_request(
     that saw only the contract implemented the paraphrase: on DeepSWE the
     campaign track passed 84% of the hidden tests but resolved 1 task in 18
     where the plain track resolved 6 in 20, losing on option names, exact
-    modes and error messages the instruction had spelled out. The roles read
-    this file beside the contract.
+    modes and error messages the instruction had spelled out. The Workers read
+    this file beside the contract; *clarification* (the clarified requirement)
+    goes to the Reviewers, who judge against the goal and the clarification.
     """
     destination = workspace_cwd / ".pact-io" / "chrys-pact" / request_id
     destination.mkdir(parents=True, exist_ok=True)
@@ -175,6 +183,8 @@ def materialize_pact_request(
         # drawn against the pre-baseline snapshot: without this note the Workers
         # re-implemented what the baseline had already built, differently.
         (destination / BASELINE_FILE_NAME).write_text(baseline.strip() + "\n", encoding="utf-8")
+    if clarification.strip():
+        (destination / CLARIFICATION_FILE_NAME).write_text(clarification.strip() + "\n", encoding="utf-8")
     return PactRunRequest(
         request_id=request_id,
         contract_path=contract.relative_to(workspace_cwd).as_posix(),

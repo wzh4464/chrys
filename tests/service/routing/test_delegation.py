@@ -253,7 +253,12 @@ def test_the_requirement_is_staged_beside_the_contract(tmp_path: Path) -> None:
     workspace.mkdir()
 
     materialize_pact_request(
-        workspace, source, "abc", requirement="  Do the thing exactly.  ", baseline="Baseline pass: p1."
+        workspace,
+        source,
+        "abc",
+        requirement="  Do the thing exactly.  ",
+        baseline="Baseline pass: p1.",
+        clarification="# Clarified Requirement\n- exactly means byte-for-byte\n",
     )
 
     assert (workspace / ".pact-io" / "chrys-pact" / "abc" / "requirement.md").read_text(
@@ -262,6 +267,10 @@ def test_the_requirement_is_staged_beside_the_contract(tmp_path: Path) -> None:
     assert (workspace / ".pact-io" / "chrys-pact" / "abc" / "baseline.md").read_text(
         encoding="utf-8"
     ) == "Baseline pass: p1.\n"
+    assert (workspace / ".pact-io" / "chrys-pact" / "abc" / "clarification.md").read_text(
+        encoding="utf-8"
+    ) == "# Clarified Requirement\n- exactly means byte-for-byte\n"
     materialize_pact_request(workspace, source, "def")
     assert not (workspace / ".pact-io" / "chrys-pact" / "def" / "baseline.md").exists()
+    assert not (workspace / ".pact-io" / "chrys-pact" / "def" / "clarification.md").exists()
     assert not (workspace / ".pact-io" / "chrys-pact" / "def" / "requirement.md").exists()

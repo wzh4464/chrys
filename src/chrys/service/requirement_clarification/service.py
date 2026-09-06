@@ -332,11 +332,12 @@ class ClarificationService:
 
         *localization_hints* is untrusted evidence -- a code search's ranked
         guesses -- and reaches the Initial Plan prompt only. The Goal Contract
-        stays derived from user authority alone: a search result must never
-        be able to widen what the campaign is allowed to do.
+        is derived from the requirement and the validated clarification delta:
+        a search result must never be able to widen what the campaign is
+        allowed to do.
         """
         goal_contract, goal_usage = await self._model.generate_pact_goal_contract(
-            build_pact_goal_contract_prompt(revision.rendered, background)
+            build_pact_goal_contract_prompt(revision.rendered, background, result.delta)
         )
         base_evidence = await asyncio.to_thread(collect_base_evidence, snapshot, revision.rendered)
         plan_prompt = build_pact_initial_plan_prompt(

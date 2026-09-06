@@ -822,3 +822,37 @@ async def test_worker_prompts_carry_the_staged_requirement_verbatim(tmp_path: Pa
     assert "modes off, string, frames" in prompt
     assert "## Existing baseline implementation" in prompt
     assert "abc123 add errorStack" in prompt
+
+
+def test_reviewers_judge_against_the_clarification_and_the_contract(tmp_path: Path) -> None:
+    from chrys.pact.role_runner import _campaign_context
+
+    workdir = tmp_path / "ws"
+    staged = workdir / ".pact-io" / "chrys-pact" / "req1"
+    staged.mkdir(parents=True)
+    (staged / "requirement.md").write_text("Add `errorStack` with modes off, string, frames.\n", encoding="utf-8")
+    (staged / "clarification.md").write_text(
+        "# Clarified Requirement\n## Original Requirement\nAdd `errorStack`.\n## Clarification Delta\n"
+        "- frames means the parsed stack array\n",
+        encoding="utf-8",
+    )
+    (staged / "goal-contract.json").write_text(
+        '{"goal": "errorStack option", "acceptance_criteria": []}', encoding="utf-8"
+    )
+    (staged / "baseline.md").write_text("Baseline pass: p1.\n", encoding="utf-8")
+
+    worker = _campaign_context(workdir, "worker")
+    reviewer = _campaign_context(workdir, "reviewer")
+
+    assert "## Authoritative requirement (verbatim)" in worker
+    assert "modes off, string, frames" in worker
+    assert "Clarified requirement" not in worker
+    assert "Goal Contract (review authority)" not in worker
+    assert "Baseline pass: p1." in worker
+
+    assert "## Clarified requirement (review authority)" in reviewer
+    assert "frames means the parsed stack array" in reviewer
+    assert "## Goal Contract (review authority)" in reviewer
+    assert '"goal": "errorStack option"' in reviewer
+    assert "## Authoritative requirement (verbatim)" not in reviewer
+    assert "Baseline pass: p1." in reviewer

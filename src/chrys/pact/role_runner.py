@@ -298,11 +298,39 @@ def _staged_file(workdir: Path, name: str) -> str:
     return ""
 
 
-def _campaign_context(workdir: Path) -> str:
-    """Requirement and baseline sections for a Worker or Reviewer prompt."""
+_CLARIFICATION_HEADER = (
+    "## Clarified requirement (review authority)\n\n"
+    "The clarification below resolved the requirement's ambiguities against the repository. "
+    "Judge the change against the requirement as clarified here, not only against the mission's "
+    "summary: a public name, mode, message or behaviour the requirement spells out is binding.\n\n"
+)
+
+
+_CONTRACT_HEADER = (
+    "## Goal Contract (review authority)\n\n"
+    "The campaign's acceptance criteria in full; the mission under review covers some of them.\n\n"
+)
+
+
+def _campaign_context(workdir: Path, role: str = "worker") -> str:
+    """Context sections for a Worker or Reviewer prompt.
+
+    Workers get the requirement verbatim and the baseline note. Reviewers judge
+    against the goal and the clarification: the clarified requirement (which
+    embeds the original), the Goal Contract and the baseline note.
+    """
     sections = []
     requirement = _staged_file(workdir, "requirement.md")
-    if requirement:
+    if role == "reviewer":
+        clarification = _staged_file(workdir, "clarification.md")
+        if clarification:
+            sections.append(_CLARIFICATION_HEADER + clarification)
+        elif requirement:
+            sections.append(_REQUIREMENT_HEADER + requirement)
+        contract = _staged_file(workdir, "goal-contract.json")
+        if contract:
+            sections.append(_CONTRACT_HEADER + "```json\n" + contract + "\n```")
+    elif requirement:
         sections.append(_REQUIREMENT_HEADER + requirement)
     baseline = _staged_file(workdir, "baseline.md")
     if baseline:
@@ -464,7 +492,7 @@ class InProcessChrysAdapter:
             if self.semantic_role in _ROLE_PROTOCOL_REMINDERS:
                 prompt = f"{prompt}\n\n{_ROLE_PROTOCOL_REMINDERS[self.semantic_role]}"
             if self.semantic_role in ("worker", "reviewer"):
-                context = await asyncio.to_thread(_campaign_context, request.workdir)
+                context = await asyncio.to_thread(_campaign_context, request.workdir, self.semantic_role)
                 if context:
                     prompt = f"{prompt}\n\n{context}"
             if self.semantic_role == "reviewer":

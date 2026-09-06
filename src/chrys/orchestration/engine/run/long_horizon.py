@@ -349,6 +349,7 @@ class LongHorizonExtensions:
                 uuid4().hex[:12],
                 requirement=self._requirement,
                 baseline=_baseline_summary(Path(self._workspace_cwd()), self._host, outcome.baseline),
+                clarification=self._clarified_requirement() or "",
             )
         except OSError as exc:
             await self._degrade_delegation(f"could not stage the PACT inputs: {exc}", outcome)

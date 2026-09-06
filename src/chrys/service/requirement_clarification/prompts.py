@@ -124,7 +124,9 @@ The user's requirement messages are the sole authority for completion obligation
 atomic externally observable acceptance criteria with stable descriptive ids, and only explicitly supported non-goals.
 Do not add repository implementation details, file names, functions, missions, test commands, hidden grader details, or
 requirements inferred only from repository conventions. Use an empty non_goals array when none are stated or clearly
-bounded by the user's request. Return exactly the closed pact-runtime/goal-contract/v1 shape.
+bounded by the user's request. A validated clarification result may follow the requirement: it resolved the
+requirement's ambiguities against the repository, so let it sharpen a criterion's wording, but it cannot add an
+obligation the requirement does not state. Return exactly the closed pact-runtime/goal-contract/v1 shape.
 This turn has no tools: everything you need is in the prompt; reply with the JSON object and nothing else.
 """
 
@@ -295,10 +297,19 @@ def build_legacy_v1_selector_prompt(
     )
 
 
-def build_pact_goal_contract_prompt(requirement: str, background: str) -> str:
-    """Build the user-authority-only Goal Contract prompt."""
+def build_pact_goal_contract_prompt(requirement: str, background: str, clarification: str = "") -> str:
+    """Build the Goal Contract prompt: the requirement, its clarification, the background.
+
+    *clarification* is the clarification's validated delta (ΔR). The Goal
+    Contract was drafted from the bare requirement while the clarification's
+    only consumer was the Initial Plan, so the campaign's authority never saw
+    the ambiguities the clarification had resolved; it is the clarification
+    result that the contract is meant to formalize.
+    """
     return (
         f"Authoritative requirement messages:\n{requirement}\n\n"
+        "Validated clarification result (resolves ambiguity in the requirement; adds no obligations):\n"
+        f"{clarification.strip() or '[none]'}\n\n"
         f"Bounded prior conversation background (non-authoritative):\n{background or '[none]'}"
     )
 
