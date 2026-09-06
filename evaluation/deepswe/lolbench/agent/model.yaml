@@ -16,7 +16,7 @@ base_url: https://api.openlux.ai/v1
 # into the container whatever relay it holds a key for (openlux since 2026-09-06).
 api_key: "{{OPENROUTER_API_KEY}}"
 max_context_tokens: 200000
-max_output_tokens: 32000
+max_output_tokens: 65536
 http_connect_timeout: 10
 http_read_timeout: 1800.0
 http_max_retries: 10
