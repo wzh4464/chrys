@@ -392,3 +392,8 @@ uv run pytest -m "not integration and not gc_calibration"
   → 主会话最后一个 token 后失败，修 `6b0033dc`；(2) 用户要求用 `:stable` 标签（`390631d2`）；
   (3) openlux 的 V4 Pro 无法关闭思考，P0 提示下推理超过 32k token 被截断后原样重试（每次 7 分钟），
   `max_output_tokens` 提到 65536（`fa55540a`）。19:33 第四次重启 20 题 rerun。
+- 21:25 awilix 先跑完（rc=0，93 分钟）但结果只是 P0 promoted：三个调查员的 proposal 各有 34–37 个
+  schema 校验错误（自造字段名）→ 澄清 degraded；Initial Plan 把 constraints 写成对象数组 → PACT
+  输入生成失败 → 没有 campaign。原因是中继不强制 `response_format` 的 json_schema，模型只能猜形状。
+  修复 `e05e4380`：每个结构化调用把 JSON Schema 原文写进提示词。awilix 该次归档到
+  `~/lhs/attempts/rerun-schema-failures/`，21:38 第六次重启 20 题。
