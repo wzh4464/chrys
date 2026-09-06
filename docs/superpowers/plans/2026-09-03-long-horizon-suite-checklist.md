@@ -322,6 +322,14 @@ uv run pytest -m "not integration and not gc_calibration"
   pact_core 指纹字段（revisions、reason、rationale、constraints、missions、affected ids）覆盖到修复回复上，只允许
   schema 与 operations 变化。
 
+### 09-06 Harbor 评分（18 个完成 campaign 的补丁）
+
+- 18 个补丁全部可应用；F2P 847/1007（84%）、P2P 107118/107119；DeepSWE 的二值 reward 只有 awilix 为 1（24/24 F2P、
+  162/162 P2P）。差一两个 F2P 的题很多：superjson 76/80、textual 19/20、expr 78/79、koota-entity 82/84、mnamer 50/51、
+  wasmi 22/22 F2P 但 1 个 P2P 回归；明显偏低的是 boa 0/17、scc 5/31、arcane 28/82。
+- 解读：campaign 用任务自带的回归脚本验证"没弄坏什么"（P2P 几乎全绿），但对隐藏的新测试只能靠需求理解，
+  多数题实现了大部分行为、漏掉边角；boa/scc/arcane 这类隐藏测试很多的题最吃亏。
+
 ## 7. 交付状态（09-03 收尾）
 
 - 36 个 task 全部完成并 commit 在本地 `integration/long-horizon-suite`（`origin/main..HEAD` 共 96 个
