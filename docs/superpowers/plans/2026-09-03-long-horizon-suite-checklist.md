@@ -432,3 +432,5 @@ uv run pytest -m "not integration and not gc_calibration"
 - 13:05 kombu 跑完：campaign completed 6/6，Harbor 未 resolved（F2P 83/85，P2P 1421/1421；原版 82/85）。
   累计 5 题完整跑完，其中 4 题 resolved。
 - 13:35 arcane（原版能解）跑完：第三个 campaign completed 6/6，Harbor resolved（F2P 82/82）。累计 6 题完整、5 题 resolved。
+- 14:05 scc campaign blocked（同 mnamer：max_rounds 后 Manager 在 repeated_no_progress 下 retry），它起于
+  Manager 修复之前，归档后用新树重跑（第 10 个引擎）。累计 6 题完整、5 题 resolved。
