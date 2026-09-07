@@ -423,3 +423,6 @@ uv run pytest -m "not integration and not gc_calibration"
 - 11:20 旧树容器里 sub-agent 暂停后注入的 retry 会从头开一个新 campaign（koota-composite 已累计 5 个
   campaign、wasmi 3 个，均 0 mission 完成），两题杀掉归档（`incomplete-09071117d`）并用新树重跑（第 7 个引擎）。
   textual（1/6）、arcane（3/6）、mashumaro（1/13）、python-statemachine 仍有进展，先保留观察。
+- 11:40 koota-entity-snapshot-rollback（原版能解）新树 4 小时 13 分跑完：campaign completed 6/6，Harbor resolved
+  （F2P 84/84，P2P 47/47）。累计 4/20 resolved。python-statemachine 救援三次失败（原因未定）后被 17400 s
+  看门狗打断，campaign 0/6，归档重跑（第 8 个引擎）。daemon v4：动态找 timeout 进程 pid、记录失败步骤。
