@@ -426,3 +426,6 @@ uv run pytest -m "not integration and not gc_calibration"
 - 11:40 koota-entity-snapshot-rollback（原版能解）新树 4 小时 13 分跑完：campaign completed 6/6，Harbor resolved
   （F2P 84/84，P2P 47/47）。累计 4/20 resolved。python-statemachine 救援三次失败（原因未定）后被 17400 s
   看门狗打断，campaign 0/6，归档重跑（第 8 个引擎）。daemon v4：动态找 timeout 进程 pid、记录失败步骤。
+- 12:55 mnamer campaign blocked（manager_protocol_error）：m1 两轮 max_rounds 无终稿后，Manager 在
+  repeated_no_progress 触发下仍选 `retry`（该触发禁止 retry），两次协议错误后 block；P1 基线补丁 F2P 50/51
+  未 resolved。修 `b1ad8d32`：Manager 提醒加入该规则，且回复为 retry 时改写成 request_replan。归档重跑（第 9 个引擎）。
