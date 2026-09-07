@@ -429,3 +429,5 @@ uv run pytest -m "not integration and not gc_calibration"
 - 12:55 mnamer campaign blocked（manager_protocol_error）：m1 两轮 max_rounds 无终稿后，Manager 在
   repeated_no_progress 触发下仍选 `retry`（该触发禁止 retry），两次协议错误后 block；P1 基线补丁 F2P 50/51
   未 resolved。修 `b1ad8d32`：Manager 提醒加入该规则，且回复为 retry 时改写成 request_replan。归档重跑（第 9 个引擎）。
+- 13:05 kombu 跑完：campaign completed 6/6，Harbor 未 resolved（F2P 83/85，P2P 1421/1421；原版 82/85）。
+  累计 5 题完整跑完，其中 4 题 resolved。
