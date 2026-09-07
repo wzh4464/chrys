@@ -416,3 +416,7 @@ uv run pytest -m "not integration and not gc_calibration"
   取代 m2 后，m3/m4 仍依赖已被取代的 m2，计划不可执行），最终交付回落到 P0 部分修改（123 行，F2P 0/26）。
   修 `c0bceac3`：Planner 提醒加入"取代 X 时依赖 X 的 mission 必须同时被取代并改指替代者"。
   该题归档到 `~/lhs/attempts/incomplete-*`，已用新树重跑（第 5 个引擎）。
+- 11:05 fastapi 同样 campaign blocked：m1 两次 Worker 轮次以 stop:max_rounds 无终稿失败，Manager 要求重规划，
+  Planner 的提案改动了既有 mission m2（"cannot mutate existing Mission"），重复无进展后 block，最终交付回落 P0。
+  修 `1ed2b4b6`：Planner 回复在送入 runtime 前，从磁盘上的 plan revision 把既有 mission 与 constraints
+  逐字段复原；ChrysPact `--max-rounds` 2→3。fastapi 归档后已用新树重跑（第 6 个引擎）。
