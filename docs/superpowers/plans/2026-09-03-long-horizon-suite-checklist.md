@@ -431,3 +431,4 @@ uv run pytest -m "not integration and not gc_calibration"
   未 resolved。修 `b1ad8d32`：Manager 提醒加入该规则，且回复为 retry 时改写成 request_replan。归档重跑（第 9 个引擎）。
 - 13:05 kombu 跑完：campaign completed 6/6，Harbor 未 resolved（F2P 83/85，P2P 1421/1421；原版 82/85）。
   累计 5 题完整跑完，其中 4 题 resolved。
+- 13:35 arcane（原版能解）跑完：第三个 campaign completed 6/6，Harbor resolved（F2P 82/82）。累计 6 题完整、5 题 resolved。
