@@ -179,6 +179,11 @@ _ROLE_PROTOCOL_REMINDERS = {
         "supersedes, verification_intent. No successors, no status, no notes.\n"
         '- `operations` items are exactly `{"op":"add_mission","mission_id":...}` or '
         '`{"op":"supersede_mission","mission_id":<old>,"replacement_mission_ids":[...]}`.\n'
+        "- A `supersede_mission` must BIND the old mission to real replacements: every id in "
+        "`replacement_mission_ids` has to be a NEW mission defined in this proposal's `missions` "
+        "array whose `supersedes` lists the old id, and each such new mission also needs its own "
+        "`add_mission` operation. An empty `replacement_mission_ids`, or one naming a mission that "
+        "already exists, is rejected.\n"
         "- `affected_mission_ids` is exactly the set of mission ids your operations name (each "
         "`mission_id` plus every entry of `replacement_mission_ids`), no duplicates; "
         "`affected_ac_ids` lists the acceptance criteria those missions target, no duplicates.\n"
