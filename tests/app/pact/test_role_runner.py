@@ -901,3 +901,27 @@ def test_planner_proposals_get_the_current_plan_missions_and_constraints_back(tm
     assert restored["missions"][1]["id"] == "m2"
     assert restored["operations"] == proposal["operations"]
     assert _restore_existing_missions(tmp_path / "nowhere", "not json") == "not json"
+
+
+def test_a_manager_retry_on_repeated_no_progress_becomes_a_replan() -> None:
+    from chrys.pact.role_runner import _replan_instead_of_retry
+
+    prompt = 'Governance: {"trigger": "repeated_no_progress", "consecutive_no_progress": 2}'
+    decision = {
+        "schema": "pact-runtime/manager-decision-proposal/v1",
+        "phase": "route",
+        "action": "retry",
+        "expected_plan_revision": 1,
+        "expected_work_state_revision": 1,
+        "reason": "one more try",
+    }
+
+    rewritten = json.loads(_replan_instead_of_retry(prompt, json.dumps(decision)))
+
+    assert rewritten["action"] == "request_replan"
+    assert rewritten["selected_mission_id"] is None
+    assert rewritten["constraints"]
+    assert rewritten["reason"].startswith("one more try")
+    assert _replan_instead_of_retry("trigger: stall", json.dumps(decision)) == json.dumps(decision)
+    select = {**decision, "action": "select", "selected_mission_id": "m1"}
+    assert _replan_instead_of_retry(prompt, json.dumps(select)) == json.dumps(select)

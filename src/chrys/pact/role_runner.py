@@ -203,6 +203,9 @@ _ROLE_PROTOCOL_REMINDERS = {
         "Protocol constraints: `selected_mission_id` belongs to the `select` action alone -- it "
         "must name a mission from the Frontier there, and must be null or absent for every other "
         "action (retry, request_replan, escalate, stop). "
+        "When the governance trigger is `repeated_no_progress` (the same mission failed twice in a "
+        "row), `retry` is not allowed: choose `request_replan` with concrete `constraints` for the "
+        "Planner (split or re-scope the mission), or escalate/stop. "
         "Reply with the JSON decision object as the text of your message "
         "-- no prose before or after it, no Markdown fence, never written to a file instead of "
         "the reply. Use `expected_plan_revision` and `expected_work_state_revision` exactly as "
@@ -342,6 +345,40 @@ def _restore_existing_missions(workdir: Path, payload: str) -> str:
     if isinstance(plan.get("constraints"), list):
         proposal["constraints"] = plan["constraints"]
     return json.dumps(proposal)
+
+
+_REPEATED_NO_PROGRESS = "repeated_no_progress"
+_REPLAN_CONSTRAINT = (
+    "The blocked mission failed twice in a row without a final output: split it into smaller missions "
+    "that each complete within the round budget, keeping its acceptance criteria and dependency order."
+)
+
+
+def _replan_instead_of_retry(prompt: str, payload: str) -> str:
+    """Turn a Manager `retry` into `request_replan` when the trigger forbids retrying.
+
+    On `repeated_no_progress` the runtime rejects `retry` as a protocol error,
+    and a Manager that kept retrying blocked the campaign after two such
+    errors. The decision is rewritten rather than rejected: the reason is kept
+    and a replanning constraint added, which is the action the runtime allows.
+    """
+    if _REPEATED_NO_PROGRESS not in prompt:
+        return payload
+    try:
+        decision = json.loads(payload)
+    except ValueError:
+        return payload
+    if not isinstance(decision, dict) or decision.get("action") != "retry":
+        return payload
+    decision["action"] = "request_replan"
+    decision["selected_mission_id"] = None
+    constraints = decision.get("constraints")
+    if not isinstance(constraints, list) or not constraints:
+        decision["constraints"] = [_REPLAN_CONSTRAINT]
+    decision["reason"] = (
+        f"{decision.get('reason') or ''} Retry is not allowed on {_REPEATED_NO_PROGRESS}; replanning instead.".strip()
+    )
+    return json.dumps(decision)
 
 
 def _staged_file(workdir: Path, name: str) -> str:
@@ -610,6 +647,8 @@ class InProcessChrysAdapter:
                     if self.semantic_role == "planner":
                         final_text = _preserve_repair_semantics(prompt, final_text)
                         final_text = await asyncio.to_thread(_restore_existing_missions, request.workdir, final_text)
+                    if self.semantic_role == "manager":
+                        final_text = _replan_instead_of_retry(prompt, final_text)
                 if (
                     self.semantic_role in _JSON_PROTOCOL_ROLES
                     and status in ("completed", "output_missing")
@@ -640,6 +679,8 @@ class InProcessChrysAdapter:
                                 final_text = await asyncio.to_thread(
                                     _restore_existing_missions, request.workdir, final_text
                                 )
+                            if self.semantic_role == "manager":
+                                final_text = _replan_instead_of_retry(prompt, final_text)
             session_id = host.session_id
             if self.semantic_role == "reviewer":
                 review_decision = self._capture_review_decision(request, transport_path)
