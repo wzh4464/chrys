@@ -412,3 +412,7 @@ uv run pytest -m "not integration and not gc_calibration"
   daemon 同时把孤儿的补丁写进 patch store 供 grade.py 使用。
 - 07:35 引擎不保留 `--instances` 顺序（第 4 个起了 scc），改为按优先级分批起引擎：现引擎 #3 只跑
   langchain、kombu、cliffy（2 路），boa、sqlfmt 待负载下降后另起；其余 12 题作为孤儿容器由 daemon 兜底。
+- 10:40 sql-formatter 跑完但 campaign 状态 blocked（Manager 触发 repeated_no_progress：Planner 用 m2a/m2b/m2c
+  取代 m2 后，m3/m4 仍依赖已被取代的 m2，计划不可执行），最终交付回落到 P0 部分修改（123 行，F2P 0/26）。
+  修 `c0bceac3`：Planner 提醒加入"取代 X 时依赖 X 的 mission 必须同时被取代并改指替代者"。
+  该题归档到 `~/lhs/attempts/incomplete-*`，已用新树重跑（第 5 个引擎）。
