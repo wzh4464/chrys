@@ -13,7 +13,7 @@ import threading
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
-from typing import Literal, Protocol
+from typing import Any, Literal, Protocol
 
 from acp import schema as acp_schema
 from acp.helpers import start_tool_call, update_tool_call
@@ -275,6 +275,73 @@ _BASELINE_HEADER = (
     "correct the existing implementation against the requirement above; do not rewrite, rename "
     "or remove what already satisfies it, and keep every public name the requirement states.\n\n"
 )
+
+
+_PLAN_MISSION_FIELDS = ("id", "objective", "target_ac_ids", "dependencies", "supersedes", "verification_intent")
+
+
+def _current_plan(workdir: Path) -> dict[str, Any] | None:
+    """The campaign's current plan revision (missions and constraints), if one is on disk."""
+    from chrys.pact.verify_shim import primary_checkout
+
+    roots = [workdir]
+    primary = primary_checkout(workdir)
+    if primary is not None:
+        roots.append(primary)
+    for root in roots:
+        states = sorted(
+            (root / ".pact" / "runtime" / "campaigns").glob("*/work-state.json"),
+            key=lambda path: path.stat().st_mtime,
+            reverse=True,
+        )
+        for state_path in states:
+            try:
+                state = json.loads(state_path.read_text(encoding="utf-8"))
+                plan_ref = state.get("plan_ref")
+                if not isinstance(plan_ref, str) or not plan_ref:
+                    continue
+                plan = json.loads((root / plan_ref).read_text(encoding="utf-8"))
+            except OSError, ValueError:
+                continue
+            if isinstance(plan, dict) and isinstance(plan.get("missions"), list):
+                return plan
+    return None
+
+
+def _restore_existing_missions(workdir: Path, payload: str) -> str:
+    """Put the current plan's own missions and constraints back into a Planner proposal.
+
+    The runtime rejects a proposal that edits an existing mission or the
+    constraints, and a Planner that rewrote a dependency list or reworded an
+    objective while adding new missions blocked a whole campaign
+    ("cannot mutate existing Mission"). Existing missions are copied back from
+    the plan revision on disk field by field; the Planner's new missions and
+    operations are left alone.
+    """
+    try:
+        proposal = json.loads(payload)
+    except ValueError:
+        return payload
+    if not isinstance(proposal, dict) or not isinstance(proposal.get("missions"), list):
+        return payload
+    plan = _current_plan(workdir)
+    if plan is None:
+        return payload
+    canonical = {
+        mission["id"]: mission
+        for mission in plan["missions"]
+        if isinstance(mission, dict) and isinstance(mission.get("id"), str)
+    }
+    restored: list[Any] = []
+    for mission in proposal["missions"]:
+        if isinstance(mission, dict) and mission.get("id") in canonical:
+            source = canonical[mission["id"]]
+            mission = {**mission, **{field: source[field] for field in _PLAN_MISSION_FIELDS if field in source}}
+        restored.append(mission)
+    proposal["missions"] = restored
+    if isinstance(plan.get("constraints"), list):
+        proposal["constraints"] = plan["constraints"]
+    return json.dumps(proposal)
 
 
 def _staged_file(workdir: Path, name: str) -> str:
@@ -542,6 +609,7 @@ class InProcessChrysAdapter:
                     final_text = _protocol_payload(final_text)
                     if self.semantic_role == "planner":
                         final_text = _preserve_repair_semantics(prompt, final_text)
+                        final_text = await asyncio.to_thread(_restore_existing_missions, request.workdir, final_text)
                 if (
                     self.semantic_role in _JSON_PROTOCOL_ROLES
                     and status in ("completed", "output_missing")
@@ -568,6 +636,10 @@ class InProcessChrysAdapter:
                         status, final_text, diagnostic = self._map_outcome(host.last_turn_outcome)
                         if status == "completed":
                             final_text = _protocol_payload(final_text)
+                            if self.semantic_role == "planner":
+                                final_text = await asyncio.to_thread(
+                                    _restore_existing_missions, request.workdir, final_text
+                                )
             session_id = host.session_id
             if self.semantic_role == "reviewer":
                 review_decision = self._capture_review_decision(request, transport_path)

@@ -856,3 +856,48 @@ def test_reviewers_judge_against_the_clarification_and_the_contract(tmp_path: Pa
     assert '"goal": "errorStack option"' in reviewer
     assert "## Authoritative requirement (verbatim)" not in reviewer
     assert "Baseline pass: p1." in reviewer
+
+
+def test_planner_proposals_get_the_current_plan_missions_and_constraints_back(tmp_path: Path) -> None:
+    from chrys.pact.role_runner import _restore_existing_missions
+
+    workdir = tmp_path / "ws"
+    campaign = workdir / ".pact" / "runtime" / "campaigns" / "c1"
+    (campaign / "plan-revisions").mkdir(parents=True)
+    m1 = {
+        "id": "m1",
+        "objective": "Thread the signature",
+        "target_ac_ids": ["ac1"],
+        "dependencies": [],
+        "supersedes": [],
+        "verification_intent": "run the unit tests",
+    }
+    (campaign / "plan-revisions" / "rev-0001.json").write_text(
+        json.dumps({"revision": 1, "constraints": ["keep the public API"], "missions": [m1]}), encoding="utf-8"
+    )
+    (campaign / "work-state.json").write_text(
+        json.dumps({"plan_ref": ".pact/runtime/campaigns/c1/plan-revisions/rev-0001.json"}), encoding="utf-8"
+    )
+    proposal = {
+        "constraints": ["keep the public API", "and also this new one"],
+        "missions": [
+            {**m1, "objective": "Thread the signature (rewritten)", "dependencies": ["m2"]},
+            {
+                "id": "m2",
+                "objective": "New work",
+                "target_ac_ids": ["ac1"],
+                "dependencies": [],
+                "supersedes": [],
+                "verification_intent": "tests",
+            },
+        ],
+        "operations": [{"op": "add_mission", "mission_id": "m2"}],
+    }
+
+    restored = json.loads(_restore_existing_missions(workdir, json.dumps(proposal)))
+
+    assert restored["constraints"] == ["keep the public API"]
+    assert restored["missions"][0] == m1
+    assert restored["missions"][1]["id"] == "m2"
+    assert restored["operations"] == proposal["operations"]
+    assert _restore_existing_missions(tmp_path / "nowhere", "not json") == "not json"
