@@ -437,3 +437,6 @@ uv run pytest -m "not integration and not gc_calibration"
 - 15:05 sql-formatter 重跑完成：campaign completed 6/6，Harbor resolved（F2P 26/26，P2P 5709/5709）。
   原版能解的 6 题（drizzle、superjson、awilix、koota-entity、arcane、sql-formatter）全部 resolved。
   累计 7 题完整、6 题 resolved。评分目录被 verifier 以 root 写入，重评前需 chown。
+- 20:07 openlux 账户额度耗尽（403 insufficient_quota），5 题因此失败。OpenRouter 密钥已有余额，
+  切回 `deepseek/deepseek-v4-pro`（`0b495705`）；13 个未完成的运行归档到 `~/lhs/attempts/openlux-quota-*`
+  后以 5 并发重启（日志 `~/lhs/rerun_or.log`），已评分的 7 题保留。
